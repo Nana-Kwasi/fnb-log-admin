@@ -44,12 +44,18 @@ const Dashboard = () => {
         const groupedData = data.reduce(
           (acc, log) => {
             if (log.date) {
+              // Parse ISO date or handle different date formats
               const date = new Date(log.date);
+              
               if (!isNaN(date.getTime())) {
                 const month = date.toLocaleString("default", { month: "long" });
                 acc.monthly[month] = (acc.monthly[month] || 0) + 1;
   
-                if (date.toDateString() === today.toDateString()) {
+                if (
+                  date.getDate() === today.getDate() &&
+                  date.getMonth() === today.getMonth() &&
+                  date.getFullYear() === today.getFullYear()
+                ) {
                   acc.today += 1;
                 }
               }
@@ -69,7 +75,7 @@ const Dashboard = () => {
   
         setAnalyticsData(fullYearMonths);
         setTotalVisitors(groupedData.total);
-        setVisitorsToday(groupedData.today || 0); // Ensure count resets to 0 if no records for today
+        setVisitorsToday(groupedData.today || 0);
       } catch (error) {
         console.error("Error fetching analytics data:", error);
         setError("Failed to fetch analytics data.");
@@ -88,11 +94,15 @@ const Dashboard = () => {
   
     try {
       const today = new Date();
-      const formattedToday = `${String(today.getDate()).padStart(2, "0")}/${String(
-        today.getMonth() + 1
-      ).padStart(2, "0")}/${today.getFullYear()}`;
+      const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
   
-      const q = query(collection(db, "VisitorEntries"), where("date", "==", formattedToday));
+      const q = query(
+        collection(db, "VisitorEntries"), 
+        where("date", ">=", todayStart.toISOString().split('T')[0]),
+        where("date", "<", todayEnd.toISOString().split('T')[0])
+      );
+  
       const snapshot = await getDocs(q);
   
       const data = snapshot.docs.map((doc) => ({
@@ -101,16 +111,15 @@ const Dashboard = () => {
       }));
   
       setTodayVisitorsData(data);
-      setVisitorsToday(data.length); // Set visitor count for today
+      setVisitorsToday(data.length);
     } catch (error) {
       console.error("Error fetching today's visitors:", error);
       setError("Failed to fetch today's visitors.");
-      setVisitorsToday(0); // Reset count to 0 on error
+      setVisitorsToday(0);
     } finally {
       setLoading(false);
     }
   };
-  
 
   const closeModal = () => setModalVisible(false);
 
@@ -162,8 +171,21 @@ const Dashboard = () => {
       {
         label: "Visitors",
         data: analyticsData.map((item) => item.visits),
-        backgroundColor: "rgba(41, 128, 185, 0.7)",
-        borderColor: "#2980b9",
+        backgroundColor: [
+          "#1abc9c", // January
+          "#2ecc71", // February
+          "#3498db", // March
+          "#9b59b6", // April
+          "#34495e", // May
+          "#16a085", // June
+          "#27ae60", // July
+          "#2980b9", // August
+          "#8e44ad", // September
+          "#2c3e50", // October
+          "#f1c40f", // November
+          "#e67e22", // December
+        ],
+        borderColor: "#34495e",
         borderWidth: 1,
       },
     ],
@@ -258,55 +280,54 @@ const Dashboard = () => {
           </div>
 
           {modalVisible && (
-  <div className="modal">
-    <div className="modal-content">
-      <div className="modal-header">
-        <h2 className="modal-title">Today's Visitors</h2>
-        <button className="close-button" onClick={closeModal}>&times;</button>
-      </div>
-      <div className="modal-body">
-        {loading ? (
-          <p>Loading...</p>
-        ) : todayVisitorsData.length > 0 ? (
-          <table className="modal-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Company</th>
-                <th>Purpose</th>
-                <th>Reason</th>
-                <th>Department</th>
-                <th>Time In</th>
-                <th>Time Out</th>
-                <th>Telephone</th>
-              </tr>
-            </thead>
-            <tbody>
-              {todayVisitorsData.map((visitor) => (
-                <tr key={visitor.id}>
-                  <td>{visitor.name}</td>
-                  <td>{visitor.company}</td>
-                  <td>{visitor.purpose}</td>
-                  <td>{visitor.reason}</td>
-                  <td>{visitor.department}</td>
-                  <td>{visitor.timeIn}</td>
-                  <td>{visitor.timeOut}</td>
-                  <td>{visitor.telephone}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <p>No visitors found for today.</p>
-        )}
-      </div>
-      <div className="modal-footer">
-        <button onClick={closeModal}>Close</button>
-      </div>
-    </div>
-  </div>
-)}
-
+            <div className="modal">
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h2 className="modal-title">Today's Visitors</h2>
+                  <button className="close-button" onClick={closeModal}>&times;</button>
+                </div>
+                <div className="modal-body">
+                  {loading ? (
+                    <p>Loading...</p>
+                  ) : todayVisitorsData.length > 0 ? (
+                    <table className="modal-table">
+                      <thead>
+                        <tr>
+                          <th>Name</th>
+                          <th>Company</th>
+                          <th>Purpose</th>
+                          <th>Reason</th>
+                          <th>Department</th>
+                          <th>Time In</th>
+                          <th>Time Out</th>
+                          <th>Telephone</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {todayVisitorsData.map((visitor) => (
+                          <tr key={visitor.id}>
+                            <td>{visitor.name}</td>
+                            <td>{visitor.company}</td>
+                            <td>{visitor.purpose}</td>
+                            <td>{visitor.reason}</td>
+                            <td>{visitor.department}</td>
+                            <td>{visitor.timeIn}</td>
+                            <td>{visitor.timeOut}</td>
+                            <td>{visitor.telephone}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <p>No visitors found for today.</p>
+                  )}
+                </div>
+                <div className="modal-footer">
+                  <button onClick={closeModal}>Close</button>
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>

@@ -63,6 +63,7 @@
 }
 
 /* Modal Body */
+/* Modal Body */
 .modal-body {
   margin-top: 15px;
   max-height: 400px;
@@ -74,56 +75,69 @@
   width: 100%;
   border-collapse: collapse;
   margin-top: 10px;
+  font-family: Arial, sans-serif;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
+/* Header Row */
 .modal-table thead th {
-  background-color: #f4f4f4;
-  color: #333;
+  background-color: #4CAF50; /* Vibrant green */
+  color: white; /* Text color contrast */
   padding: 12px;
   text-align: left;
   font-weight: bold;
-  border-bottom: 2px solid #ddd;
+  border-bottom: 3px solid #2e7d32; /* Slightly darker shade */
 }
 
+/* Table Rows */
 .modal-table tbody tr {
-  transition: background-color 0.2s;
+  transition: background-color 0.3s, color 0.3s;
 }
 
 .modal-table tbody tr:nth-child(even) {
-  background-color: #f9f9f9;
+  background-color: #f1f8e9; /* Light green tint */
 }
 
+.modal-table tbody tr:nth-child(odd) {
+  background-color: #ffffff; /* Crisp white for contrast */
+}
+
+/* Hover Effect */
 .modal-table tbody tr:hover {
-  background-color: #f1f1f1;
+  background-color: #81c784; /* Soft green highlight */
+  color: white; /* Highlight text */
 }
 
+/* Table Cells */
 .modal-table td {
-  padding: 10px;
+  padding: 12px;
   border-bottom: 1px solid #ddd;
-  color: #555;
+  color: #333; /* Neutral text color */
+  font-size: 14px;
 }
 
-/* Modal Footer */
-.modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  padding-top: 15px;
-  border-top: 1px solid #ddd;
+/* Additional Styling for First Column */
+.modal-table tbody td:first-child {
+  font-weight: bold;
+  color: #388e3c; /* Dark green for emphasis */
 }
 
+/* Footer */
 .modal-footer button {
-  background-color: #007bff;
+  background-color: #4CAF50; /* Consistent with header */
   color: white;
-  padding: 10px 20px;
   border: none;
-  border-radius: 5px;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 14px;
   cursor: pointer;
-  transition: background-color 0.3s;
+  transition: background-color 0.3s ease-in-out;
 }
 
 .modal-footer button:hover {
-  background-color: #0056b3;
+  background-color: #388e3c; /* Darker shade for hover */
 }
+
 
 /* Animations */
 @keyframes fadeIn {
