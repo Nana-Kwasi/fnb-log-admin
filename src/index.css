@@ -1,0 +1,214 @@
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+.visitor-logs {
+  padding: 20px;
+  font-family: Arial, sans-serif;
+}
+
+h1 {
+  text-align: center;
+  margin-bottom: 20px;
+  color: #333;
+}
+
+.table-container {
+  overflow-x: auto;
+}
+
+.log-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 auto;
+  background-color: #f9f9f9;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+}
+
+.log-table th,
+.log-table td {
+  padding: 12px 15px;
+  text-align: left;
+  border-bottom: 1px solid #ddd;
+}
+
+.log-table th {
+  background-color: #007bff;
+  color: #fff;
+  text-transform: uppercase;
+}
+
+.clickable-row:hover {
+  background-color: #f1f1f1;
+  cursor: pointer;
+}
+
+@media (max-width: 768px) {
+  .log-table th,
+  .log-table td {
+    font-size: 14px;
+    padding: 10px;
+  }
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(26, 188, 156, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(26, 188, 156, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(26, 188, 156, 0);
+  }
+}
+  .visitor-details {
+    max-width: 1200px;
+    margin: 50px auto;
+    background-color: #fff;
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
+    padding: 30px;
+    overflow: hidden;
+  }
+  
+  .visitor-details h1 {
+    text-align: center;
+    font-size: 2.5rem;
+    color: #333;
+    margin-bottom: 30px;
+    border-bottom: 2px solid #00aaff;
+    padding-bottom: 15px;
+  }
+  
+  /* Section for each date */
+  .details-section {
+    margin-bottom: 40px;
+    background-color: #f5f5f5;
+    border-radius: 8px;
+    box-shadow: 0px 3px 6px rgba(0, 0, 0, 0.08);
+    padding: 20px;
+  }
+  
+  .details-section h2 {
+    font-size: 1.8rem;
+    color: #0077cc;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #e0e0e0;
+    padding-bottom: 8px;
+  }
+  
+  /* Table Styles */
+  .details-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+  }
+  
+  .details-table thead {
+    background-color: #0077cc;
+    color: #fff;
+    font-size: 1rem;
+  }
+  
+  .details-table th {
+    padding: 15px;
+    text-align: left;
+  }
+  
+  .details-table tr:nth-child(even) {
+    background-color: #f9f9f9;
+  }
+  
+  .details-table tr:nth-child(odd) {
+    background-color: #fff;
+  }
+  
+  .details-table td {
+    padding: 12px 15px;
+    font-size: 0.95rem;
+    color: #555;
+  }
+  
+  /* Hover effect on table rows */
+  .details-table tr:hover {
+    background-color: #f0f8ff;
+    cursor: pointer;
+  }
+  
+  /* Back button */
+  button {
+    display: inline-block;
+    padding: 12px 25px;
+    font-size: 1rem;
+    background-color: #0077cc;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    margin: 20px auto;
+    display: block;
+    transition: background-color 0.3s ease;
+    font-weight: bold;
+  }
+  
+  button:hover {
+    background-color: #005fa3;
+  }
+  
+  /* Responsive design */
+  @media (max-width: 768px) {
+    .visitor-details {
+      padding: 20px;
+    }
+  
+    .visitor-details h1 {
+      font-size: 2rem;
+    }
+  
+    .details-section h2 {
+      font-size: 1.5rem;
+    }
+  
+    .details-table th,
+    .details-table td {
+      font-size: 0.85rem;
+      padding: 10px;
+    }
+  
+    button {
+      padding: 10px 20px;
+      font-size: 0.9rem;
+    }
+  }
+  .visitor-logs {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+  }
+  
+  .search-bar-container {
+    margin-bottom: 20px;
+    text-align: center;
+  }
+  
+  .search-bar {
+    width: 50%;
+    padding: 10px;
+    font-size: 16px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+  }
+  
+  .table-container {
+    overflow-x: auto;
+  }
