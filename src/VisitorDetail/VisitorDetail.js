@@ -67,6 +67,8 @@ const VisitorDetail = () => {
                   <th>Telephone</th>
                   <th>Department</th>
                   <th>Reason</th>
+                  <th>ID</th>
+
                 </tr>
               </thead>
               <tbody>
@@ -78,6 +80,8 @@ const VisitorDetail = () => {
                     <td>{entry.telephone || "---"}</td>
                     <td>{entry.department || "---"}</td>
                     <td>{entry.reason || "---"}</td>
+                    <td>{entry.id || "---"}</td>
+
                   </tr>
                 ))}
               </tbody>

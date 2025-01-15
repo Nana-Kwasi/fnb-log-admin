@@ -13,9 +13,9 @@ const Reports = () => {
   const [error, setError] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [selectedYear, setSelectedYear] = useState("");
   const db = getFirestore(app);
 
-  // Helper function to parse date strings into Date objects
   const parseDate = (dateStr) => {
     if (!dateStr) return null;
   
@@ -38,72 +38,91 @@ const Reports = () => {
     return null;
   };
 
-  // Function to fetch logs from Firestore and filter by date range
-  // Function to fetch logs from Firestore and filter by date range
-const fetchLogs = async () => {
-  // Validate date selection
-  if (!startDate || !endDate) {
-    alert("Please select both start and end dates.");
-    return;
-  }
+  const fetchLogs = async () => {
+    if (!startDate || !endDate) {
+      alert("Please select both start and end dates.");
+      return;
+    }
 
-  setLoading(true);
-  setError("");
-  try {
-    const snapshot = await getDocs(collection(db, "VisitorEntries"));
-    const logsData = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    setLoading(true);
+    setError("");
+    try {
+      const snapshot = await getDocs(collection(db, "VisitorEntries"));
+      const logsData = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    end.setHours(23, 59, 59, 999); // Ensure end date includes full last day
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
 
-    const filtered = logsData.filter((log) => {
-      // Directly parse ISO date format
-      const logDate = new Date(log.date);
-      return logDate >= start && logDate <= end;
-    });
+      const filtered = logsData.filter((log) => {
+        const logDate = new Date(log.date);
+        return logDate >= start && logDate <= end;
+      });
 
-    setLogs(filtered);
-    setFilteredLogs(filtered);
-  } catch (error) {
-    console.error("Error fetching logs:", error);
-    setError("Failed to retrieve data. Please try again.");
-  } finally {
-    setLoading(false);
-  }
-};
+      setLogs(filtered);
+      setFilteredLogs(filtered);
+    } catch (error) {
+      console.error("Error fetching logs:", error);
+      setError("Failed to retrieve data. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  // Function to generate a PDF report
+  const fetchYearlyLogs = async () => {
+    if (!selectedYear) {
+      alert("Please select a year.");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+    try {
+      const snapshot = await getDocs(collection(db, "VisitorEntries"));
+      const logsData = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+
+      const filtered = logsData.filter((log) => {
+        const logDate = new Date(log.date);
+        return logDate.getFullYear() === parseInt(selectedYear);
+      });
+
+      setLogs(filtered);
+      setFilteredLogs(filtered);
+    } catch (error) {
+      console.error("Error fetching yearly logs:", error);
+      setError("Failed to retrieve yearly data. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const generatePDF = () => {
     const doc = new jsPDF('landscape');
     
-    // Color palette
-    const primaryColor =  [255, 153, 0]; // Dark blue
-    const accentColor = [0, 51, 153]; // Orange
+    const primaryColor =  [255, 153, 0];
+    const accentColor = [0, 51, 153];
   
-    // Add logo with professional placement
     const logoWidth = 50;
     const logoHeight = 50;
     doc.addImage("/FNB logo.png", "PNG", 250, 15, logoWidth, logoHeight);
   
-    // Company header
     doc.setTextColor(...primaryColor);
     doc.setFont("Helvetica", "bold");
     doc.setFontSize(14);
     doc.text("FNB (First National Bank)", 14, 25);
   
-    // Subtitle with accent color
     doc.setTextColor(...accentColor);
     doc.setFontSize(12);
     doc.text("FNB Visitors Logs Report", 14, 35);
   
-    // Report metadata
     doc.setTextColor(0, 0, 0);
     doc.setFontSize(10);
-    doc.text(`Report Date Range: ${startDate} - ${endDate}`, 14, 45);
+    const dateRange = selectedYear 
+      ? `Year: ${selectedYear}` 
+      : `Date Range: ${startDate} - ${endDate}`;
+    doc.text(dateRange, 14, 45);
     doc.text(`Generated On: ${new Date().toLocaleDateString()}`, 14, 52);
   
-    // Add table with professional styling
     const tableData = filteredLogs.map((log, index) => [
       index + 1,
       log.name || "N/A",
@@ -135,42 +154,75 @@ const fetchLogs = async () => {
       }
     });
   
-    // Save the PDF
-    doc.save("FNB Visitor_Logs_Report.pdf");
+    const filename = selectedYear 
+      ? `FNB_Visitor_Logs_${selectedYear}.pdf` 
+      : "FNB_Visitor_Logs_Report.pdf";
+    doc.save(filename);
   };
 
   return (
     <div className="reports">
       <h1>Generate Reports</h1>
-      <div className="filter-section">
-        <label>
-          Start Date:
-          <input
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            required
-          />
-        </label>
-        <label>
-          End Date:
-          <input
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            required
-          />
-        </label>
-        <button onClick={fetchLogs} className="fetch-btn">
-          Fetch Logs
-        </button>
+      
+      <div className="filter-sections">
+        <div className="date-range-section">
+          <h2>Date Range Report</h2>
+          <div className="filter-section">
+            <label>
+              Start Date:
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                required
+              />
+            </label>
+            <label>
+              End Date:
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                required
+              />
+            </label>
+            <button onClick={fetchLogs} className="fetch-btn">
+            Generate Monthly Report
+            </button>
+          </div>
+        </div>
+
+        <div className="yearly-section">
+          <h2>Yearly Report</h2>
+          <div className="filter-section">
+            <label>
+              Select Year:
+              <select
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(e.target.value)}
+                required
+              >
+                <option value="">Select Year</option>
+                {Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i).map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button onClick={fetchYearlyLogs} className="fetch-btn">
+              Generate Yearly Report
+            </button>
+          </div>
+        </div>
       </div>
+
       {loading ? (
         <p>Loading data...</p>
       ) : error ? (
         <p className="error">{error}</p>
       ) : filteredLogs.length === 0 ? (
-        <p>No data available for the selected date range.</p>
+        <p>No data available for the selected period.</p>
       ) : (
         <>
           <div className="table-container">
@@ -217,7 +269,6 @@ const fetchLogs = async () => {
 };
 
 export default Reports;
-
 
 // import React, { useState } from "react";
 // import { collection, getDocs } from "firebase/firestore";

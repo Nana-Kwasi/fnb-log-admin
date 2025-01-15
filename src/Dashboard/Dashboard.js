@@ -29,53 +29,71 @@ const Dashboard = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [todayVisitorsData, setTodayVisitorsData] = useState([]);
 
+
   const db = getFirestore(app);
+
+  const formatDateForFirestore = (date) => {
+    return `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
+  };
+  const parseFirestoreDate = (dateStr) => {
+    const [month, day, year] = dateStr.split('/').map(num => parseInt(num, 10));
+    return new Date(year, month - 1, day);
+  };
 
   useEffect(() => {
     const fetchData = async () => {
       try {
+        const currentYear = new Date().getFullYear();
         const snapshot = await getDocs(collection(db, "VisitorEntries"));
         const data = snapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
         }));
-  
+
         const today = new Date();
+        const todayFormatted = formatDateForFirestore(today);
+        
         const groupedData = data.reduce(
           (acc, log) => {
             if (log.date) {
-              // Parse ISO date or handle different date formats
-              const date = new Date(log.date);
-              
-              if (!isNaN(date.getTime())) {
-                const month = date.toLocaleString("default", { month: "long" });
-                acc.monthly[month] = (acc.monthly[month] || 0) + 1;
-  
-                if (
-                  date.getDate() === today.getDate() &&
-                  date.getMonth() === today.getMonth() &&
-                  date.getFullYear() === today.getFullYear()
-                ) {
-                  acc.today += 1;
+              try {
+                const date = parseFirestoreDate(log.date);
+                
+                // Only process entries from current year
+                if (date.getFullYear() === currentYear) {
+                  const month = date.toLocaleString("default", { month: "long" });
+                  acc.monthly[month] = (acc.monthly[month] || 0) + 1;
+
+                  // Check if the entry is from today
+                  if (log.date === todayFormatted) {
+                    acc.today += 1;
+                  }
                 }
+                
+                // Include in total only if it's current year
+                if (date.getFullYear() === currentYear) {
+                  acc.total += 1;
+                }
+              } catch (e) {
+                console.error("Date parsing error:", e);
               }
             }
-            acc.total += 1;
             return acc;
           },
           { monthly: {}, today: 0, total: 0 }
         );
-  
+
+        // Create array for all months in current year
         const fullYearMonths = Array.from({ length: 12 }, (_, i) => {
-          const month = new Date(2022, i).toLocaleString("default", {
+          const month = new Date(currentYear, i).toLocaleString("default", {
             month: "long",
           });
           return { month, visits: groupedData.monthly[month] || 0 };
         });
-  
+
         setAnalyticsData(fullYearMonths);
         setTotalVisitors(groupedData.total);
-        setVisitorsToday(groupedData.today || 0);
+        setVisitorsToday(groupedData.today);
       } catch (error) {
         console.error("Error fetching analytics data:", error);
         setError("Failed to fetch analytics data.");
@@ -83,33 +101,29 @@ const Dashboard = () => {
         setLoading(false);
       }
     };
-  
+
     fetchData();
   }, [db]);
-  
 
   const fetchTodayVisitors = async () => {
     setModalVisible(true);
     setLoading(true);
-  
+
     try {
       const today = new Date();
-      const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-      const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
-  
+      const formattedToday = formatDateForFirestore(today);
+
       const q = query(
-        collection(db, "VisitorEntries"), 
-        where("date", ">=", todayStart.toISOString().split('T')[0]),
-        where("date", "<", todayEnd.toISOString().split('T')[0])
+        collection(db, "VisitorEntries"),
+        where("date", "==", formattedToday)
       );
-  
       const snapshot = await getDocs(q);
-  
+
       const data = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       }));
-  
+
       setTodayVisitorsData(data);
       setVisitorsToday(data.length);
     } catch (error) {
@@ -120,7 +134,7 @@ const Dashboard = () => {
       setLoading(false);
     }
   };
-
+  // Rest of your component code remains the same
   const closeModal = () => setModalVisible(false);
 
   const previousMonth = () => {
@@ -171,21 +185,8 @@ const Dashboard = () => {
       {
         label: "Visitors",
         data: analyticsData.map((item) => item.visits),
-        backgroundColor: [
-          "#1abc9c", // January
-          "#2ecc71", // February
-          "#3498db", // March
-          "#9b59b6", // April
-          "#34495e", // May
-          "#16a085", // June
-          "#27ae60", // July
-          "#2980b9", // August
-          "#8e44ad", // September
-          "#2c3e50", // October
-          "#f1c40f", // November
-          "#e67e22", // December
-        ],
-        borderColor: "#34495e",
+        backgroundColor: "rgba(41, 128, 185, 0.7)",
+        borderColor: "#2980b9",
         borderWidth: 1,
       },
     ],
@@ -219,14 +220,19 @@ const Dashboard = () => {
       },
       y: {
         grid: { color: "rgba(0, 0, 0, 0.1)" },
-        ticks: { color: "#34495e", font: { size: 12 } },
+        ticks: { color: "#34495e", font: { size: 17 } },
       },
     },
   };
 
   return (
-    <div className="dashboard">
-      <h1>Admin Dashboard</h1>
+    <div 
+      className="dashboard" 
+      style={{
+        minHeight: '100vh',
+        padding: '20px'
+      }}>
+      <h1 style={{color:'green'}}>FNB LOGS ADMIN DASHBOARD</h1>
       {loading ? (
         <p>Loading...</p>
       ) : error ? (
@@ -261,6 +267,12 @@ const Dashboard = () => {
               <h3 style={{ color: "white" }}>Visitors Today</h3>
               <p>{visitorsToday}</p>
             </div>
+            <div className="stat-card" onClick={fetchTodayVisitors}>
+              <AiOutlineUser className="icon" />
+              <h3 style={{ color: "white" }}>Visitors Today</h3>
+              <p>{visitorsToday}</p>
+            </div>
+             
             <div className="stat-card">
               <AiOutlineTeam className="icon" />
               <h3 style={{ color: "white" }}>Total Visitors</h3>
@@ -270,11 +282,11 @@ const Dashboard = () => {
 
           <div className="charts">
             <div className="chart-container">
-              <h3>Monthly Visitors (Line Graph)</h3>
+              <h3 style={{color:'green'}}>Monthly Visitors </h3>
               <Line data={lineData} options={chartOptions} />
             </div>
             <div className="chart-container">
-              <h3>Monthly Visitors (Bar Chart)</h3>
+              <h3 style={{color:'green'}}>Monthly Visitors</h3>
               <Bar data={barData} options={chartOptions} />
             </div>
           </div>

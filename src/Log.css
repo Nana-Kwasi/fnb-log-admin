@@ -1,48 +1,49 @@
 .visitor-logs {
-    font-family: Arial, sans-serif;
-    margin: 20px;
-  }
-  
-  .search-bar-container {
-    margin-bottom: 20px;
-    text-align: center;
-  }
-  
-  .search-bar {
-    width: 50%;
-    padding: 10px;
-    font-size: 16px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-  }
-  
-  /* .table-container {
-    overflow-x: auto;
-  }
-  
-  .log-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 20px;
-  }
-  
-  .log-table th, .log-table td {
-    border: 1px solid #ddd;
-    padding: 10px;
-    text-align: left;
-  }
-  
-  .log-table th {
-    background-color: #f4f4f4;
-  }
-  
-  .clickable-row:hover {
-    background-color: #f1f1f1;
-    cursor: pointer;
-  }
-   */
-  .error {
-    color: red;
-    text-align: center;
-  }
-  
+  font-family: Arial, sans-serif;
+  margin: 20px;
+}
+
+.search-bar-container {
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.search-bar {
+  width: 50%;
+  padding: 10px;
+  font-size: 16px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+}
+
+.table-container {
+  overflow-x: auto;
+}
+
+.log-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+}
+
+.log-table th, .log-table td {
+  border: 1px solid #dddddd;
+  padding: 10px;
+  text-align: left;
+}
+
+.log-table th {
+  background-color: #f4f4f4;
+}
+
+.clickable-row:hover {
+  background-color: #f1f1f1;
+  cursor: pointer;
+}
+
+.error {
+  color: red;
+  text-align: center;
+}
+
+

@@ -14,17 +14,31 @@ const Analytics = () => {
 
   const db = getFirestore(app);
 
+  const filterCurrentYearData = (data) => {
+    const currentYear = new Date().getFullYear();
+    return data.filter(log => {
+      if (log.date) {
+        const logDate = new Date(log.date);
+        return !isNaN(logDate.getTime()) && logDate.getFullYear() === currentYear;
+      }
+      return false;
+    });
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       try {
         const snapshot = await getDocs(collection(db, "VisitorEntries"));
-        const data = snapshot.docs.map((doc) => ({
+        const allData = snapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
         }));
 
+        // Filter data for current year
+        const currentYearData = filterCurrentYearData(allData);
+
         // Group data by month
-        const groupedData = data.reduce(
+        const groupedData = currentYearData.reduce(
           (acc, log) => {
             if (log.date) {
               const date = new Date(log.date);
@@ -43,8 +57,18 @@ const Analytics = () => {
           { chartData: {}, tableData: [] }
         );
 
+        // Ensure all months are represented with 0 if no data
+        const months = [
+          "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+          "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+        ];
+        const completeChartData = {};
+        months.forEach(month => {
+          completeChartData[month] = groupedData.chartData[month] || 0;
+        });
+
         // Convert grouped data to an array for ApexCharts
-        const chartDataArray = Object.entries(groupedData.chartData).map(
+        const chartDataArray = Object.entries(completeChartData).map(
           ([month, visits]) => ({
             month,
             visits,
@@ -79,7 +103,6 @@ const Analytics = () => {
 
   return (
     <div className="analytics">
-      {/* <h2>Visitor Analytics</h2> */}
       {loading ? (
         <p>Loading analytics data...</p>
       ) : error ? (
@@ -89,7 +112,6 @@ const Analytics = () => {
           <h3>Total Visits: {totalVisits}</h3>
 
           {/* Bar Chart */}
-          {/* <h3>Visitor Trends (Bar Chart)</h3> */}
           <ReactApexChart
             type="bar"
             series={chartSeries}
@@ -105,12 +127,12 @@ const Analytics = () => {
               plotOptions: {
                 bar: {
                   borderRadius: 3,
-                  columnWidth: "40%", // Smaller bars
+                  columnWidth: "40%",
                 },
               },
-              colors: ["#00A36C"], // Bar color
+              colors: ["#00A36C"],
               title: {
-                text: "Monthly Visitor Trends (Bar Chart)",
+                text: `Monthly Visitor Trends ${new Date().getFullYear()} (Bar Chart)`,
                 align: "center",
               },
               tooltip: { theme: "dark" },
@@ -119,7 +141,6 @@ const Analytics = () => {
           />
 
           {/* Valley Line Chart */}
-          {/* <h3>Visitor Trends (Valley Line Chart)</h3> */}
           <ReactApexChart
             type="line"
             series={chartSeries}
@@ -134,23 +155,28 @@ const Analytics = () => {
               yaxis: {
                 title: { text: "Number of Visits" },
               },
-              colors: ["#FF4560"], // Valley line color
-              title: { text: "Monthly Visitor Trends (Valley Line)", align: "center" },
-              stroke: { curve: "stepline", width: 2 }, // Valley effect
+              colors: ["#FF4560"],
+              title: { 
+                text: `Monthly Visitor Trends ${new Date().getFullYear()} (Valley Line)`, 
+                align: "center" 
+              },
+              stroke: { curve: "stepline", width: 2 },
               tooltip: { theme: "dark" },
             }}
             height={350}
           />
 
           {/* Pie Chart */}
-          {/* <h3>Visitor Distribution (Pie Chart)</h3> */}
           <ReactApexChart
             type="pie"
             series={pieSeries}
             options={{
               labels: chartCategories,
               colors: ["#008FFB", "#FF4560", "#00E396", "#FEB019"],
-              title: { text: "Monthly Visitor Distribution", align: "center" },
+              title: { 
+                text: `Monthly Visitor Distribution ${new Date().getFullYear()}`, 
+                align: "center" 
+              },
               tooltip: { theme: "dark" },
               legend: { position: "bottom" },
             }}
