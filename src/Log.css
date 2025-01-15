@@ -45,5 +45,20 @@
   color: red;
   text-align: center;
 }
+.controls-container {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
 
+.year-select {
+  padding: 0.5rem;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  font-size: 1rem;
+  min-width: 100px;
+}
 
+.search-bar-container {
+  flex-grow: 1;
+}
