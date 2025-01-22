@@ -75,6 +75,7 @@ import { AiOutlineDashboard, AiOutlineBarChart, AiOutlineUser } from "react-icon
 import { BsPeople } from "react-icons/bs";
 import { MdReport } from "react-icons/md";
 
+
 const App = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userEmail, setUserEmail] = useState("");
@@ -119,6 +120,7 @@ const App = () => {
                     Reports
                   </NavLink>
                 </li>
+                
                 <li>
                   <NavLink to="/analytics" className={({ isActive }) => (isActive ? "active" : "")}>
                     <AiOutlineBarChart className="icon" />
@@ -134,6 +136,9 @@ const App = () => {
                 <Route path="/visitor-details/:id" element={<VisitorDetail />} />
                 <Route path="/reports" element={<Reports />} />
                 <Route path="/analytics" element={<Analytics />} />
+                
+               
+
               </Routes>
             </main>
           </>

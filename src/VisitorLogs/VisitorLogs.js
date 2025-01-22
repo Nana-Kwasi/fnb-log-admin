@@ -15,7 +15,7 @@ const VisitorLogs = () => {
   const navigate = useNavigate();
   const db = getFirestore(app);
 
-  // Generate array of years from 2020 to current year
+  
   const currentYear = new Date().getFullYear();
   const years = Array.from(
     { length: currentYear - 2019 },

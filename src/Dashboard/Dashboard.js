@@ -14,8 +14,8 @@ import {
 } from "chart.js";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { getFirestore } from "firebase/firestore";
+import "../dashboard.css"
 import app from "../Firebase/Config";
-import "../dashboard.css";
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend);
 
@@ -232,7 +232,7 @@ const Dashboard = () => {
         minHeight: '100vh',
         padding: '20px'
       }}>
-      <h1 style={{color:'green'}}>FNB LOGS ADMIN DASHBOARD</h1>
+      <h1 style={{color:'black'}}>FNB LOGS ADMIN DASHBOARD</h1>
       {loading ? (
         <p>Loading...</p>
       ) : error ? (
@@ -264,18 +264,18 @@ const Dashboard = () => {
           <div className="stats">
             <div className="stat-card" onClick={fetchTodayVisitors}>
               <AiOutlineUser className="icon" />
-              <h3 style={{ color: "white" }}>Visitors Today</h3>
+              <h3 style={{ color: "black" }}>Visitors Today</h3>
               <p>{visitorsToday}</p>
             </div>
-            <div className="stat-card" onClick={fetchTodayVisitors}>
+            {/* <div className="stat-card" onClick={fetchTodayVisitors}>
               <AiOutlineUser className="icon" />
-              <h3 style={{ color: "white" }}>Visitors Today</h3>
+              <h3 style={{ color: "red" }}>Visitors Today</h3>
               <p>{visitorsToday}</p>
-            </div>
+            </div> */}
              
             <div className="stat-card">
               <AiOutlineTeam className="icon" />
-              <h3 style={{ color: "white" }}>Total Visitors</h3>
+              <h3 style={{ color: "gray" }}>Total Visitors</h3>
               <p>{totalVisitors}</p>
             </div>
           </div>
