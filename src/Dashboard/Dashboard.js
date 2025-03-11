@@ -265,19 +265,15 @@ const Dashboard = () => {
             <div className="stat-card" onClick={fetchTodayVisitors}>
               <AiOutlineUser className="icon" />
               <h3 style={{ color: "white" }}>Visitors Today</h3>
-              <p>{visitorsToday}</p>
-            </div>
-            <div className="stat-card" onClick={fetchTodayVisitors}>
-              <AiOutlineUser className="icon" />
-              <h3 style={{ color: "white" }}>Visitors Today</h3>
-              <p>{visitorsToday}</p>
+              <p style={{color:'white'}}>{visitorsToday}</p>
             </div>
              
             <div className="stat-card">
               <AiOutlineTeam className="icon" />
               <h3 style={{ color: "white" }}>Total Visitors</h3>
-              <p>{totalVisitors}</p>
+              <p style={{color:'white'}}>{totalVisitors}</p>
             </div>
+            
           </div>
 
           <div className="charts">

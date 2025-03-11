@@ -74,6 +74,10 @@ import "./styles.css";
 import { AiOutlineDashboard, AiOutlineBarChart, AiOutlineUser } from "react-icons/ai";
 import { BsPeople } from "react-icons/bs";
 import { MdReport } from "react-icons/md";
+import DispatchDash from "./DispatchDash/DispatchDash";
+import DispatchReport from "../src/DispactReport/DispatchReport";
+import Dispatch from "../src/Dispatch/Dispatch";
+import Graphs from "./Graphs/Graphs";
 
 const App = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -120,11 +124,18 @@ const App = () => {
                   </NavLink>
                 </li>
                 <li>
+                  <NavLink to="/DispatchDash" className={({ isActive }) => (isActive ? "active" : "")}>
+                    <AiOutlineBarChart className="icon" />
+                    Dispatchs
+                  </NavLink>
+                </li>
+                <li>
                   <NavLink to="/analytics" className={({ isActive }) => (isActive ? "active" : "")}>
                     <AiOutlineBarChart className="icon" />
                     Analytics
                   </NavLink>
                 </li>
+               
               </ul>
             </nav>
             <main className="content">
@@ -134,6 +145,13 @@ const App = () => {
                 <Route path="/visitor-details/:id" element={<VisitorDetail />} />
                 <Route path="/reports" element={<Reports />} />
                 <Route path="/analytics" element={<Analytics />} />
+                <Route path="/DispatchDash" element={<DispatchDash />} />
+                <Route path="/Dispatch" element={<Dispatch />} />
+                <Route path="/DispatchReport" element={<DispatchReport />} />
+                <Route path="/Graphs" element={<Graphs />} />
+
+
+
               </Routes>
             </main>
           </>

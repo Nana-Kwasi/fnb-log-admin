@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { collection, getDocs, query, where } from "firebase/firestore";
+import { collection, getDocs, query, orderBy } from "firebase/firestore";
 import { getFirestore } from "firebase/firestore";
 import app from "../Firebase/Config";
 import "../Log.css";
@@ -15,42 +15,81 @@ const VisitorLogs = () => {
   const navigate = useNavigate();
   const db = getFirestore(app);
 
-  // Generate array of years from 2020 to current year
   const currentYear = new Date().getFullYear();
   const years = Array.from(
     { length: currentYear - 2019 },
     (_, i) => currentYear - i
   );
 
+  // Helper function to parse various date formats
+  const parseDate = (dateValue) => {
+    if (!dateValue) return null;
+    
+    // If it's a Firestore timestamp
+    if (dateValue?.toDate instanceof Function) {
+      return dateValue.toDate();
+    }
+    
+    // If it's a number (unix timestamp)
+    if (typeof dateValue === 'number') {
+      return new Date(dateValue);
+    }
+    
+    // If it's a string, try various formats
+    if (typeof dateValue === 'string') {
+      // Remove any timezone information to avoid inconsistencies
+      const cleanDate = dateValue.split('T')[0];
+      const parsed = new Date(cleanDate);
+      if (!isNaN(parsed.getTime())) {
+        return parsed;
+      }
+    }
+    
+    // If it's already a Date object
+    if (dateValue instanceof Date && !isNaN(dateValue)) {
+      return dateValue;
+    }
+    
+    return null;
+  };
+
   useEffect(() => {
     const fetchLogs = async () => {
       try {
         setLoading(true);
         
-        // Create query to filter by selected year
+        // Fetch all logs and filter in memory for better date format support
         const logsRef = collection(db, "VisitorEntries");
-        const startDate = `${selectedYear}-01-01`;
-        const endDate = `${selectedYear}-12-31`;
-        
-        const q = query(
-          logsRef,
-          where("date", ">=", startDate),
-          where("date", "<=", endDate)
-        );
-        
+        const q = query(logsRef, orderBy("date", "desc"));
         const snapshot = await getDocs(q);
-        const logsData = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-
-        // Group logs by name to avoid repetition
-        const groupedLogs = logsData.reduce((acc, log) => {
-          acc[log.name] = acc[log.name] || {
-            name: log.name,
-            company: log.company,
-            date: log.date,
+        
+        const logsData = snapshot.docs.map((doc) => {
+          const data = doc.data();
+          const parsedDate = parseDate(data.date);
+          
+          return {
+            id: doc.id,
+            ...data,
+            // Store both the original date and parsed date
+            originalDate: data.date,
+            parsedDate: parsedDate,
+            // Format date for display
+            date: parsedDate ? parsedDate.toISOString().split('T')[0] : 'N/A'
           };
+        });
+
+        // Filter by year and group by name
+        const yearFilteredLogs = logsData.filter((log) => {
+          if (!log.parsedDate) return false;
+          return log.parsedDate.getFullYear() === selectedYear;
+        });
+
+        // Group logs by name
+        const groupedLogs = yearFilteredLogs.reduce((acc, log) => {
+          // Only update if this is the most recent entry for this name
+          if (!acc[log.name] || (log.parsedDate && acc[log.name].parsedDate < log.parsedDate)) {
+            acc[log.name] = log;
+          }
           return acc;
         }, {});
 
@@ -66,7 +105,7 @@ const VisitorLogs = () => {
     };
 
     fetchLogs();
-  }, [db, selectedYear]); // Add selectedYear as dependency
+  }, [db, selectedYear]);
 
   const handleSearch = (event) => {
     const query = event.target.value.toLowerCase();
@@ -130,6 +169,7 @@ const VisitorLogs = () => {
                 <th>Name</th>
                 <th>Company</th>
                 <th>Date</th>
+                <th>Number</th>
               </tr>
             </thead>
             <tbody>
@@ -141,7 +181,8 @@ const VisitorLogs = () => {
                 >
                   <td>{log.name}</td>
                   <td>{log.company}</td>
-                  <td>{log.date || "N/A"}</td>
+                  <td>{log.date}</td>
+                  <td>{log.telephone}</td>
                 </tr>
               ))}
             </tbody>

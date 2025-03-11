@@ -61,13 +61,13 @@ const VisitorDetail = () => {
             <table className="details-table">
               <thead>
                 <tr>
-                  <th>Time In</th>
-                  <th>Time Out</th>
-                  <th>Purpose</th>
-                  <th>Telephone</th>
-                  <th>Department</th>
-                  <th>Reason</th>
-                  <th>ID</th>
+                  <th style={{color:'black'}}>Time In</th>
+                  <th style={{color:'black'}}>Time Out</th>
+                  <th style={{color:'black'}}>Purpose</th>
+                  <th style={{color:'black'}}>Telephone</th>
+                  <th style={{color:'black'}}>Department</th>
+                  <th style={{color:'black'}}>Reason</th>
+                  <th style={{color:'black'}}>ID</th>
 
                 </tr>
               </thead>
