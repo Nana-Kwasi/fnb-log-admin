@@ -79,10 +79,8 @@ const Login = ({ onLogin }) => {
       
       const allData = await response.json();
       
-      // Filter data by selected branch if any
-      const branchData = selectedBranch 
-        ? allData.filter(item => item.branchName === selectedBranch)
-        : allData;
+      // Filter data by selected branch
+      const branchData = allData.filter(item => item.branchName === selectedBranch);
       
       // Process data for dashboard
       const currentYear = new Date().getFullYear();
@@ -136,11 +134,11 @@ const Login = ({ onLogin }) => {
         totalVisitors: groupedData.total,
         visitorsToday: groupedData.today,
         todayVisitorsData: todayVisitors,
-        allVisitorsData: branchData
+        allVisitorsData: branchData,
+        selectedBranch: selectedBranch
       };
       
       // Store data in localStorage
-      localStorage.setItem("selectedBranch", selectedBranch);
       localStorage.setItem("dashboardData", JSON.stringify(dashboardData));
       
       // Complete login
