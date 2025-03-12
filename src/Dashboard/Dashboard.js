@@ -176,6 +176,11 @@ const Dashboard = () => {
     localStorage.setItem("selectedBranch", branch);
   };
 
+  const clearBranchFilter = () => {
+    setSelectedBranch("");
+    localStorage.removeItem("selectedBranch");
+  };
+
   const generateCalendarDays = () => {
     const daysInMonth = new Date(
       currentDate.getFullYear(),
@@ -279,6 +284,14 @@ const Dashboard = () => {
                 <option key={branch} value={branch}>{branch}</option>
               ))}
             </select>
+            {selectedBranch && (
+              <button 
+                onClick={clearBranchFilter}
+                className="clear-filter-btn"
+              >
+                Clear Filter
+              </button>
+            )}
           </div>
         </div>
       </div>
