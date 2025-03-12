@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { collection, getDocs, query, orderBy } from "firebase/firestore";
+import { collection, getDocs, query,orderBy  } from "firebase/firestore";
 import { getFirestore } from "firebase/firestore";
 import app from "../Firebase/Config";
 import "../Log.css";
@@ -21,23 +21,23 @@ const VisitorLogs = () => {
     (_, i) => currentYear - i
   );
 
-  // Helper function to parse various date formats
+  
   const parseDate = (dateValue) => {
     if (!dateValue) return null;
     
-    // If it's a Firestore timestamp
+    
     if (dateValue?.toDate instanceof Function) {
       return dateValue.toDate();
     }
     
-    // If it's a number (unix timestamp)
+    
     if (typeof dateValue === 'number') {
       return new Date(dateValue);
     }
     
-    // If it's a string, try various formats
+    
     if (typeof dateValue === 'string') {
-      // Remove any timezone information to avoid inconsistencies
+      
       const cleanDate = dateValue.split('T')[0];
       const parsed = new Date(cleanDate);
       if (!isNaN(parsed.getTime())) {
@@ -45,7 +45,7 @@ const VisitorLogs = () => {
       }
     }
     
-    // If it's already a Date object
+   
     if (dateValue instanceof Date && !isNaN(dateValue)) {
       return dateValue;
     }
