@@ -60,29 +60,9 @@ const Login = ({ onLogin }) => {
     setLoading(true);
 
     try {
-      // Get current date and time
-      const now = new Date();
-      const formattedDate = now.toLocaleDateString();
-      const formattedTime = now.toLocaleTimeString();
-
-      // Log user login via API
-      const response = await fetch("http://localhost:5001/user-logs", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email,
-          date: formattedDate,
-          time: formattedTime,
-          branch: selectedBranch
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to log user login");
-      }
-
+      // Simple authentication - without API call
+      // In a real app, you'd validate credentials against a backend
+      
       // Store branch in localStorage for dashboard to access
       localStorage.setItem("selectedBranch", selectedBranch);
       
@@ -90,7 +70,7 @@ const Login = ({ onLogin }) => {
       onLogin(email, selectedBranch); // Pass email and branch to the onLogin handler
       navigate("/"); // Navigate to Dashboard
     } catch (err) {
-      console.error("Error logging login details:", err);
+      console.error("Login error:", err);
       setError("An error occurred. Please try again.");
       setLoading(false);
     }
