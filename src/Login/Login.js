@@ -1,18 +1,48 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { getFirestore, collection, addDoc } from "firebase/firestore"; // Firestore imports
-import app from "../Firebase/Config"; // Firebase configuration
 import "../login.css";
 
-// Use the relative URL to access the image from the public folder
 const Login = ({ onLogin }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [selectedBranch, setSelectedBranch] = useState("");
+  const [branches, setBranches] = useState([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [fetchingBranches, setFetchingBranches] = useState(true);
   const navigate = useNavigate();
 
-  const db = getFirestore(app); // Firestore instance
+  const API_URL = "http://localhost:5001/visitors";
+
+  // Fetch all branches from the API
+  useEffect(() => {
+    const fetchBranches = async () => {
+      try {
+        setFetchingBranches(true);
+        const response = await fetch(API_URL);
+        if (!response.ok) {
+          throw new Error(`API response error: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        // Extract unique branch names
+        const uniqueBranches = [...new Set(data
+          .map(entry => entry.branchName)
+          .filter(branch => branch && branch.trim() !== "")
+        )];
+        
+        setBranches(uniqueBranches.sort());
+      } catch (err) {
+        console.error("Error fetching branches:", err);
+        setError("Failed to load branches. Please try again later.");
+      } finally {
+        setFetchingBranches(false);
+      }
+    };
+
+    fetchBranches();
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -22,7 +52,12 @@ const Login = ({ onLogin }) => {
       return;
     }
 
-    setLoading(true); // Show spinner
+    if (!selectedBranch) {
+      setError("Please select a branch");
+      return;
+    }
+
+    setLoading(true);
 
     try {
       // Get current date and time
@@ -30,15 +65,29 @@ const Login = ({ onLogin }) => {
       const formattedDate = now.toLocaleDateString();
       const formattedTime = now.toLocaleTimeString();
 
-      // Add login details to Firestore
-      await addDoc(collection(db, "UserLogs"), {
-        email,
-        date: formattedDate,
-        time: formattedTime,
+      // Log user login via API
+      const response = await fetch("http://localhost:5001/user-logs", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          date: formattedDate,
+          time: formattedTime,
+          branch: selectedBranch
+        }),
       });
 
-      setLoading(false); // Hide spinner after Firestore write
-      onLogin(email); // Pass email to the onLogin handler
+      if (!response.ok) {
+        throw new Error("Failed to log user login");
+      }
+
+      // Store branch in localStorage for dashboard to access
+      localStorage.setItem("selectedBranch", selectedBranch);
+      
+      setLoading(false);
+      onLogin(email, selectedBranch); // Pass email and branch to the onLogin handler
       navigate("/"); // Navigate to Dashboard
     } catch (err) {
       console.error("Error logging login details:", err);
@@ -68,8 +117,29 @@ const Login = ({ onLogin }) => {
             onChange={(e) => setPassword(e.target.value)}
             required
           />
+          
+          <div className="select-container">
+            <select
+              value={selectedBranch}
+              onChange={(e) => setSelectedBranch(e.target.value)}
+              required
+              disabled={fetchingBranches}
+              className="branch-select"
+            >
+              <option value="">Select Branch</option>
+              {branches.map((branch) => (
+                <option key={branch} value={branch}>
+                  {branch}
+                </option>
+              ))}
+            </select>
+            {fetchingBranches && (
+              <span className="select-spinner"></span>
+            )}
+          </div>
+          
           {error && <p className="error-message">{error}</p>}
-          <button type="submit" className="login-button">
+          <button type="submit" className="login-button" disabled={loading || fetchingBranches}>
             {loading ? <span className="spinner"></span> : "Login"}
           </button>
         </form>

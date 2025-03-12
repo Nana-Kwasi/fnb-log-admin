@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { AiOutlineUser, AiOutlineTeam, AiOutlineLeft, AiOutlineRight } from "react-icons/ai";
+import { AiOutlineUser, AiOutlineTeam, AiOutlineLeft, AiOutlineRight, AiOutlineFilter } from "react-icons/ai";
 import { Line, Bar } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -12,9 +12,6 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
-import { collection, getDocs, query, where } from "firebase/firestore";
-import { getFirestore } from "firebase/firestore";
-import app from "../Firebase/Config";
 import "../dashboard.css";
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend);
@@ -28,14 +25,25 @@ const Dashboard = () => {
   const [error, setError] = useState("");
   const [modalVisible, setModalVisible] = useState(false);
   const [todayVisitorsData, setTodayVisitorsData] = useState([]);
+  const [selectedBranch, setSelectedBranch] = useState("");
+  const [branches, setBranches] = useState([]);
 
+  const API_URL = "http://localhost:5001/visitors";
 
-  const db = getFirestore(app);
+  // Retrieve branch from localStorage on initial load
+  useEffect(() => {
+    const branch = localStorage.getItem("selectedBranch");
+    if (branch) {
+      setSelectedBranch(branch);
+    }
+  }, []);
 
-  const formatDateForFirestore = (date) => {
+  const formatDateForAPI = (date) => {
     return `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
   };
-  const parseFirestoreDate = (dateStr) => {
+
+  const parseAPIDate = (dateStr) => {
+    if (!dateStr) return null;
     const [month, day, year] = dateStr.split('/').map(num => parseInt(num, 10));
     return new Date(year, month - 1, day);
   };
@@ -43,24 +51,37 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        const response = await fetch(API_URL);
+        if (!response.ok) {
+          throw new Error(`API response error: ${response.status}`);
+        }
+        
+        const allData = await response.json();
+        
+        // Extract unique branch names for the filter dropdown
+        const uniqueBranches = [...new Set(allData
+          .map(entry => entry.branchName)
+          .filter(branch => branch && branch.trim() !== "")
+        )];
+        setBranches(uniqueBranches.sort());
+        
+        // Filter data by selected branch if any
+        const data = selectedBranch 
+          ? allData.filter(item => item.branchName === selectedBranch)
+          : allData;
+        
         const currentYear = new Date().getFullYear();
-        const snapshot = await getDocs(collection(db, "VisitorEntries"));
-        const data = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-
         const today = new Date();
-        const todayFormatted = formatDateForFirestore(today);
+        const todayFormatted = formatDateForAPI(today);
         
         const groupedData = data.reduce(
           (acc, log) => {
             if (log.date) {
               try {
-                const date = parseFirestoreDate(log.date);
+                const date = parseAPIDate(log.date);
                 
                 // Only process entries from current year
-                if (date.getFullYear() === currentYear) {
+                if (date && date.getFullYear() === currentYear) {
                   const month = date.toLocaleString("default", { month: "long" });
                   acc.monthly[month] = (acc.monthly[month] || 0) + 1;
 
@@ -71,7 +92,7 @@ const Dashboard = () => {
                 }
                 
                 // Include in total only if it's current year
-                if (date.getFullYear() === currentYear) {
+                if (date && date.getFullYear() === currentYear) {
                   acc.total += 1;
                 }
               } catch (e) {
@@ -103,7 +124,7 @@ const Dashboard = () => {
     };
 
     fetchData();
-  }, [db]);
+  }, [selectedBranch]); // Re-fetch when selected branch changes
 
   const fetchTodayVisitors = async () => {
     setModalVisible(true);
@@ -111,21 +132,25 @@ const Dashboard = () => {
 
     try {
       const today = new Date();
-      const formattedToday = formatDateForFirestore(today);
+      const formattedToday = formatDateForAPI(today);
+      
+      // Fetch all visitor logs and filter for today's entries on client side
+      const response = await fetch(API_URL);
+      if (!response.ok) {
+        throw new Error(`API response error: ${response.status}`);
+      }
+      
+      const allVisitors = await response.json();
+      
+      // Filter by date and branch if selected
+      let todayVisitors = allVisitors.filter(visitor => visitor.date === formattedToday);
+      
+      if (selectedBranch) {
+        todayVisitors = todayVisitors.filter(visitor => visitor.branchName === selectedBranch);
+      }
 
-      const q = query(
-        collection(db, "VisitorEntries"),
-        where("date", "==", formattedToday)
-      );
-      const snapshot = await getDocs(q);
-
-      const data = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-
-      setTodayVisitorsData(data);
-      setVisitorsToday(data.length);
+      setTodayVisitorsData(todayVisitors);
+      setVisitorsToday(todayVisitors.length);
     } catch (error) {
       console.error("Error fetching today's visitors:", error);
       setError("Failed to fetch today's visitors.");
@@ -134,7 +159,7 @@ const Dashboard = () => {
       setLoading(false);
     }
   };
-  // Rest of your component code remains the same
+
   const closeModal = () => setModalVisible(false);
 
   const previousMonth = () => {
@@ -143,6 +168,12 @@ const Dashboard = () => {
 
   const nextMonth = () => {
     setCurrentDate(new Date(currentDate.setMonth(currentDate.getMonth() + 1)));
+  };
+
+  const handleBranchChange = (e) => {
+    const branch = e.target.value;
+    setSelectedBranch(branch);
+    localStorage.setItem("selectedBranch", branch);
   };
 
   const generateCalendarDays = () => {
@@ -232,7 +263,26 @@ const Dashboard = () => {
         minHeight: '100vh',
         padding: '20px'
       }}>
-      <h1 style={{color:'green'}}>FNB LOGS ADMIN DASHBOARD</h1>
+      <div className="dashboard-header">
+        <h1 style={{color:'green'}}>FNB LOGS ADMIN DASHBOARD</h1>
+        
+        <div className="branch-filter">
+          <div className="filter-container">
+            <AiOutlineFilter className="filter-icon" />
+            <select 
+              value={selectedBranch} 
+              onChange={handleBranchChange}
+              className="branch-select"
+            >
+              <option value="">All Branches</option>
+              {branches.map(branch => (
+                <option key={branch} value={branch}>{branch}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+      
       {loading ? (
         <p>Loading...</p>
       ) : error ? (
@@ -266,23 +316,28 @@ const Dashboard = () => {
               <AiOutlineUser className="icon" />
               <h3 style={{ color: "white" }}>Visitors Today</h3>
               <p style={{color:'white'}}>{visitorsToday}</p>
+              {selectedBranch && <span className="branch-indicator">{selectedBranch}</span>}
             </div>
              
             <div className="stat-card">
               <AiOutlineTeam className="icon" />
               <h3 style={{ color: "white" }}>Total Visitors</h3>
               <p style={{color:'white'}}>{totalVisitors}</p>
+              {selectedBranch && <span className="branch-indicator">{selectedBranch}</span>}
             </div>
-            
           </div>
 
           <div className="charts">
             <div className="chart-container">
-              <h3 style={{color:'green'}}>Monthly Visitors </h3>
+              <h3 style={{color:'green'}}>
+                Monthly Visitors {selectedBranch ? `- ${selectedBranch}` : '- All Branches'}
+              </h3>
               <Line data={lineData} options={chartOptions} />
             </div>
             <div className="chart-container">
-              <h3 style={{color:'green'}}>Monthly Visitors</h3>
+              <h3 style={{color:'green'}}>
+                Monthly Visitors {selectedBranch ? `- ${selectedBranch}` : '- All Branches'}
+              </h3>
               <Bar data={barData} options={chartOptions} />
             </div>
           </div>
@@ -291,7 +346,9 @@ const Dashboard = () => {
             <div className="modal">
               <div className="modal-content">
                 <div className="modal-header">
-                  <h2 className="modal-title">Today's Visitors</h2>
+                  <h2 className="modal-title">
+                    Today's Visitors {selectedBranch ? `- ${selectedBranch}` : '- All Branches'}
+                  </h2>
                   <button className="close-button" onClick={closeModal}>&times;</button>
                 </div>
                 <div className="modal-body">
@@ -309,6 +366,7 @@ const Dashboard = () => {
                           <th>Time In</th>
                           <th>Time Out</th>
                           <th>Telephone</th>
+                          <th>Branch</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -322,6 +380,7 @@ const Dashboard = () => {
                             <td>{visitor.timeIn}</td>
                             <td>{visitor.timeOut}</td>
                             <td>{visitor.telephone}</td>
+                            <td>{visitor.branchName}</td>
                           </tr>
                         ))}
                       </tbody>
