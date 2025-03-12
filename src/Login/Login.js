@@ -44,6 +44,17 @@ const Login = ({ onLogin }) => {
     fetchBranches();
   }, []);
 
+  // Format date for API comparison
+  const formatDateForAPI = (date) => {
+    return `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
+  };
+
+  const parseAPIDate = (dateStr) => {
+    if (!dateStr) return null;
+    const [month, day, year] = dateStr.split('/').map(num => parseInt(num, 10));
+    return new Date(year, month - 1, day);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -60,18 +71,85 @@ const Login = ({ onLogin }) => {
     setLoading(true);
 
     try {
-      // Simple authentication - without API call
-      // In a real app, you'd validate credentials against a backend
+      // Fetch all data for the selected branch
+      const response = await fetch(API_URL);
+      if (!response.ok) {
+        throw new Error(`API response error: ${response.status}`);
+      }
       
-      // Store branch in localStorage for dashboard to access
+      const allData = await response.json();
+      
+      // Filter data by selected branch if any
+      const branchData = selectedBranch 
+        ? allData.filter(item => item.branchName === selectedBranch)
+        : allData;
+      
+      // Process data for dashboard
+      const currentYear = new Date().getFullYear();
+      const today = new Date();
+      const todayFormatted = formatDateForAPI(today);
+      
+      const groupedData = branchData.reduce(
+        (acc, log) => {
+          if (log.date) {
+            try {
+              const date = parseAPIDate(log.date);
+              
+              // Only process entries from current year
+              if (date && date.getFullYear() === currentYear) {
+                const month = date.toLocaleString("default", { month: "long" });
+                acc.monthly[month] = (acc.monthly[month] || 0) + 1;
+
+                // Check if the entry is from today
+                if (log.date === todayFormatted) {
+                  acc.today += 1;
+                }
+              }
+              
+              // Include in total only if it's current year
+              if (date && date.getFullYear() === currentYear) {
+                acc.total += 1;
+              }
+            } catch (e) {
+              console.error("Date parsing error:", e);
+            }
+          }
+          return acc;
+        },
+        { monthly: {}, today: 0, total: 0 }
+      );
+
+      // Create array for all months in current year
+      const fullYearMonths = Array.from({ length: 12 }, (_, i) => {
+        const month = new Date(currentYear, i).toLocaleString("default", {
+          month: "long",
+        });
+        return { month, visits: groupedData.monthly[month] || 0 };
+      });
+
+      // Filter today's visitors
+      const todayVisitors = branchData.filter(visitor => visitor.date === todayFormatted);
+      
+      // Prepare dashboard data
+      const dashboardData = {
+        analyticsData: fullYearMonths,
+        totalVisitors: groupedData.total,
+        visitorsToday: groupedData.today,
+        todayVisitorsData: todayVisitors,
+        allVisitorsData: branchData
+      };
+      
+      // Store data in localStorage
       localStorage.setItem("selectedBranch", selectedBranch);
+      localStorage.setItem("dashboardData", JSON.stringify(dashboardData));
       
+      // Complete login
       setLoading(false);
       onLogin(email, selectedBranch); // Pass email and branch to the onLogin handler
       navigate("/"); // Navigate to Dashboard
     } catch (err) {
       console.error("Login error:", err);
-      setError("An error occurred. Please try again.");
+      setError("An error occurred while fetching data. Please try again.");
       setLoading(false);
     }
   };
