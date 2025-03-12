@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { AiOutlineUser, AiOutlineTeam, AiOutlineLeft, AiOutlineRight, AiOutlineFilter } from "react-icons/ai";
 import { Line, Bar } from "react-chartjs-2";
+import { useNavigate } from "react-router-dom";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -27,17 +28,12 @@ const Dashboard = () => {
   const [todayVisitorsData, setTodayVisitorsData] = useState([]);
   const [selectedBranch, setSelectedBranch] = useState("");
   const [branches, setBranches] = useState([]);
+  const [allVisitorsData, setAllVisitorsData] = useState([]);
+  const navigate = useNavigate();
 
   const API_URL = "http://localhost:5001/visitors";
 
-  // Retrieve branch from localStorage on initial load
-  useEffect(() => {
-    const branch = localStorage.getItem("selectedBranch");
-    if (branch) {
-      setSelectedBranch(branch);
-    }
-  }, []);
-
+  // Format date for API comparison
   const formatDateForAPI = (date) => {
     return `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
   };
@@ -48,116 +44,172 @@ const Dashboard = () => {
     return new Date(year, month - 1, day);
   };
 
+  // Load data from localStorage on component mount
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await fetch(API_URL);
-        if (!response.ok) {
-          throw new Error(`API response error: ${response.status}`);
+    const loadData = async () => {
+      setLoading(true);
+      
+      // Get branch from localStorage
+      const branch = localStorage.getItem("selectedBranch");
+      if (branch) {
+        setSelectedBranch(branch);
+      }
+      
+      // Try to get prefetched data from localStorage
+      const savedData = localStorage.getItem("dashboardData");
+      
+      if (savedData) {
+        try {
+          const parsedData = JSON.parse(savedData);
+          setAnalyticsData(parsedData.analyticsData || []);
+          setTotalVisitors(parsedData.totalVisitors || 0);
+          setVisitorsToday(parsedData.visitorsToday || 0);
+          setTodayVisitorsData(parsedData.todayVisitorsData || []);
+          setAllVisitorsData(parsedData.allVisitorsData || []);
+          
+          // Fetch all branches for the dropdown
+          await fetchAllBranches();
+          
+          setLoading(false);
+        } catch (err) {
+          console.error("Error parsing dashboard data:", err);
+          // If there's an error parsing, fetch fresh data
+          fetchDashboardData(branch);
         }
-        
-        const allData = await response.json();
-        
-        // Extract unique branch names for the filter dropdown
-        const uniqueBranches = [...new Set(allData
-          .map(entry => entry.branchName)
-          .filter(branch => branch && branch.trim() !== "")
-        )];
-        setBranches(uniqueBranches.sort());
-        
-        // Filter data by selected branch if any
-        const data = selectedBranch 
-          ? allData.filter(item => item.branchName === selectedBranch)
-          : allData;
-        
-        const currentYear = new Date().getFullYear();
-        const today = new Date();
-        const todayFormatted = formatDateForAPI(today);
-        
-        const groupedData = data.reduce(
-          (acc, log) => {
-            if (log.date) {
-              try {
-                const date = parseAPIDate(log.date);
-                
-                // Only process entries from current year
-                if (date && date.getFullYear() === currentYear) {
-                  const month = date.toLocaleString("default", { month: "long" });
-                  acc.monthly[month] = (acc.monthly[month] || 0) + 1;
-
-                  // Check if the entry is from today
-                  if (log.date === todayFormatted) {
-                    acc.today += 1;
-                  }
-                }
-                
-                // Include in total only if it's current year
-                if (date && date.getFullYear() === currentYear) {
-                  acc.total += 1;
-                }
-              } catch (e) {
-                console.error("Date parsing error:", e);
-              }
-            }
-            return acc;
-          },
-          { monthly: {}, today: 0, total: 0 }
-        );
-
-        // Create array for all months in current year
-        const fullYearMonths = Array.from({ length: 12 }, (_, i) => {
-          const month = new Date(currentYear, i).toLocaleString("default", {
-            month: "long",
-          });
-          return { month, visits: groupedData.monthly[month] || 0 };
-        });
-
-        setAnalyticsData(fullYearMonths);
-        setTotalVisitors(groupedData.total);
-        setVisitorsToday(groupedData.today);
-      } catch (error) {
-        console.error("Error fetching analytics data:", error);
-        setError("Failed to fetch analytics data.");
-      } finally {
-        setLoading(false);
+      } else {
+        // No saved data, fetch fresh
+        fetchDashboardData(branch);
       }
     };
+    
+    loadData();
+  }, []);
 
-    fetchData();
-  }, [selectedBranch]); // Re-fetch when selected branch changes
-
-  const fetchTodayVisitors = async () => {
-    setModalVisible(true);
-    setLoading(true);
-
+  // Fetch all branches for the filter dropdown
+  const fetchAllBranches = async () => {
     try {
-      const today = new Date();
-      const formattedToday = formatDateForAPI(today);
-      
-      // Fetch all visitor logs and filter for today's entries on client side
       const response = await fetch(API_URL);
       if (!response.ok) {
         throw new Error(`API response error: ${response.status}`);
       }
       
-      const allVisitors = await response.json();
+      const allData = await response.json();
       
-      // Filter by date and branch if selected
-      let todayVisitors = allVisitors.filter(visitor => visitor.date === formattedToday);
+      // Extract unique branch names
+      const uniqueBranches = [...new Set(allData
+        .map(entry => entry.branchName)
+        .filter(branch => branch && branch.trim() !== "")
+      )];
       
-      if (selectedBranch) {
-        todayVisitors = todayVisitors.filter(visitor => visitor.branchName === selectedBranch);
-      }
+      setBranches(uniqueBranches.sort());
+    } catch (err) {
+      console.error("Error fetching branches:", err);
+    }
+  };
 
+  // Fetch dashboard data for a specific branch
+  const fetchDashboardData = async (branchName = "") => {
+    setLoading(true);
+    try {
+      const response = await fetch(API_URL);
+      if (!response.ok) {
+        throw new Error(`API response error: ${response.status}`);
+      }
+      
+      const allData = await response.json();
+      
+      // Extract unique branch names for the filter dropdown
+      const uniqueBranches = [...new Set(allData
+        .map(entry => entry.branchName)
+        .filter(branch => branch && branch.trim() !== "")
+      )];
+      setBranches(uniqueBranches.sort());
+      
+      // Filter data by selected branch if any
+      const data = branchName 
+        ? allData.filter(item => item.branchName === branchName)
+        : allData;
+      
+      setAllVisitorsData(data);
+      
+      const currentYear = new Date().getFullYear();
+      const today = new Date();
+      const todayFormatted = formatDateForAPI(today);
+      
+      const groupedData = data.reduce(
+        (acc, log) => {
+          if (log.date) {
+            try {
+              const date = parseAPIDate(log.date);
+              
+              // Only process entries from current year
+              if (date && date.getFullYear() === currentYear) {
+                const month = date.toLocaleString("default", { month: "long" });
+                acc.monthly[month] = (acc.monthly[month] || 0) + 1;
+
+                // Check if the entry is from today
+                if (log.date === todayFormatted) {
+                  acc.today += 1;
+                }
+              }
+              
+              // Include in total only if it's current year
+              if (date && date.getFullYear() === currentYear) {
+                acc.total += 1;
+              }
+            } catch (e) {
+              console.error("Date parsing error:", e);
+            }
+          }
+          return acc;
+        },
+        { monthly: {}, today: 0, total: 0 }
+      );
+
+      // Create array for all months in current year
+      const fullYearMonths = Array.from({ length: 12 }, (_, i) => {
+        const month = new Date(currentYear, i).toLocaleString("default", {
+          month: "long",
+        });
+        return { month, visits: groupedData.monthly[month] || 0 };
+      });
+
+      // Filter today's visitors
+      const todayVisitors = data.filter(visitor => visitor.date === todayFormatted);
+
+      setAnalyticsData(fullYearMonths);
+      setTotalVisitors(groupedData.total);
+      setVisitorsToday(groupedData.today);
       setTodayVisitorsData(todayVisitors);
-      setVisitorsToday(todayVisitors.length);
+      
+      // Save the data in localStorage
+      const dashboardData = {
+        analyticsData: fullYearMonths,
+        totalVisitors: groupedData.total,
+        visitorsToday: groupedData.today,
+        todayVisitorsData: todayVisitors,
+        allVisitorsData: data
+      };
+      localStorage.setItem("dashboardData", JSON.stringify(dashboardData));
+      
     } catch (error) {
-      console.error("Error fetching today's visitors:", error);
-      setError("Failed to fetch today's visitors.");
-      setVisitorsToday(0);
+      console.error("Error fetching analytics data:", error);
+      setError("Failed to fetch analytics data.");
     } finally {
       setLoading(false);
     }
+  };
+
+  // When branch selection changes
+  useEffect(() => {
+    if (selectedBranch !== undefined) {
+      fetchDashboardData(selectedBranch);
+    }
+  }, [selectedBranch]);
+
+  const fetchTodayVisitors = () => {
+    setModalVisible(true);
+    // We already have today's visitors data
   };
 
   const closeModal = () => setModalVisible(false);
@@ -179,6 +231,7 @@ const Dashboard = () => {
   const clearBranchFilter = () => {
     setSelectedBranch("");
     localStorage.removeItem("selectedBranch");
+    fetchDashboardData("");
   };
 
   const generateCalendarDays = () => {
@@ -297,7 +350,10 @@ const Dashboard = () => {
       </div>
       
       {loading ? (
-        <p>Loading...</p>
+        <div className="loading-container">
+          <div className="loading-spinner"></div>
+          <p>Loading dashboard data...</p>
+        </div>
       ) : error ? (
         <p className="error">{error}</p>
       ) : (
