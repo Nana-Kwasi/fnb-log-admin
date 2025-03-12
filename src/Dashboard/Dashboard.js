@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { AiOutlineUser, AiOutlineTeam, AiOutlineLeft, AiOutlineRight, AiOutlineFilter } from "react-icons/ai";
+import { AiOutlineUser, AiOutlineTeam, AiOutlineLeft, AiOutlineRight } from "react-icons/ai";
 import { Line, Bar } from "react-chartjs-2";
 import { useNavigate } from "react-router-dom";
 import {
@@ -27,33 +27,13 @@ const Dashboard = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [todayVisitorsData, setTodayVisitorsData] = useState([]);
   const [selectedBranch, setSelectedBranch] = useState("");
-  const [branches, setBranches] = useState([]);
   const [allVisitorsData, setAllVisitorsData] = useState([]);
   const navigate = useNavigate();
-
-  const API_URL = "http://localhost:5001/visitors";
-
-  // Format date for API comparison
-  const formatDateForAPI = (date) => {
-    return `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
-  };
-
-  const parseAPIDate = (dateStr) => {
-    if (!dateStr) return null;
-    const [month, day, year] = dateStr.split('/').map(num => parseInt(num, 10));
-    return new Date(year, month - 1, day);
-  };
 
   // Load data from localStorage on component mount
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
-      
-      // Get branch from localStorage
-      const branch = localStorage.getItem("selectedBranch");
-      if (branch) {
-        setSelectedBranch(branch);
-      }
       
       // Try to get prefetched data from localStorage
       const savedData = localStorage.getItem("dashboardData");
@@ -66,146 +46,23 @@ const Dashboard = () => {
           setVisitorsToday(parsedData.visitorsToday || 0);
           setTodayVisitorsData(parsedData.todayVisitorsData || []);
           setAllVisitorsData(parsedData.allVisitorsData || []);
-          
-          // Fetch all branches for the dropdown
-          await fetchAllBranches();
+          setSelectedBranch(parsedData.selectedBranch || "");
           
           setLoading(false);
         } catch (err) {
           console.error("Error parsing dashboard data:", err);
-          // If there's an error parsing, fetch fresh data
-          fetchDashboardData(branch);
+          setError("Error loading dashboard data. Please log in again.");
+          setTimeout(() => navigate("/login"), 3000);
         }
       } else {
-        // No saved data, fetch fresh
-        fetchDashboardData(branch);
+        // No saved data, redirect to login
+        setError("No dashboard data found. Please log in first.");
+        setTimeout(() => navigate("/login"), 3000);
       }
     };
     
     loadData();
-  }, []);
-
-  // Fetch all branches for the filter dropdown
-  const fetchAllBranches = async () => {
-    try {
-      const response = await fetch(API_URL);
-      if (!response.ok) {
-        throw new Error(`API response error: ${response.status}`);
-      }
-      
-      const allData = await response.json();
-      
-      // Extract unique branch names
-      const uniqueBranches = [...new Set(allData
-        .map(entry => entry.branchName)
-        .filter(branch => branch && branch.trim() !== "")
-      )];
-      
-      setBranches(uniqueBranches.sort());
-    } catch (err) {
-      console.error("Error fetching branches:", err);
-    }
-  };
-
-  // Fetch dashboard data for a specific branch
-  const fetchDashboardData = async (branchName = "") => {
-    setLoading(true);
-    try {
-      const response = await fetch(API_URL);
-      if (!response.ok) {
-        throw new Error(`API response error: ${response.status}`);
-      }
-      
-      const allData = await response.json();
-      
-      // Extract unique branch names for the filter dropdown
-      const uniqueBranches = [...new Set(allData
-        .map(entry => entry.branchName)
-        .filter(branch => branch && branch.trim() !== "")
-      )];
-      setBranches(uniqueBranches.sort());
-      
-      // Filter data by selected branch if any
-      const data = branchName 
-        ? allData.filter(item => item.branchName === branchName)
-        : allData;
-      
-      setAllVisitorsData(data);
-      
-      const currentYear = new Date().getFullYear();
-      const today = new Date();
-      const todayFormatted = formatDateForAPI(today);
-      
-      const groupedData = data.reduce(
-        (acc, log) => {
-          if (log.date) {
-            try {
-              const date = parseAPIDate(log.date);
-              
-              // Only process entries from current year
-              if (date && date.getFullYear() === currentYear) {
-                const month = date.toLocaleString("default", { month: "long" });
-                acc.monthly[month] = (acc.monthly[month] || 0) + 1;
-
-                // Check if the entry is from today
-                if (log.date === todayFormatted) {
-                  acc.today += 1;
-                }
-              }
-              
-              // Include in total only if it's current year
-              if (date && date.getFullYear() === currentYear) {
-                acc.total += 1;
-              }
-            } catch (e) {
-              console.error("Date parsing error:", e);
-            }
-          }
-          return acc;
-        },
-        { monthly: {}, today: 0, total: 0 }
-      );
-
-      // Create array for all months in current year
-      const fullYearMonths = Array.from({ length: 12 }, (_, i) => {
-        const month = new Date(currentYear, i).toLocaleString("default", {
-          month: "long",
-        });
-        return { month, visits: groupedData.monthly[month] || 0 };
-      });
-
-      // Filter today's visitors
-      const todayVisitors = data.filter(visitor => visitor.date === todayFormatted);
-
-      setAnalyticsData(fullYearMonths);
-      setTotalVisitors(groupedData.total);
-      setVisitorsToday(groupedData.today);
-      setTodayVisitorsData(todayVisitors);
-      
-      // Save the data in localStorage
-      const dashboardData = {
-        analyticsData: fullYearMonths,
-        totalVisitors: groupedData.total,
-        visitorsToday: groupedData.today,
-        todayVisitorsData: todayVisitors,
-        allVisitorsData: data
-      };
-      localStorage.setItem("dashboardData", JSON.stringify(dashboardData));
-      
-    } catch (error) {
-      console.error("Error fetching analytics data:", error);
-      setError("Failed to fetch analytics data.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // When branch selection changes
-  useEffect(() => {
-    if (selectedBranch !== undefined) {
-      fetchDashboardData(selectedBranch);
-    }
-  }, [selectedBranch]);
+  }, [navigate]);
 
   const fetchTodayVisitors = () => {
     setModalVisible(true);
@@ -220,18 +77,6 @@ const Dashboard = () => {
 
   const nextMonth = () => {
     setCurrentDate(new Date(currentDate.setMonth(currentDate.getMonth() + 1)));
-  };
-
-  const handleBranchChange = (e) => {
-    const branch = e.target.value;
-    setSelectedBranch(branch);
-    localStorage.setItem("selectedBranch", branch);
-  };
-
-  const clearBranchFilter = () => {
-    setSelectedBranch("");
-    localStorage.removeItem("selectedBranch");
-    fetchDashboardData("");
   };
 
   const generateCalendarDays = () => {
@@ -324,29 +169,11 @@ const Dashboard = () => {
       <div className="dashboard-header">
         <h1 style={{color:'green'}}>FNB LOGS ADMIN DASHBOARD</h1>
         
-        <div className="branch-filter">
-          <div className="filter-container">
-            <AiOutlineFilter className="filter-icon" />
-            <select 
-              value={selectedBranch} 
-              onChange={handleBranchChange}
-              className="branch-select"
-            >
-              <option value="">All Branches</option>
-              {branches.map(branch => (
-                <option key={branch} value={branch}>{branch}</option>
-              ))}
-            </select>
-            {selectedBranch && (
-              <button 
-                onClick={clearBranchFilter}
-                className="clear-filter-btn"
-              >
-                Clear Filter
-              </button>
-            )}
+        {selectedBranch && (
+          <div className="branch-display">
+            <h2>Branch: {selectedBranch}</h2>
           </div>
-        </div>
+        )}
       </div>
       
       {loading ? (
@@ -399,13 +226,13 @@ const Dashboard = () => {
           <div className="charts">
             <div className="chart-container">
               <h3 style={{color:'green'}}>
-                Monthly Visitors {selectedBranch ? `- ${selectedBranch}` : '- All Branches'}
+                Monthly Visitors {selectedBranch ? `- ${selectedBranch}` : ''}
               </h3>
               <Line data={lineData} options={chartOptions} />
             </div>
             <div className="chart-container">
               <h3 style={{color:'green'}}>
-                Monthly Visitors {selectedBranch ? `- ${selectedBranch}` : '- All Branches'}
+                Monthly Visitors {selectedBranch ? `- ${selectedBranch}` : ''}
               </h3>
               <Bar data={barData} options={chartOptions} />
             </div>
@@ -416,7 +243,7 @@ const Dashboard = () => {
               <div className="modal-content">
                 <div className="modal-header">
                   <h2 className="modal-title">
-                    Today's Visitors {selectedBranch ? `- ${selectedBranch}` : '- All Branches'}
+                    Today's Visitors {selectedBranch ? `- ${selectedBranch}` : ''}
                   </h2>
                   <button className="close-button" onClick={closeModal}>&times;</button>
                 </div>
@@ -449,7 +276,7 @@ const Dashboard = () => {
                             <td>{visitor.timeIn}</td>
                             <td>{visitor.timeOut}</td>
                             <td>{visitor.telephone}</td>
-                            <td>{visitor.branchName}</td>
+                            <td>{visitor.branchname}</td>
                           </tr>
                         ))}
                       </tbody>
