@@ -37,10 +37,16 @@ const Dashboard = () => {
       
       // Try to get prefetched data from localStorage
       const savedData = localStorage.getItem("dashboardData");
+      console.log("Raw saved data from localStorage:", savedData);
       
       if (savedData) {
         try {
           const parsedData = JSON.parse(savedData);
+          console.log("Parsed dashboard data:", parsedData);
+          console.log("Analytics data set:", parsedData.analyticsData);
+          console.log("Total visitors:", parsedData.totalVisitors);
+          console.log("Visitors today:", parsedData.visitorsToday);
+          
           setAnalyticsData(parsedData.analyticsData || []);
           setTotalVisitors(parsedData.totalVisitors || 0);
           setVisitorsToday(parsedData.visitorsToday || 0);
@@ -60,7 +66,6 @@ const Dashboard = () => {
         setTimeout(() => navigate("/login"), 3000);
       }
     };
-    
     loadData();
   }, [navigate]);
 

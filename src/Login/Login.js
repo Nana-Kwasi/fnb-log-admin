@@ -55,21 +55,22 @@ const Login = ({ onLogin }) => {
     return new Date(year, month - 1, day);
   };
 
+  
   const handleSubmit = async (e) => {
     e.preventDefault();
-
+  
     if (email.length > 25) {
       setError("F number is incorrect");
       return;
     }
-
+  
     if (!selectedBranch) {
       setError("Please select a branch");
       return;
     }
-
+  
     setLoading(true);
-
+  
     try {
       // Fetch all data for the selected branch
       const response = await fetch(API_URL);
@@ -78,14 +79,17 @@ const Login = ({ onLogin }) => {
       }
       
       const allData = await response.json();
+      console.log("API response for all data:", allData);
       
       // Filter data by selected branch
       const branchData = allData.filter(item => item.branchName === selectedBranch);
+      console.log("Filtered branch data:", branchData);
       
       // Process data for dashboard
       const currentYear = new Date().getFullYear();
       const today = new Date();
       const todayFormatted = formatDateForAPI(today);
+      console.log("Today's date formatted:", todayFormatted);
       
       const groupedData = branchData.reduce(
         (acc, log) => {
@@ -97,7 +101,7 @@ const Login = ({ onLogin }) => {
               if (date && date.getFullYear() === currentYear) {
                 const month = date.toLocaleString("default", { month: "long" });
                 acc.monthly[month] = (acc.monthly[month] || 0) + 1;
-
+  
                 // Check if the entry is from today
                 if (log.date === todayFormatted) {
                   acc.today += 1;
@@ -116,7 +120,8 @@ const Login = ({ onLogin }) => {
         },
         { monthly: {}, today: 0, total: 0 }
       );
-
+      console.log("Grouped data:", groupedData);
+  
       // Create array for all months in current year
       const fullYearMonths = Array.from({ length: 12 }, (_, i) => {
         const month = new Date(currentYear, i).toLocaleString("default", {
@@ -124,9 +129,15 @@ const Login = ({ onLogin }) => {
         });
         return { month, visits: groupedData.monthly[month] || 0 };
       });
-
+      console.log("Full year months:", fullYearMonths);
+  
       // Filter today's visitors
-      const todayVisitors = branchData.filter(visitor => visitor.date === todayFormatted);
+      console.log("Date formats in data:", branchData.map(v => v.date).slice(0, 5));
+      const todayVisitors = branchData.filter(visitor => {
+        console.log(`Comparing: '${visitor.date}' with '${todayFormatted}'`);
+        return visitor.date === todayFormatted;
+      });
+      console.log("Today's visitors:", todayVisitors);
       
       // Prepare dashboard data
       const dashboardData = {
@@ -137,6 +148,7 @@ const Login = ({ onLogin }) => {
         allVisitorsData: branchData,
         selectedBranch: selectedBranch
       };
+      console.log("Dashboard data being stored:", dashboardData);
       
       // Store data in localStorage
       localStorage.setItem("dashboardData", JSON.stringify(dashboardData));
@@ -151,6 +163,7 @@ const Login = ({ onLogin }) => {
       setLoading(false);
     }
   };
+
 
   return (
     <div className="login-container">
