@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { AiOutlineUser, AiOutlineTeam, AiOutlineLeft, AiOutlineRight } from "react-icons/ai";
 import { Line, Bar } from "react-chartjs-2";
 import { useNavigate } from "react-router-dom";
+import { useVisitor } from "../context/VisitorContext";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -18,60 +19,34 @@ import "../dashboard.css";
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend);
 
 const Dashboard = () => {
-  const [analyticsData, setAnalyticsData] = useState([]);
-  const [totalVisitors, setTotalVisitors] = useState(0);
-  const [visitorsToday, setVisitorsToday] = useState(0);
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [modalVisible, setModalVisible] = useState(false);
-  const [todayVisitorsData, setTodayVisitorsData] = useState([]);
-  const [selectedBranch, setSelectedBranch] = useState("");
-  const [allVisitorsData, setAllVisitorsData] = useState([]);
   const navigate = useNavigate();
+  
+  // Use the visitor context
+  const { 
+    selectedBranch, 
+    branchData, 
+    loading, 
+    error, 
+    authenticated 
+  } = useVisitor();
 
-  // Load data from localStorage on component mount
-  useEffect(() => {
-    const loadData = async () => {
-      setLoading(true);
-      
-      // Try to get prefetched data from localStorage
-      const savedData = localStorage.getItem("dashboardData");
-      console.log("Raw saved data from localStorage:", savedData);
-      
-      if (savedData) {
-        try {
-          const parsedData = JSON.parse(savedData);
-          console.log("Parsed dashboard data:", parsedData);
-          console.log("Analytics data set:", parsedData.analyticsData);
-          console.log("Total visitors:", parsedData.totalVisitors);
-          console.log("Visitors today:", parsedData.visitorsToday);
-          
-          setAnalyticsData(parsedData.analyticsData || []);
-          setTotalVisitors(parsedData.totalVisitors || 0);
-          setVisitorsToday(parsedData.visitorsToday || 0);
-          setTodayVisitorsData(parsedData.todayVisitorsData || []);
-          setAllVisitorsData(parsedData.allVisitorsData || []);
-          setSelectedBranch(parsedData.selectedBranch || "");
-          
-          setLoading(false);
-        } catch (err) {
-          console.error("Error parsing dashboard data:", err);
-          setError("Error loading dashboard data. Please log in again.");
-          setTimeout(() => navigate("/login"), 3000);
-        }
-      } else {
-        // No saved data, redirect to login
-        setError("No dashboard data found. Please log in first.");
-        setTimeout(() => navigate("/login"), 3000);
-      }
-    };
-    loadData();
-  }, [navigate]);
+  const { 
+    analyticsData, 
+    totalVisitors, 
+    visitorsToday, 
+    todayVisitorsData 
+  } = branchData;
+
+  // Check if user is authenticated
+  if (!authenticated && !loading) {
+    navigate("/login");
+    return null;
+  }
 
   const fetchTodayVisitors = () => {
     setModalVisible(true);
-    // We already have today's visitors data
   };
 
   const closeModal = () => setModalVisible(false);
@@ -119,11 +94,11 @@ const Dashboard = () => {
   };
 
   const barData = {
-    labels: analyticsData.map((item) => item.month),
+    labels: analyticsData?.map((item) => item.month) || [],
     datasets: [
       {
         label: "Visitors",
-        data: analyticsData.map((item) => item.visits),
+        data: analyticsData?.map((item) => item.visits) || [],
         backgroundColor: "rgba(41, 128, 185, 0.7)",
         borderColor: "#2980b9",
         borderWidth: 1,
@@ -132,11 +107,11 @@ const Dashboard = () => {
   };
 
   const lineData = {
-    labels: analyticsData.map((item) => item.month),
+    labels: analyticsData?.map((item) => item.month) || [],
     datasets: [
       {
         label: "Visitors",
-        data: analyticsData.map((item) => item.visits),
+        data: analyticsData?.map((item) => item.visits) || [],
         backgroundColor: "rgba(26, 188, 156, 0.2)",
         borderColor: "#1abc9c",
         borderWidth: 2,
@@ -255,7 +230,7 @@ const Dashboard = () => {
                 <div className="modal-body">
                   {loading ? (
                     <p>Loading...</p>
-                  ) : todayVisitorsData.length > 0 ? (
+                  ) : todayVisitorsData?.length > 0 ? (
                     <table className="modal-table">
                       <thead>
                         <tr>
@@ -272,16 +247,16 @@ const Dashboard = () => {
                       </thead>
                       <tbody>
                         {todayVisitorsData.map((visitor) => (
-                          <tr key={visitor.id}>
+                          <tr key={visitor.id || visitor.telephone}>
                             <td>{visitor.name}</td>
                             <td>{visitor.company}</td>
                             <td>{visitor.purpose}</td>
                             <td>{visitor.reason}</td>
                             <td>{visitor.department}</td>
-                            <td>{visitor.timeIn}</td>
-                            <td>{visitor.timeOut}</td>
+                            <td>{visitor.timeIn || visitor.timein}</td>
+                            <td>{visitor.timeOut || visitor.timeout}</td>
                             <td>{visitor.telephone}</td>
-                            <td>{visitor.branchname}</td>
+                            <td>{visitor.branchname || visitor.branch}</td>
                           </tr>
                         ))}
                       </tbody>
