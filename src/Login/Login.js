@@ -20,7 +20,7 @@ const Login = () => {
   // Check if already authenticated
   useEffect(() => {
     if (authenticated) {
-      navigate("/");
+      navigate("dashboard");
     }
   }, [authenticated, navigate]);
 

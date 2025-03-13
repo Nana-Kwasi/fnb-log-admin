@@ -76,7 +76,7 @@ import "./styles.css";
 import { AiOutlineDashboard, AiOutlineBarChart, AiOutlineUser } from "react-icons/ai";
 import { BsPeople } from "react-icons/bs";
 import { MdReport } from "react-icons/md";
-import {VisitorContext} from "../src/context/VisitorContext"
+import {VisitorProvider} from "../src/context/VisitorContext"
 import DispatchDash from "./DispatchDash/DispatchDash";
 import DispatchReport from "../src/DispactReport/DispatchReport";
 import Dispatch from "../src/Dispatch/Dispatch";
@@ -96,7 +96,7 @@ const App = () => {
     : "";
 
   return (
-    <VisitorContext>
+    <VisitorProvider>
     <Router>
       <div className="app">
         {!isAuthenticated ? (
@@ -161,7 +161,7 @@ const App = () => {
         )}
       </div>
     </Router>
-    </VisitorContext>
+    </VisitorProvider>
   );
 };
 
