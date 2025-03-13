@@ -21,9 +21,12 @@ export const VisitorProvider = ({ children }) => {
   // API URL for fetching visitor data
   const API_URL = "http://localhost:5001/visitors";
 
-  // Format date for API comparison
+  // Format date for API comparison - in YYYY-MM-DD format
   const formatDateForAPI = (date) => {
-    return `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   };
 
   const parseAPIDate = (dateStr) => {
@@ -33,14 +36,25 @@ export const VisitorProvider = ({ children }) => {
       return dateStr;
     }
     
-    // Handle ISO string format
-    if (dateStr.includes("T")) {
-      return new Date(dateStr);
+    try {
+      // Handle ISO string format or YYYY-MM-DD format
+      if (dateStr.includes("T") || dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        return new Date(dateStr);
+      }
+      
+      // Handle MM/DD/YYYY format if encountered
+      if (dateStr.includes("/")) {
+        const [month, day, year] = dateStr.split('/').map(num => parseInt(num, 10));
+        return new Date(year, month - 1, day);
+      }
+      
+      // Couldn't parse the date
+      console.error("Unrecognized date format:", dateStr);
+      return null;
+    } catch (error) {
+      console.error("Date parsing error:", error, "for date string:", dateStr);
+      return null;
     }
-    
-    // Handle MM/DD/YYYY format
-    const [month, day, year] = dateStr.split('/').map(num => parseInt(num, 10));
-    return new Date(year, month - 1, day);
   };
 
   // Fetch branch data from API
@@ -61,7 +75,7 @@ export const VisitorProvider = ({ children }) => {
       
       // Filter data by selected branch
       const branchData = allData.filter(item => 
-        item.branchname === branchName || item.branch === branchName
+        (item.branchname === branchName || item.branch === branchName) && item.date
       );
       console.log("Filtered branch data:", branchData);
       
@@ -71,60 +85,60 @@ export const VisitorProvider = ({ children }) => {
       const todayFormatted = formatDateForAPI(today);
       console.log("Today's date formatted:", todayFormatted);
       
-      const groupedData = branchData.reduce(
-        (acc, log) => {
-          if (log.date) {
-            try {
-              const date = parseAPIDate(log.date);
-              
-              // Only process entries from current year
-              if (date && date.getFullYear() === currentYear) {
-                const month = date.toLocaleString("default", { month: "long" });
-                acc.monthly[month] = (acc.monthly[month] || 0) + 1;
-  
-                // Check if the entry is from today
-                const logDate = formatDateForAPI(date);
-                if (logDate === todayFormatted) {
-                  acc.today += 1;
-                }
-              }
-              
-              // Include in total only if it's current year
-              if (date && date.getFullYear() === currentYear) {
-                acc.total += 1;
-              }
-            } catch (e) {
-              console.error("Date parsing error:", e);
+      // Process all visit logs for the branch
+      let totalCount = 0;
+      let todayCount = 0;
+      const monthlyData = {};
+      const todayVisitors = [];
+      
+      branchData.forEach(log => {
+        if (!log.date) return;
+        
+        try {
+          const date = parseAPIDate(log.date);
+          if (!date) {
+            console.warn("Could not parse date for log:", log);
+            return;
+          }
+          
+          // Only count entries from current year for total
+          if (date.getFullYear() === currentYear) {
+            totalCount++;
+            
+            // Group by month for analytics
+            const month = date.toLocaleString("default", { month: "long" });
+            monthlyData[month] = (monthlyData[month] || 0) + 1;
+            
+            // Check if the entry is from today
+            const logDateFormatted = formatDateForAPI(date);
+            console.log(`Comparing dates: log date ${logDateFormatted} vs today ${todayFormatted}`);
+            if (logDateFormatted === todayFormatted) {
+              todayCount++;
+              todayVisitors.push(log);
             }
           }
-          return acc;
-        },
-        { monthly: {}, today: 0, total: 0 }
-      );
-      console.log("Grouped data:", groupedData);
+        } catch (e) {
+          console.error("Error processing log:", log, e);
+        }
+      });
+      
+      console.log("Processed counts:", { total: totalCount, today: todayCount });
+      console.log("Today's visitors:", todayVisitors);
   
       // Create array for all months in current year
       const fullYearMonths = Array.from({ length: 12 }, (_, i) => {
         const month = new Date(currentYear, i).toLocaleString("default", {
           month: "long",
         });
-        return { month, visits: groupedData.monthly[month] || 0 };
+        return { month, visits: monthlyData[month] || 0 };
       });
-      console.log("Full year months:", fullYearMonths);
-  
-      // Filter today's visitors
-      const todayVisitors = branchData.filter(visitor => {
-        if (!visitor.date) return false;
-        const visitorDate = parseAPIDate(visitor.date);
-        return visitorDate && formatDateForAPI(visitorDate) === todayFormatted;
-      });
-      console.log("Today's visitors:", todayVisitors);
+      console.log("Full year months data:", fullYearMonths);
       
       // Update context state
       setBranchData({
         analyticsData: fullYearMonths,
-        totalVisitors: groupedData.total,
-        visitorsToday: groupedData.today,
+        totalVisitors: totalCount,
+        visitorsToday: todayCount,
         todayVisitorsData: todayVisitors,
         allVisitorsData: branchData
       });
@@ -132,8 +146,8 @@ export const VisitorProvider = ({ children }) => {
       // Store processed data in localStorage for persistence
       const dashboardData = {
         analyticsData: fullYearMonths,
-        totalVisitors: groupedData.total,
-        visitorsToday: groupedData.today,
+        totalVisitors: totalCount,
+        visitorsToday: todayCount,
         todayVisitorsData: todayVisitors,
         allVisitorsData: branchData,
         selectedBranch: branchName

@@ -9,19 +9,26 @@ const Login = ({ onLogin }) => {
   const [branches, setBranches] = useState([]);
   const [fetchingBranches, setFetchingBranches] = useState(true);
   const [localError, setLocalError] = useState("");
+  const [intentionalLogin, setIntentionalLogin] = useState(false);
   
   // Use the visitor context
-  const { login, loading, error, setError, authenticated } = useVisitor();
+  const { login, loading, error, setError, authenticated, logout } = useVisitor();
 
   const API_URL = "http://localhost:5001/visitors";
 
-  // When context authentication changes, sync with App component
+  // Only trigger navigation when user explicitly logs in
   useEffect(() => {
-    if (authenticated && email) {
+    if (authenticated && email && intentionalLogin) {
       console.log("Context authenticated, notifying App component");
       onLogin(email);
     }
-  }, [authenticated, email, onLogin]);
+  }, [authenticated, email, onLogin, intentionalLogin]);
+
+  // Clear any previous auth state when component mounts
+  useEffect(() => {
+    // Log out on initial render to clear any previous auth state
+    logout();
+  }, [logout]);
 
   // Fetch all branches from the API
   useEffect(() => {
@@ -73,21 +80,22 @@ const Login = ({ onLogin }) => {
     try {
       console.log("Attempting login with:", { email, branch: selectedBranch });
       
+      // Mark this as an intentional login attempt
+      setIntentionalLogin(true);
+      
       // Call the login function from the context
       const success = await login(email, selectedBranch);
       
       console.log("Login result:", success);
       
-      if (success) {
-        console.log("Login successful, notifying App component");
-        // Notify the App component about successful login
-        onLogin(email);
-      } else {
+      if (!success) {
         setLocalError("Login failed. Please check your credentials and try again.");
+        setIntentionalLogin(false);
       }
     } catch (err) {
       console.error("Login submission error:", err);
       setLocalError("An unexpected error occurred. Please try again.");
+      setIntentionalLogin(false);
     }
   };
 
