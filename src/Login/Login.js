@@ -1,38 +1,27 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
 import { useVisitor } from "../context/VisitorContext";
 import "../login.css";
 
-const Login = () => {
+const Login = ({ onLogin }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [selectedBranch, setSelectedBranch] = useState("");
   const [branches, setBranches] = useState([]);
   const [fetchingBranches, setFetchingBranches] = useState(true);
   const [localError, setLocalError] = useState("");
-  const navigate = useNavigate();
   
   // Use the visitor context
   const { login, loading, error, setError, authenticated } = useVisitor();
 
   const API_URL = "http://localhost:5001/visitors";
 
-  // Check if authenticated and navigate - using useCallback to maintain reference
-  const checkAndNavigate = useCallback(() => {
-    if (authenticated) {
-      console.log("User is authenticated, attempting to navigate");
-      // Use a timeout to ensure state updates have completed
-      setTimeout(() => {
-        console.log("Executing delayed navigation");
-        navigate("/", { replace: true });
-      }, 100);
-    }
-  }, [authenticated, navigate]);
-
-  // Initial check for authentication
+  // When context authentication changes, sync with App component
   useEffect(() => {
-    checkAndNavigate();
-  }, [checkAndNavigate]);
+    if (authenticated && email) {
+      console.log("Context authenticated, notifying App component");
+      onLogin(email);
+    }
+  }, [authenticated, email, onLogin]);
 
   // Fetch all branches from the API
   useEffect(() => {
@@ -47,7 +36,6 @@ const Login = () => {
         }
         
         const data = await response.json();
-        console.log("API response:", data);
         
         // Extract unique branch names (handle both branchname and branch)
         const uniqueBranches = [...new Set(data
@@ -84,21 +72,16 @@ const Login = () => {
   
     try {
       console.log("Attempting login with:", { email, branch: selectedBranch });
+      
       // Call the login function from the context
       const success = await login(email, selectedBranch);
       
       console.log("Login result:", success);
       
       if (success) {
-        console.log("Login successful, triggering navigation check");
-        // Force a check for authentication state after login
-        checkAndNavigate();
-        
-        // Backup direct navigation if the effect doesn't trigger
-        setTimeout(() => {
-          console.log("Executing fallback direct navigation");
-          navigate("/", { replace: true });
-        }, 500);
+        console.log("Login successful, notifying App component");
+        // Notify the App component about successful login
+        onLogin(email);
       } else {
         setLocalError("Login failed. Please check your credentials and try again.");
       }
@@ -122,7 +105,7 @@ const Login = () => {
             placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            maxLength={25} // Limit input length
+            maxLength={25}
             required
           />
           <input
@@ -158,9 +141,6 @@ const Login = () => {
             {loading ? <span className="spinner"></span> : "Login"}
           </button>
         </form>
-        <div className="debug-info" style={{ display: 'none' }}>
-          <p>Authentication state: {authenticated ? 'Authenticated' : 'Not Authenticated'}</p>
-        </div>
       </div>
     </div>
   );
