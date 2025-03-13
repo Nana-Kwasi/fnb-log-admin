@@ -21,7 +21,7 @@ export const VisitorProvider = ({ children }) => {
   // API URL for fetching visitor data
   const API_URL = "http://localhost:5001/visitors";
 
-  // Format date for API comparison - in YYYY-MM-DD format
+  // Format date for API comparison - updated to match YYYY-MM-DD format
   const formatDateForAPI = (date) => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -30,29 +30,38 @@ export const VisitorProvider = ({ children }) => {
   };
 
   const parseAPIDate = (dateStr) => {
-    if (!dateStr) return null;
+    if (!dateStr) {
+      console.log("parseAPIDate: No date provided");
+      return null;
+    }
+    
+    console.log(`parseAPIDate: Parsing date string: "${dateStr}"`);
     
     if (dateStr instanceof Date) {
+      console.log("parseAPIDate: Input is already a Date object");
       return dateStr;
     }
     
     try {
-      // Handle ISO string format or YYYY-MM-DD format
-      if (dateStr.includes("T") || dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
-        return new Date(dateStr);
+      // Handle ISO string format and YYYY-MM-DD format
+      if (dateStr.includes("T") || dateStr.includes("-")) {
+        const parsedDate = new Date(dateStr);
+        console.log(`parseAPIDate: Parsed as ISO/YYYY-MM-DD: ${parsedDate}`);
+        return parsedDate;
       }
       
-      // Handle MM/DD/YYYY format if encountered
+      // Handle MM/DD/YYYY format
       if (dateStr.includes("/")) {
         const [month, day, year] = dateStr.split('/').map(num => parseInt(num, 10));
-        return new Date(year, month - 1, day);
+        const parsedDate = new Date(year, month - 1, day);
+        console.log(`parseAPIDate: Parsed as MM/DD/YYYY: ${parsedDate}`);
+        return parsedDate;
       }
       
-      // Couldn't parse the date
-      console.error("Unrecognized date format:", dateStr);
+      console.log(`parseAPIDate: Unrecognized date format: ${dateStr}`);
       return null;
-    } catch (error) {
-      console.error("Date parsing error:", error, "for date string:", dateStr);
+    } catch (e) {
+      console.error(`parseAPIDate: Error parsing date "${dateStr}":`, e);
       return null;
     }
   };
@@ -71,74 +80,108 @@ export const VisitorProvider = ({ children }) => {
       }
       
       const allData = await response.json();
-      console.log("API response for all data:", allData);
+      console.log("API response received with entries:", allData.length);
       
       // Filter data by selected branch
       const branchData = allData.filter(item => 
-        (item.branchname === branchName || item.branch === branchName) && item.date
+        item.branchname === branchName || item.branch === branchName
       );
-      console.log("Filtered branch data:", branchData);
+      console.log(`Filtered ${branchData.length} entries for branch: ${branchName}`);
       
       // Process data for dashboard
       const currentYear = new Date().getFullYear();
       const today = new Date();
       const todayFormatted = formatDateForAPI(today);
-      console.log("Today's date formatted:", todayFormatted);
+      console.log("Today's date formatted for comparison:", todayFormatted);
       
-      // Process all visit logs for the branch
-      let totalCount = 0;
-      let todayCount = 0;
-      const monthlyData = {};
-      const todayVisitors = [];
-      
-      branchData.forEach(log => {
-        if (!log.date) return;
-        
-        try {
-          const date = parseAPIDate(log.date);
-          if (!date) {
-            console.warn("Could not parse date for log:", log);
-            return;
-          }
-          
-          // Only count entries from current year for total
-          if (date.getFullYear() === currentYear) {
-            totalCount++;
-            
-            // Group by month for analytics
-            const month = date.toLocaleString("default", { month: "long" });
-            monthlyData[month] = (monthlyData[month] || 0) + 1;
-            
-            // Check if the entry is from today
-            const logDateFormatted = formatDateForAPI(date);
-            console.log(`Comparing dates: log date ${logDateFormatted} vs today ${todayFormatted}`);
-            if (logDateFormatted === todayFormatted) {
-              todayCount++;
-              todayVisitors.push(log);
-            }
-          }
-        } catch (e) {
-          console.error("Error processing log:", log, e);
+      // Debug all dates in the filtered data
+      branchData.forEach((item, index) => {
+        if (item.date) {
+          const parsedDate = parseAPIDate(item.date);
+          console.log(`Entry ${index} date: "${item.date}" -> Parsed: ${parsedDate ? parsedDate.toISOString() : 'null'}`);
+        } else {
+          console.log(`Entry ${index} has no date`);
         }
       });
       
-      console.log("Processed counts:", { total: totalCount, today: todayCount });
-      console.log("Today's visitors:", todayVisitors);
+      const groupedData = branchData.reduce(
+        (acc, log) => {
+          if (log.date) {
+            try {
+              const date = parseAPIDate(log.date);
+              
+              if (!date) {
+                console.log(`Invalid date format for entry:`, log);
+                return acc;
+              }
+              
+              // Only process entries from current year
+              if (date && date.getFullYear() === currentYear) {
+                const month = date.toLocaleString("default", { month: "long" });
+                acc.monthly[month] = (acc.monthly[month] || 0) + 1;
+  
+                // Check if the entry is from today
+                const logDate = formatDateForAPI(date);
+                console.log(`Comparing dates: logDate=${logDate}, todayFormatted=${todayFormatted}`);
+                if (logDate === todayFormatted) {
+                  acc.today += 1;
+                  console.log(`Today match found! Today count: ${acc.today}`);
+                }
+              }
+              
+              // Include in total only if it's current year
+              if (date && date.getFullYear() === currentYear) {
+                acc.total += 1;
+              }
+            } catch (e) {
+              console.error("Date parsing error:", e);
+            }
+          }
+          return acc;
+        },
+        { monthly: {}, today: 0, total: 0 }
+      );
+      
+      console.log("Grouped data results:", {
+        total: groupedData.total,
+        today: groupedData.today,
+        monthCounts: groupedData.monthly
+      });
   
       // Create array for all months in current year
       const fullYearMonths = Array.from({ length: 12 }, (_, i) => {
         const month = new Date(currentYear, i).toLocaleString("default", {
           month: "long",
         });
-        return { month, visits: monthlyData[month] || 0 };
+        return { month, visits: groupedData.monthly[month] || 0 };
       });
-      console.log("Full year months data:", fullYearMonths);
+      
+      // Filter today's visitors
+      const todayVisitors = branchData.filter(visitor => {
+        if (!visitor.date) return false;
+        const visitorDate = parseAPIDate(visitor.date);
+        const formattedVisitorDate = visitorDate ? formatDateForAPI(visitorDate) : null;
+        const isToday = formattedVisitorDate === todayFormatted;
+        
+        if (isToday) {
+          console.log(`Today's visitor found:`, visitor);
+        }
+        
+        return isToday;
+      });
+      
+      console.log(`Found ${todayVisitors.length} visitors today`);
+      
+      // Log detailed info about today's visitors
+      if (todayVisitors.length > 0) {
+        console.log("Today's visitors detail:", todayVisitors);
+      }
       
       // Update context state
       setBranchData({
         analyticsData: fullYearMonths,
-        totalVisitors: totalCount,
-        visitorsToday: todayCount,
+        totalVisitors: groupedData.total,
+        visitorsToday: groupedData.today,
         todayVisitorsData: todayVisitors,
         allVisitorsData: branchData
       });
@@ -146,14 +189,14 @@ export const VisitorProvider = ({ children }) => {
       // Store processed data in localStorage for persistence
       const dashboardData = {
         analyticsData: fullYearMonths,
-        totalVisitors: totalCount,
-        visitorsToday: todayCount,
-        todayVisitorsData: todayVisitors,
-        allVisitorsData: branchData,
+        totalVisitors: groupedData.total,
+        visitorsToday: groupedData.today,
+        lastUpdated: new Date().toISOString(), // Add timestamp for cache validation
         selectedBranch: branchName
       };
+      
       localStorage.setItem("dashboardData", JSON.stringify(dashboardData));
-      console.log("Data stored in context:", dashboardData);
+      console.log("Data stored in localStorage", dashboardData);
       
       setLoading(false);
       return true;
@@ -170,15 +213,18 @@ export const VisitorProvider = ({ children }) => {
     setLoading(true);
     
     try {
+      console.log(`Attempting login for ${email} at branch ${branch}`);
       const success = await fetchBranchData(branch);
       
       if (success) {
+        console.log("Login successful, updating context state");
         setSelectedBranch(branch);
         setUser({ email, branch });
         setAuthenticated(true);
         setLoading(false);
         return true;
       } else {
+        console.log("Login failed, data fetch unsuccessful");
         setLoading(false);
         return false;
       }
@@ -192,6 +238,7 @@ export const VisitorProvider = ({ children }) => {
 
   // Logout function
   const logout = () => {
+    console.log("Logging out, clearing context and localStorage");
     setSelectedBranch("");
     setBranchData({
       analyticsData: [],
@@ -210,7 +257,21 @@ export const VisitorProvider = ({ children }) => {
     const savedData = localStorage.getItem("dashboardData");
     if (savedData) {
       try {
+        console.log("Found saved dashboard data in localStorage");
         const parsedData = JSON.parse(savedData);
+        
+        // Check if data is stale (from a different day)
+        const lastUpdated = new Date(parsedData.lastUpdated || 0);
+        const today = new Date();
+        const isSameDay = lastUpdated.toDateString() === today.toDateString();
+        
+        if (!isSameDay) {
+          console.log("Saved data is from a different day, not restoring authentication");
+          localStorage.removeItem("dashboardData");
+          return;
+        }
+        
+        console.log("Restoring dashboard data from localStorage:", parsedData);
         setBranchData({
           analyticsData: parsedData.analyticsData || [],
           totalVisitors: parsedData.totalVisitors || 0,
@@ -220,6 +281,7 @@ export const VisitorProvider = ({ children }) => {
         });
         
         if (parsedData.selectedBranch) {
+          console.log(`Restoring selected branch: ${parsedData.selectedBranch}`);
           setSelectedBranch(parsedData.selectedBranch);
           setAuthenticated(true);
         }
@@ -227,6 +289,8 @@ export const VisitorProvider = ({ children }) => {
         console.error("Error parsing stored dashboard data:", err);
         localStorage.removeItem("dashboardData");
       }
+    } else {
+      console.log("No saved dashboard data found in localStorage");
     }
   }, []);
 

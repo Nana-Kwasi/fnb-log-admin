@@ -9,26 +9,25 @@ const Login = ({ onLogin }) => {
   const [branches, setBranches] = useState([]);
   const [fetchingBranches, setFetchingBranches] = useState(true);
   const [localError, setLocalError] = useState("");
-  const [intentionalLogin, setIntentionalLogin] = useState(false);
+  const [manualLoginAttempt, setManualLoginAttempt] = useState(false);
   
   // Use the visitor context
-  const { login, loading, error, setError, authenticated, logout } = useVisitor();
+  const { login, loading, error, setError, authenticated } = useVisitor();
 
   const API_URL = "http://localhost:5001/visitors";
 
-  // Only trigger navigation when user explicitly logs in
+  // Modified useEffect to prevent automatic login
   useEffect(() => {
-    if (authenticated && email && intentionalLogin) {
-      console.log("Context authenticated, notifying App component");
+    // Only perform automatic login if it was triggered by a manual login attempt
+    if (authenticated && email && manualLoginAttempt) {
+      console.log("Authentication successful after manual login attempt, navigating to dashboard");
       onLogin(email);
+      // Reset the flag after login
+      setManualLoginAttempt(false);
+    } else if (authenticated) {
+      console.log("Already authenticated from storage, but not navigating (waiting for manual login)");
     }
-  }, [authenticated, email, onLogin, intentionalLogin]);
-
-  // Clear any previous auth state when component mounts
-  useEffect(() => {
-    // Log out on initial render to clear any previous auth state
-    logout();
-  }, [logout]);
+  }, [authenticated, email, onLogin, manualLoginAttempt]);
 
   // Fetch all branches from the API
   useEffect(() => {
@@ -43,6 +42,7 @@ const Login = ({ onLogin }) => {
         }
         
         const data = await response.json();
+        console.log(`Received ${data.length} entries from API`);
         
         // Extract unique branch names (handle both branchname and branch)
         const uniqueBranches = [...new Set(data
@@ -50,7 +50,7 @@ const Login = ({ onLogin }) => {
           .filter(branch => branch && branch.trim() !== "")
         )];
         
-        console.log("Unique branches:", uniqueBranches);
+        console.log(`Found ${uniqueBranches.length} unique branches`);
         setBranches(uniqueBranches.sort());
       } catch (err) {
         console.error("Error fetching branches:", err);
@@ -65,6 +65,7 @@ const Login = ({ onLogin }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log("Login form submitted");
     setLocalError("");
   
     if (email.length > 25) {
@@ -78,10 +79,11 @@ const Login = ({ onLogin }) => {
     }
   
     try {
-      console.log("Attempting login with:", { email, branch: selectedBranch });
+      console.log("Login validation passed, setting manual login attempt flag");
+      // Set flag to indicate this is a manual login attempt
+      setManualLoginAttempt(true);
       
-      // Mark this as an intentional login attempt
-      setIntentionalLogin(true);
+      console.log("Attempting login with:", { email, branch: selectedBranch });
       
       // Call the login function from the context
       const success = await login(email, selectedBranch);
@@ -89,13 +91,14 @@ const Login = ({ onLogin }) => {
       console.log("Login result:", success);
       
       if (!success) {
+        console.log("Login failed, resetting manual login attempt flag");
+        setManualLoginAttempt(false);
         setLocalError("Login failed. Please check your credentials and try again.");
-        setIntentionalLogin(false);
       }
     } catch (err) {
       console.error("Login submission error:", err);
+      setManualLoginAttempt(false);
       setLocalError("An unexpected error occurred. Please try again.");
-      setIntentionalLogin(false);
     }
   };
 
