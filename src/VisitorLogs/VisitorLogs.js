@@ -1,19 +1,21 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { collection, getDocs, query,orderBy  } from "firebase/firestore";
-import { getFirestore } from "firebase/firestore";
-import app from "../Firebase/Config";
+import { useVisitor } from "../context/VisitorContext";
 import "../Log.css";
 
 const VisitorLogs = () => {
-  const [logs, setLogs] = useState([]);
   const [filteredLogs, setFilteredLogs] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const navigate = useNavigate();
-  const db = getFirestore(app);
+  
+  // Use the visitor context
+  const { 
+    branchData, 
+    loading, 
+    error, 
+    authenticated 
+  } = useVisitor();
 
   const currentYear = new Date().getFullYear();
   const years = Array.from(
@@ -21,103 +23,79 @@ const VisitorLogs = () => {
     (_, i) => currentYear - i
   );
 
-  
-  const parseDate = (dateValue) => {
-    if (!dateValue) return null;
-    
-    
-    if (dateValue?.toDate instanceof Function) {
-      return dateValue.toDate();
-    }
-    
-    
-    if (typeof dateValue === 'number') {
-      return new Date(dateValue);
-    }
-    
-    
-    if (typeof dateValue === 'string') {
-      
-      const cleanDate = dateValue.split('T')[0];
-      const parsed = new Date(cleanDate);
-      if (!isNaN(parsed.getTime())) {
-        return parsed;
-      }
-    }
-    
-   
-    if (dateValue instanceof Date && !isNaN(dateValue)) {
-      return dateValue;
-    }
-    
-    return null;
-  };
-
+  // Check if user is authenticated
   useEffect(() => {
-    const fetchLogs = async () => {
-      try {
-        setLoading(true);
+    if (!authenticated && !loading) {
+      navigate("/login");
+    }
+  }, [authenticated, loading, navigate]);
+
+  // Filter logs by year and search query
+  useEffect(() => {
+    if (branchData.allVisitorsData?.length > 0) {
+      const yearFilteredLogs = branchData.allVisitorsData.filter((log) => {
+        if (!log.date) return false;
         
-        // Fetch all logs and filter in memory for better date format support
-        const logsRef = collection(db, "VisitorEntries");
-        const q = query(logsRef, orderBy("date", "desc"));
-        const snapshot = await getDocs(q);
+        // Parse the date
+        let parsedDate;
+        if (typeof log.date === 'string') {
+          if (log.date.includes('T')) {
+            // ISO date string
+            parsedDate = new Date(log.date);
+          } else if (log.date.includes('/')) {
+            // MM/DD/YYYY format
+            const [month, day, year] = log.date.split('/').map(num => parseInt(num, 10));
+            parsedDate = new Date(year, month - 1, day);
+          }
+        } else if (log.date instanceof Date) {
+          parsedDate = log.date;
+        }
         
-        const logsData = snapshot.docs.map((doc) => {
-          const data = doc.data();
-          const parsedDate = parseDate(data.date);
+        return parsedDate && parsedDate.getFullYear() === selectedYear;
+      });
+
+      // Group logs by name to show only the most recent entry per person
+      const groupedLogs = yearFilteredLogs.reduce((acc, log) => {
+        const existingLog = acc[log.name];
+        
+        if (!existingLog) {
+          acc[log.name] = log;
+        } else {
+          // Compare dates to keep the most recent
+          const existingDate = new Date(existingLog.date);
+          const currentDate = new Date(log.date);
           
-          return {
-            id: doc.id,
-            ...data,
-            // Store both the original date and parsed date
-            originalDate: data.date,
-            parsedDate: parsedDate,
-            // Format date for display
-            date: parsedDate ? parsedDate.toISOString().split('T')[0] : 'N/A'
-          };
-        });
-
-        // Filter by year and group by name
-        const yearFilteredLogs = logsData.filter((log) => {
-          if (!log.parsedDate) return false;
-          return log.parsedDate.getFullYear() === selectedYear;
-        });
-
-        // Group logs by name
-        const groupedLogs = yearFilteredLogs.reduce((acc, log) => {
-          // Only update if this is the most recent entry for this name
-          if (!acc[log.name] || (log.parsedDate && acc[log.name].parsedDate < log.parsedDate)) {
+          if (currentDate > existingDate) {
             acc[log.name] = log;
           }
-          return acc;
-        }, {});
+        }
+        
+        return acc;
+      }, {});
 
-        const logsArray = Object.values(groupedLogs);
-        setLogs(logsArray);
+      const logsArray = Object.values(groupedLogs);
+      
+      // Apply search filter if query exists
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        setFilteredLogs(
+          logsArray.filter(
+            (log) =>
+              (log.name && log.name.toLowerCase().includes(query)) ||
+              (log.company && log.company.toLowerCase().includes(query)) ||
+              (log.date && log.date.toString().toLowerCase().includes(query))
+          )
+        );
+      } else {
         setFilteredLogs(logsArray);
-      } catch (error) {
-        console.error("Error fetching visitor logs:", error);
-        setError("Error fetching visitor logs. Please try again.");
-      } finally {
-        setLoading(false);
       }
-    };
-
-    fetchLogs();
-  }, [db, selectedYear]);
+    } else {
+      setFilteredLogs([]);
+    }
+  }, [branchData.allVisitorsData, selectedYear, searchQuery]);
 
   const handleSearch = (event) => {
-    const query = event.target.value.toLowerCase();
-    setSearchQuery(query);
-    setFilteredLogs(
-      logs.filter(
-        (log) =>
-          log.name.toLowerCase().includes(query) ||
-          log.company.toLowerCase().includes(query) ||
-          (log.date && log.date.toLowerCase().includes(query))
-      )
-    );
+    setSearchQuery(event.target.value.toLowerCase());
   };
 
   const handleYearChange = (event) => {
@@ -127,6 +105,10 @@ const VisitorLogs = () => {
   const handleRowClick = (name) => {
     navigate(`/visitor-details/${encodeURIComponent(name)}`);
   };
+
+  if (!authenticated && !loading) {
+    return null;
+  }
 
   return (
     <div className="visitor-logs">
@@ -175,13 +157,13 @@ const VisitorLogs = () => {
             <tbody>
               {filteredLogs.map((log) => (
                 <tr
-                  key={log.name}
+                  key={log.id || log.name}
                   onClick={() => handleRowClick(log.name)}
                   className="clickable-row"
                 >
                   <td>{log.name}</td>
                   <td>{log.company}</td>
-                  <td>{log.date}</td>
+                  <td>{typeof log.date === 'string' ? log.date : log.date.toLocaleDateString()}</td>
                   <td>{log.telephone}</td>
                 </tr>
               ))}

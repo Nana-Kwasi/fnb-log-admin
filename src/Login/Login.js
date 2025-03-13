@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useVisitor } from "../context/VisitorContext";
 import "../login.css";
 
-const Login = ({ onLogin }) => {
+const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [selectedBranch, setSelectedBranch] = useState("");
   const [branches, setBranches] = useState([]);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
   const [fetchingBranches, setFetchingBranches] = useState(true);
   const navigate = useNavigate();
+  
+  // Use the visitor context
+  const { login, loading, error, setError } = useVisitor();
 
   const API_URL = "http://localhost:5001/visitors";
 
@@ -42,20 +44,8 @@ const Login = ({ onLogin }) => {
     };
 
     fetchBranches();
-  }, []);
+  }, [API_URL, setError]);
 
-  // Format date for API comparison
-  const formatDateForAPI = (date) => {
-    return `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
-  };
-
-  const parseAPIDate = (dateStr) => {
-    if (!dateStr) return null;
-    const [month, day, year] = dateStr.split('/').map(num => parseInt(num, 10));
-    return new Date(year, month - 1, day);
-  };
-
-  
   const handleSubmit = async (e) => {
     e.preventDefault();
   
@@ -69,101 +59,13 @@ const Login = ({ onLogin }) => {
       return;
     }
   
-    setLoading(true);
-  
-    try {
-      // Fetch all data for the selected branch
-      const response = await fetch(API_URL);
-      if (!response.ok) {
-        throw new Error(`API response error: ${response.status}`);
-      }
-      
-      const allData = await response.json();
-      console.log("API response for all data:", allData);
-      
-      // Filter data by selected branch
-      const branchData = allData.filter(item => item.branchName === selectedBranch);
-      console.log("Filtered branch data:", branchData);
-      
-      // Process data for dashboard
-      const currentYear = new Date().getFullYear();
-      const today = new Date();
-      const todayFormatted = formatDateForAPI(today);
-      console.log("Today's date formatted:", todayFormatted);
-      
-      const groupedData = branchData.reduce(
-        (acc, log) => {
-          if (log.date) {
-            try {
-              const date = parseAPIDate(log.date);
-              
-              // Only process entries from current year
-              if (date && date.getFullYear() === currentYear) {
-                const month = date.toLocaleString("default", { month: "long" });
-                acc.monthly[month] = (acc.monthly[month] || 0) + 1;
-  
-                // Check if the entry is from today
-                if (log.date === todayFormatted) {
-                  acc.today += 1;
-                }
-              }
-              
-              // Include in total only if it's current year
-              if (date && date.getFullYear() === currentYear) {
-                acc.total += 1;
-              }
-            } catch (e) {
-              console.error("Date parsing error:", e);
-            }
-          }
-          return acc;
-        },
-        { monthly: {}, today: 0, total: 0 }
-      );
-      console.log("Grouped data:", groupedData);
-  
-      // Create array for all months in current year
-      const fullYearMonths = Array.from({ length: 12 }, (_, i) => {
-        const month = new Date(currentYear, i).toLocaleString("default", {
-          month: "long",
-        });
-        return { month, visits: groupedData.monthly[month] || 0 };
-      });
-      console.log("Full year months:", fullYearMonths);
-  
-      // Filter today's visitors
-      console.log("Date formats in data:", branchData.map(v => v.date).slice(0, 5));
-      const todayVisitors = branchData.filter(visitor => {
-        console.log(`Comparing: '${visitor.date}' with '${todayFormatted}'`);
-        return visitor.date === todayFormatted;
-      });
-      console.log("Today's visitors:", todayVisitors);
-      
-      // Prepare dashboard data
-      const dashboardData = {
-        analyticsData: fullYearMonths,
-        totalVisitors: groupedData.total,
-        visitorsToday: groupedData.today,
-        todayVisitorsData: todayVisitors,
-        allVisitorsData: branchData,
-        selectedBranch: selectedBranch
-      };
-      console.log("Dashboard data being stored:", dashboardData);
-      
-      // Store data in localStorage
-      localStorage.setItem("dashboardData", JSON.stringify(dashboardData));
-      
-      // Complete login
-      setLoading(false);
-      onLogin(email, selectedBranch); // Pass email and branch to the onLogin handler
-      navigate("/"); // Navigate to Dashboard
-    } catch (err) {
-      console.error("Login error:", err);
-      setError("An error occurred while fetching data. Please try again.");
-      setLoading(false);
+    // Call the login function from the context
+    const success = await login(email, selectedBranch);
+    
+    if (success) {
+      navigate("/"); // Navigate to Dashboard on successful login
     }
   };
-
 
   return (
     <div className="login-container">
