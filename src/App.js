@@ -62,9 +62,6 @@
 // };
 
 // export default App;
-
-
-
 import React, { useState } from "react";
 import { BrowserRouter as Router, Routes, Route, NavLink } from "react-router-dom";
 import Dashboard from "../src/Dashboard/Dashboard";
@@ -97,6 +94,7 @@ const App = () => {
     : "";
 
   return (
+    <VisitorContext>
     <Router>
       <div className="app">
         {!isAuthenticated ? (
@@ -143,7 +141,7 @@ const App = () => {
               </ul>
             </nav>
             <main className="content">
-              <VisitorContext>
+             
               <Routes>
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/visitor-logs" element={<VisitorLogs />} />
@@ -155,12 +153,13 @@ const App = () => {
                 <Route path="/DispatchReport" element={<DispatchReport />} />
                 <Route path="/Graphs" element={<Graphs />} />
               </Routes>
-              </VisitorContext>
+             
             </main>
           </>
         )}
       </div>
     </Router>
+    </VisitorContext>
   );
 };
 
