@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useVisitor } from "../context/VisitorContext";
 import "../login.css";
@@ -17,12 +17,22 @@ const Login = () => {
 
   const API_URL = "http://localhost:5001/visitors";
 
-  // Check if already authenticated
-  useEffect(() => {
+  // Check if authenticated and navigate - using useCallback to maintain reference
+  const checkAndNavigate = useCallback(() => {
     if (authenticated) {
-      navigate("dashboard");
+      console.log("User is authenticated, attempting to navigate");
+      // Use a timeout to ensure state updates have completed
+      setTimeout(() => {
+        console.log("Executing delayed navigation");
+        navigate("/", { replace: true });
+      }, 100);
     }
   }, [authenticated, navigate]);
+
+  // Initial check for authentication
+  useEffect(() => {
+    checkAndNavigate();
+  }, [checkAndNavigate]);
 
   // Fetch all branches from the API
   useEffect(() => {
@@ -80,8 +90,15 @@ const Login = () => {
       console.log("Login result:", success);
       
       if (success) {
-        console.log("Login successful, navigating to dashboard");
-        navigate("/"); // Navigate to Dashboard on successful login
+        console.log("Login successful, triggering navigation check");
+        // Force a check for authentication state after login
+        checkAndNavigate();
+        
+        // Backup direct navigation if the effect doesn't trigger
+        setTimeout(() => {
+          console.log("Executing fallback direct navigation");
+          navigate("/", { replace: true });
+        }, 500);
       } else {
         setLocalError("Login failed. Please check your credentials and try again.");
       }
@@ -141,6 +158,9 @@ const Login = () => {
             {loading ? <span className="spinner"></span> : "Login"}
           </button>
         </form>
+        <div className="debug-info" style={{ display: 'none' }}>
+          <p>Authentication state: {authenticated ? 'Authenticated' : 'Not Authenticated'}</p>
+        </div>
       </div>
     </div>
   );
