@@ -1,96 +1,113 @@
-import React, { useState } from "react";
-import { collection, getDocs } from "firebase/firestore";
-import { getFirestore } from "firebase/firestore";
-import app from "../Firebase/Config";
+import React, { useState, useEffect } from "react";
+import { useVisitor } from "../path/to/VisitorContext"; // Update this path as needed
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import "../report.css";
 
 const Reports = () => {
-  const [logs, setLogs] = useState([]);
+  const { branchData, selectedBranch, loading: contextLoading, fetchBranchData } = useVisitor();
   const [filteredLogs, setFilteredLogs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [selectedYear, setSelectedYear] = useState("");
-  const db = getFirestore(app);
+  const [reportType, setReportType] = useState("date"); // "date" or "year"
 
+  // Format date for display in YYYY-MM-DD format
+  const formatDateForDisplay = (date) => {
+    if (!date) return "";
+    const d = new Date(date);
+    return d instanceof Date && !isNaN(d) 
+      ? d.toISOString().split('T')[0]
+      : "";
+  };
+
+  // Parse date string to Date object
   const parseDate = (dateStr) => {
     if (!dateStr) return null;
-  
-    const formats = [
-      { regex: /^(\d{2})\/(\d{2})\/(\d{4})$/, order: ["mm", "dd", "yyyy"] },
-      { regex: /^(\d{2})\/(\d{2})\/(\d{4})$/, order: ["dd", "mm", "yyyy"] },
-    ];
-  
-    for (const { regex, order } of formats) {
-      const match = dateStr.match(regex);
-      if (match) {
-        const [_, part1, part2, part3] = match;
-        const day = order.indexOf("dd") === 0 ? parseInt(part1, 10) : parseInt(part2, 10);
-        const month = order.indexOf("mm") === 0 ? parseInt(part1, 10) - 1 : parseInt(part2, 10) - 1;
-        const year = parseInt(part3, 10);
-        return new Date(year, month, day);
-      }
+    
+    // Handle standard date input format (YYYY-MM-DD)
+    if (dateStr.includes("-")) {
+      return new Date(dateStr);
     }
-  
+    
+    // Handle ISO format
+    if (dateStr.includes("T")) {
+      return new Date(dateStr);
+    }
+    
+    // Handle MM/DD/YYYY format
+    if (dateStr.includes("/")) {
+      const [month, day, year] = dateStr.split('/').map(num => parseInt(num, 10));
+      return new Date(year, month - 1, day);
+    }
+    
     return null;
   };
 
-  const fetchLogs = async () => {
-    if (!startDate || !endDate) {
-      alert("Please select both start and end dates.");
-      return;
-    }
+  useEffect(() => {
+    // Initialize with today's date as end date and a week ago as start date
+    const today = new Date();
+    const weekAgo = new Date();
+    weekAgo.setDate(today.getDate() - 7);
+    
+    setEndDate(formatDateForDisplay(today));
+    setStartDate(formatDateForDisplay(weekAgo));
+    
+    // Set current year as default
+    setSelectedYear(today.getFullYear().toString());
+  }, []);
 
+  // Generate filtered logs based on date range or year
+  const generateReport = async () => {
     setLoading(true);
     setError("");
+
     try {
-      const snapshot = await getDocs(collection(db, "VisitorEntries"));
-      const logsData = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      // Only fetch data if we don't have it already
+      if (branchData.allVisitorsData.length === 0) {
+        await fetchBranchData(selectedBranch);
+      }
 
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-      end.setHours(23, 59, 59, 999);
+      if (reportType === "date") {
+        if (!startDate || !endDate) {
+          throw new Error("Please select both start and end dates");
+        }
 
-      const filtered = logsData.filter((log) => {
-        const logDate = new Date(log.date);
-        return logDate >= start && logDate <= end;
-      });
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
 
-      setLogs(filtered);
-      setFilteredLogs(filtered);
-    } catch (error) {
-      console.error("Error fetching logs:", error);
-      setError("Failed to retrieve data. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
+        if (start > end) {
+          throw new Error("Start date must be before end date");
+        }
 
-  const fetchYearlyLogs = async () => {
-    if (!selectedYear) {
-      alert("Please select a year.");
-      return;
-    }
+        const filtered = branchData.allVisitorsData.filter((log) => {
+          const logDate = parseDate(log.date);
+          return logDate && logDate >= start && logDate <= end;
+        });
 
-    setLoading(true);
-    setError("");
-    try {
-      const snapshot = await getDocs(collection(db, "VisitorEntries"));
-      const logsData = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        setFilteredLogs(filtered);
+      } else {
+        if (!selectedYear) {
+          throw new Error("Please select a year");
+        }
 
-      const filtered = logsData.filter((log) => {
-        const logDate = new Date(log.date);
-        return logDate.getFullYear() === parseInt(selectedYear);
-      });
+        const yearNum = parseInt(selectedYear, 10);
+        
+        const filtered = branchData.allVisitorsData.filter((log) => {
+          const logDate = parseDate(log.date);
+          return logDate && logDate.getFullYear() === yearNum;
+        });
 
-      setLogs(filtered);
-      setFilteredLogs(filtered);
-    } catch (error) {
-      console.error("Error fetching yearly logs:", error);
-      setError("Failed to retrieve yearly data. Please try again.");
+        setFilteredLogs(filtered);
+      }
+    } catch (err) {
+      console.error("Error generating report:", err);
+      setError(err.message || "Failed to generate report. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -99,13 +116,19 @@ const Reports = () => {
   const generatePDF = () => {
     const doc = new jsPDF('landscape');
     
-    const primaryColor =  [255, 153, 0];
+    const primaryColor = [255, 153, 0];
     const accentColor = [0, 51, 153];
   
-    const logoWidth = 50;
-    const logoHeight = 50;
-    doc.addImage("/FNB logo.png", "PNG", 250, 15, logoWidth, logoHeight);
+    // Add logo
+    try {
+      const logoWidth = 50;
+      const logoHeight = 50;
+      doc.addImage("/FNB logo.png", "PNG", 250, 15, logoWidth, logoHeight);
+    } catch (e) {
+      console.warn("Could not add logo image:", e);
+    }
   
+    // Add title and header
     doc.setTextColor(...primaryColor);
     doc.setFont("Helvetica", "bold");
     doc.setFontSize(14);
@@ -113,16 +136,18 @@ const Reports = () => {
   
     doc.setTextColor(...accentColor);
     doc.setFontSize(12);
-    doc.text("FNB Visitors Logs Report", 14, 35);
+    doc.text(`FNB Visitors Logs Report - ${selectedBranch} Branch`, 14, 35);
   
     doc.setTextColor(0, 0, 0);
     doc.setFontSize(10);
-    const dateRange = selectedYear 
+    const dateRange = reportType === "year" 
       ? `Year: ${selectedYear}` 
       : `Date Range: ${startDate} - ${endDate}`;
     doc.text(dateRange, 14, 45);
     doc.text(`Generated On: ${new Date().toLocaleDateString()}`, 14, 52);
+    doc.text(`Total Entries: ${filteredLogs.length}`, 14, 59);
   
+    // Prepare table data
     const tableData = filteredLogs.map((log, index) => [
       index + 1,
       log.name || "N/A",
@@ -132,12 +157,13 @@ const Reports = () => {
       log.timeIn || "N/A",
       log.timeOut || "N/A",
       log.purpose || "N/A",
-      log.reason || "N/A",
-      log.date || "N/A",
+      (log.reason || log.comments || "N/A"),
+      formatDateForDisplay(log.date) || "N/A",
     ]);
   
+    // Generate table
     doc.autoTable({
-      head: [["#", "Name", "Company", "Department", "Telephone", "Time In", "Time Out", "Purpose", "Reason", "Date"]],
+      head: [["#", "Name", "Company", "Department", "Telephone", "Time In", "Time Out", "Purpose", "Comments", "Date"]],
       body: tableData,
       startY: 65,
       theme: "striped",
@@ -150,81 +176,128 @@ const Reports = () => {
       },
       styles: { 
         font: 'Helvetica',
-        fontSize: 9 
+        fontSize: 9,
+        cellPadding: 2,
+        overflow: 'linebreak'
+      },
+      columnStyles: {
+        0: { cellWidth: 15 }, // #
+        9: { cellWidth: 25 }, // Date
       }
     });
   
-    const filename = selectedYear 
-      ? `FNB_Visitor_Logs_${selectedYear}.pdf` 
-      : "FNB_Visitor_Logs_Report.pdf";
+    // Add footer
+    const pageCount = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.text(`Page ${i} of ${pageCount}`, doc.internal.pageSize.width - 30, doc.internal.pageSize.height - 10);
+    }
+  
+    // Save PDF
+    const filename = reportType === "year" 
+      ? `FNB_${selectedBranch}_Visitor_Logs_${selectedYear}.pdf` 
+      : `FNB_${selectedBranch}_Visitor_Logs_${startDate}_to_${endDate}.pdf`;
     doc.save(filename);
   };
 
   return (
-    <div className="reports">
-      <h1>Generate Reports</h1>
+    <div className="reports-container">
+      <div className="reports-header">
+        <h1>Visitor Reports</h1>
+        <p className="branch-info">Branch: <strong>{selectedBranch}</strong></p>
+      </div>
       
-      <div className="filter-sections">
-        <div className="date-range-section">
-          <h2>Date Range Report</h2>
-          <div className="filter-section">
-            <label>
-              Start Date:
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                required
-              />
-            </label>
-            <label>
-              End Date:
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                required
-              />
-            </label>
-            <button onClick={fetchLogs} className="fetch-btn">
-            Generate Monthly Report
-            </button>
-          </div>
-        </div>
-
-        <div className="yearly-section">
-          <h2>Yearly Report</h2>
-          <div className="filter-section">
-            <label>
-              Select Year:
-              <select
-                value={selectedYear}
-                onChange={(e) => setSelectedYear(e.target.value)}
-                required
-              >
-                <option value="">Select Year</option>
-                {Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i).map((year) => (
-                  <option key={year} value={year}>
-                    {year}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button onClick={fetchYearlyLogs} className="fetch-btn">
-              Generate Yearly Report
-            </button>
-          </div>
-        </div>
+      <div className="filter-tabs">
+        <button 
+          className={`tab-btn ${reportType === 'date' ? 'active' : ''}`}
+          onClick={() => setReportType('date')}
+        >
+          Date Range Report
+        </button>
+        <button 
+          className={`tab-btn ${reportType === 'year' ? 'active' : ''}`}
+          onClick={() => setReportType('year')}
+        >
+          Yearly Report
+        </button>
       </div>
 
-      {loading ? (
-        <p>Loading data...</p>
-      ) : error ? (
-        <p className="error">{error}</p>
-      ) : filteredLogs.length === 0 ? (
-        <p>No data available for the selected period.</p>
-      ) : (
+      <div className="filter-container">
+        {reportType === 'date' ? (
+          <div className="date-range-section">
+            <div className="filter-inputs">
+              <div className="input-group">
+                <label htmlFor="start-date">Start Date:</label>
+                <input
+                  id="start-date"
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="input-group">
+                <label htmlFor="end-date">End Date:</label>
+                <input
+                  id="end-date"
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="yearly-section">
+            <div className="filter-inputs">
+              <div className="input-group">
+                <label htmlFor="year-select">Select Year:</label>
+                <select
+                  id="year-select"
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(e.target.value)}
+                  required
+                >
+                  <option value="">Select Year</option>
+                  {Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i).map((year) => (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        <button 
+          onClick={generateReport} 
+          className="generate-btn"
+          disabled={loading || contextLoading}
+        >
+          {loading || contextLoading ? 'Loading...' : 'Generate Report'}
+        </button>
+      </div>
+
+      {error && <p className="error-message">{error}</p>}
+
+      {!loading && !error && filteredLogs.length === 0 && (
+        <div className="no-data-message">
+          <p>{filteredLogs.length === 0 ? 'No data available for the selected period.' : 'Generate a report to view data.'}</p>
+        </div>
+      )}
+
+      {!loading && !error && filteredLogs.length > 0 && (
         <>
+          <div className="report-stats">
+            <div className="stat-card">
+              <h3>Total Entries</h3>
+              <p className="stat-value">{filteredLogs.length}</p>
+            </div>
+          </div>
+
           <div className="table-container">
             <table className="log-table">
               <thead>
@@ -237,13 +310,13 @@ const Reports = () => {
                   <th>Time In</th>
                   <th>Time Out</th>
                   <th>Purpose</th>
-                  <th>Reason</th>
+                  <th>Comments</th>
                   <th>Date</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredLogs.map((log, index) => (
-                  <tr key={log.id}>
+                  <tr key={index}>
                     <td>{index + 1}</td>
                     <td>{log.name || "---"}</td>
                     <td>{log.company || "---"}</td>
@@ -252,16 +325,19 @@ const Reports = () => {
                     <td>{log.timeIn || "---"}</td>
                     <td>{log.timeOut || "---"}</td>
                     <td>{log.purpose || "---"}</td>
-                    <td>{log.reason || "---"}</td>
-                    <td>{log.date || "---"}</td>
+                    <td>{log.reason || log.comments || "---"}</td>
+                    <td>{formatDateForDisplay(log.date) || "---"}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          <button onClick={generatePDF} className="download-btn">
-            Download PDF
-          </button>
+          
+          <div className="actions-container">
+            <button onClick={generatePDF} className="download-btn">
+              Download PDF
+            </button>
+          </div>
         </>
       )}
     </div>
