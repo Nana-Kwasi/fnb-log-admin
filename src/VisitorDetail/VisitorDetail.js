@@ -141,9 +141,9 @@ const VisitorDetail = () => {
                 {visitorData[date].map((entry, index) => (
                   <tr key={index}>
                     <td>{entry.company || "---"}</td>
-                    <td>{entry.branch || entry.branchname || "---"}</td>
+                    <td>{entry.branchName || entry.branchname || "---"}</td>
                     <td>{entry.telephone || "---"}</td>
-                    <td>{entry.timeIn || "---"}</td>
+                    <td>{entry.timeIn || entry.timeIn || "---"}</td>
                     <td>{entry.timeOut || "---"}</td>
                     <td>{entry.purpose || "---"}</td>
                     <td>{entry.department || "---"}</td>

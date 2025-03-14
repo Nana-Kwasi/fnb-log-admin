@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useVisitor } from "../path/to/VisitorContext"; // Update this path as needed
+import { useVisitor } from "../context/VisitorContext";
 import ReactApexChart from "react-apexcharts";
 import "../ana.css";
 
