@@ -46,7 +46,7 @@ const Login = ({ onLogin }) => {
         
         // Extract unique branch names (handle both branchname and branch)
         const uniqueBranches = [...new Set(data
-          .map(entry => entry.branchname || entry.branch)
+          .map(entry => entry.branchname )
           .filter(branch => branch && branch.trim() !== "")
         )];
         
