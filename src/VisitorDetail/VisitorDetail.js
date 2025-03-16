@@ -143,8 +143,8 @@ const VisitorDetail = () => {
                     <td>{entry.company || "---"}</td>
                     <td>{entry.branchName || entry.branchname || "---"}</td>
                     <td>{entry.telephone || "---"}</td>
-                    <td>{entry.timeIn || entry.timeIn || "---"}</td>
-                    <td>{entry.timeOut || "---"}</td>
+                    <td>{entry.timein || entry.timeIn || "---"}</td>
+                    <td>{entry.timeout ||  entry.timeOut ||  "---"}</td>
                     <td>{entry.purpose || "---"}</td>
                     <td>{entry.department || "---"}</td>
                     <td>{entry.reason || "---"}</td>
