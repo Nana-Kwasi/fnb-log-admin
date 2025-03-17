@@ -274,37 +274,71 @@ const VisitorDetail = () => {
   }, [visitorName, branchData, authenticated]);
 
   // Function to render image from base64 data
-  const renderImage = (imageData) => {
-    if (!imageData) return null;
-    
-    // Check if the data already has the data:image prefix
-    if (imageData.startsWith('data:image')) {
+  const renderVisitorPicture = (pictureData) => {
+    if (!pictureData) {
+      console.log("No picture data available");
       return (
-        <div className="visitor-image-container">
-          <img src={imageData} alt="Visitor" className="visitor-image" />
-        </div>
+        <div className="image-placeholder">No image available</div>
       );
     }
     
-    // If it's just the base64 string without the prefix, add it
-    return (
-      <div className="visitor-image-container">
-        <img 
-          src={`data:image/jpeg;base64,${imageData}`} 
-          alt="Visitor" 
-          className="visitor-image"
-          onError={(e) => {
-            console.error("Error loading image");
-            e.target.src = "https://via.placeholder.com/150?text=No+Image";
-          }}
-        />
-      </div>
-    );
+    try {
+      console.log("Attempting to render picture data");
+      
+      // Check if the data already has the data:image prefix
+      if (typeof pictureData === 'string' && pictureData.startsWith('data:image')) {
+        return (
+          <div className="visitor-image-container">
+            <img 
+              src={pictureData} 
+              alt="Visitor" 
+              className="visitor-image" 
+              onError={(e) => {
+                console.error("Error loading image with prefix");
+                e.target.outerHTML = '<div class="image-placeholder">Image failed to load</div>';
+              }}
+            />
+          </div>
+        );
+      }
+      
+      // If it's just the base64 string without the prefix, add it
+      return (
+        <div className="visitor-image-container">
+          <img 
+            src={`data:image/jpeg;base64,${pictureData}`} 
+            alt="Visitor" 
+            className="visitor-image"
+            onError={(e) => {
+              console.error("Error loading image without prefix");
+              e.target.outerHTML = '<div class="image-placeholder">Image failed to load</div>';
+            }}
+          />
+        </div>
+      );
+    } catch (error) {
+      console.error("Error rendering visitor picture:", error);
+      return (
+        <div className="image-placeholder">Error displaying image</div>
+      );
+    }
   };
 
   if (!authenticated && !contextLoading) {
     return null;
   }
+
+  // Debug function to inspect the picture data
+  const debugPictureData = (entry) => {
+    if (entry && entry.picture) {
+      const pictureData = entry.picture;
+      console.log("Picture data type:", typeof pictureData);
+      console.log("Picture data length:", typeof pictureData === 'string' ? pictureData.length : 'not a string');
+      console.log("Picture data starts with:", typeof pictureData === 'string' ? pictureData.substring(0, 50) + '...' : 'not a string');
+    } else {
+      console.log("No picture data for this entry:", entry);
+    }
+  };
 
   return (
     <div className="visitor-details">
@@ -317,37 +351,42 @@ const VisitorDetail = () => {
         Object.keys(visitorData).map((date) => (
           <div key={date} className="details-section">
             <h2>{date}</h2>
-            {visitorData[date].map((entry, index) => (
-              <div key={index} className="entry-container">
-                {entry.image && renderImage(entry.image)}
-                <table className="details-table">
-                  <thead>
-                    <tr>
-                      <th style={{color:'black'}}>Company</th>
-                      <th style={{color:'black'}}>Branch</th>
-                      <th style={{color:'black'}}>Telephone</th>
-                      <th style={{color:'black'}}>Time In</th>
-                      <th style={{color:'black'}}>Time Out</th>
-                      <th style={{color:'black'}}>Purpose</th>
-                      <th style={{color:'black'}}>Department</th>
-                      <th style={{color:'black'}}>Reason</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td>{entry.company || "---"}</td>
-                      <td>{entry.branch || entry.branchname || "---"}</td>
-                      <td>{entry.telephone || "---"}</td>
-                      <td>{entry.timeIn || "---"}</td>
-                      <td>{entry.timeOut || "---"}</td>
-                      <td>{entry.purpose || "---"}</td>
-                      <td>{entry.department || "---"}</td>
-                      <td>{entry.reason || "---"}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            ))}
+            {visitorData[date].map((entry, index) => {
+              // Debug the picture data
+              debugPictureData(entry);
+              
+              return (
+                <div key={index} className="entry-container">
+                  {renderVisitorPicture(entry.picture)}
+                  <table className="details-table">
+                    <thead>
+                      <tr>
+                        <th style={{color:'black'}}>Company</th>
+                        <th style={{color:'black'}}>Branch</th>
+                        <th style={{color:'black'}}>Telephone</th>
+                        <th style={{color:'black'}}>Time In</th>
+                        <th style={{color:'black'}}>Time Out</th>
+                        <th style={{color:'black'}}>Purpose</th>
+                        <th style={{color:'black'}}>Department</th>
+                        <th style={{color:'black'}}>Reason</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>{entry.company || "---"}</td>
+                        <td>{entry.branch || entry.branchname || "---"}</td>
+                        <td>{entry.telephone || "---"}</td>
+                        <td>{entry.timein || entry.timeIn || "---"}</td>
+                        <td>{entry.timeout || entry.timeOut || "---"}</td>
+                        <td>{entry.purpose || "---"}</td>
+                        <td>{entry.department || "---"}</td>
+                        <td>{entry.reason || "---"}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })}
           </div>
         ))
       )}
