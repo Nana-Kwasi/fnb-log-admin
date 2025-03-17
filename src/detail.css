@@ -154,7 +154,42 @@ button:hover {
   text-align: left;
   color: #000; /* Black text */
 }
+/* Add these styles to your existing detail.css file */
 
+.visitor-image-container {
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+.visitor-image {
+  max-width: 200px;
+  max-height: 200px;
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  object-fit: cover;
+}
+
+.entry-container {
+  margin-bottom: 25px;
+  border: 1px solid #eaeaea;
+  border-radius: 8px;
+  padding: 15px;
+  background-color: #f9f9f9;
+}
+
+/* Optional: Add a placeholder style for failed images */
+.image-placeholder {
+  width: 150px;
+  height: 150px;
+  background-color: #f0f0f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #999;
+  font-size: 14px;
+  margin: 0 auto 15px auto;
+  border-radius: 8px;
+}
 .log-table th {
   background-color: #008080; /* Teal */
   color: #fff; /* White text */
