@@ -274,55 +274,61 @@ const VisitorDetail = () => {
   }, [visitorName, branchData, authenticated]);
 
   // Function to render image from base64 data
-  const renderVisitorPicture = (pictureData) => {
-    if (!pictureData) {
-      console.log("No picture data available");
-      return (
-        <div className="image-placeholder">No image available</div>
-      );
+ // Function to render image from base64 data
+const renderVisitorPicture = (pictureData) => {
+  if (!pictureData || pictureData === "[null]") {
+    console.log("No picture data available");
+    return (
+      <div className="image-placeholder">No image available</div>
+    );
+  }
+  
+  try {
+    console.log("Attempting to render picture data");
+    
+    // Check if the data is a string
+    if (typeof pictureData !== 'string') {
+      return <div className="image-placeholder">Invalid image data</div>;
     }
     
-    try {
-      console.log("Attempting to render picture data");
-      
-      // Check if the data already has the data:image prefix
-      if (typeof pictureData === 'string' && pictureData.startsWith('data:image')) {
-        return (
-          <div className="visitor-image-container">
-            <img 
-              src={pictureData} 
-              alt="Visitor" 
-              className="visitor-image" 
-              onError={(e) => {
-                console.error("Error loading image with prefix");
-                e.target.outerHTML = '<div class="image-placeholder">Image failed to load</div>';
-              }}
-            />
-          </div>
-        );
-      }
-      
-      // If it's just the base64 string without the prefix, add it
+    // Check if the data already has the data:image prefix
+    if (pictureData.startsWith('data:image')) {
       return (
         <div className="visitor-image-container">
           <img 
-            src={`data:image/jpeg;base64,${pictureData}`} 
+            src={pictureData} 
             alt="Visitor" 
-            className="visitor-image"
+            className="visitor-image" 
             onError={(e) => {
-              console.error("Error loading image without prefix");
+              console.error("Error loading image with prefix");
               e.target.outerHTML = '<div class="image-placeholder">Image failed to load</div>';
             }}
           />
         </div>
       );
-    } catch (error) {
-      console.error("Error rendering visitor picture:", error);
-      return (
-        <div className="image-placeholder">Error displaying image</div>
-      );
     }
-  };
+    
+    // If it's just the base64 string without the prefix, add it
+    return (
+      <div className="visitor-image-container">
+        <img 
+          src={`data:image/jpeg;base64,${pictureData}`} 
+          alt="Visitor" 
+          className="visitor-image"
+          onError={(e) => {
+            console.error("Error loading image without prefix");
+            e.target.outerHTML = '<div class="image-placeholder">Image failed to load</div>';
+          }}
+        />
+      </div>
+    );
+  } catch (error) {
+    console.error("Error rendering visitor picture:", error);
+    return (
+      <div className="image-placeholder">Error displaying image</div>
+    );
+  }
+};
 
   if (!authenticated && !contextLoading) {
     return null;
