@@ -161,7 +161,6 @@
 // };
 
 // export default VisitorDetail;
-
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useVisitor } from "../context/VisitorContext";
@@ -274,77 +273,82 @@ const VisitorDetail = () => {
   }, [visitorName, branchData, authenticated]);
 
   // Function to render image from base64 data
- // Function to render image from base64 data
-const renderVisitorPicture = (pictureData) => {
-  if (!pictureData || pictureData === "[null]") {
-    console.log("No picture data available");
-    return (
-      <div className="image-placeholder">No image available</div>
-    );
-  }
-  
-  try {
-    console.log("Attempting to render picture data");
-    
-    // Check if the data is a string
-    if (typeof pictureData !== 'string') {
-      return <div className="image-placeholder">Invalid image data</div>;
+  const renderVisitorPicture = (pictureData) => {
+    if (!pictureData || pictureData === "[null]" || pictureData === "null" || pictureData === "[null]") {
+      console.log("No picture data available");
+      return (
+        <div className="image-placeholder">No image available</div>
+      );
     }
     
-    // Check if the data already has the data:image prefix
-    if (pictureData.startsWith('data:image')) {
+    try {
+      console.log("Attempting to render picture data");
+      
+      // Check if the data is a string
+      if (typeof pictureData !== 'string') {
+        console.log("Picture data is not a string:", typeof pictureData);
+        return <div className="image-placeholder">Invalid image data</div>;
+      }
+      
+      // Handle cases where the data is wrapped in [] or {} brackets
+      if (pictureData.startsWith('[') && pictureData.endsWith(']')) {
+        try {
+          const parsed = JSON.parse(pictureData);
+          if (parsed === null) {
+            return <div className="image-placeholder">No image data</div>;
+          }
+          // If successfully parsed as array, use the first element if it's a string
+          if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === 'string') {
+            pictureData = parsed[0];
+          }
+        } catch (e) {
+          // Not valid JSON, just remove the brackets
+          pictureData = pictureData.substring(1, pictureData.length - 1);
+        }
+      }
+      
+      // Check if the data already has the data:image prefix
+      if (pictureData.startsWith('data:image')) {
+        return (
+          <div className="visitor-image-container">
+            <img 
+              src={pictureData} 
+              alt="Visitor" 
+              className="visitor-image" 
+              onError={(e) => {
+                console.error("Error loading image with prefix");
+                e.target.outerHTML = '<div class="image-placeholder">Image failed to load</div>';
+              }}
+            />
+          </div>
+        );
+      }
+      
+      // If it's just the base64 string without the prefix, add it
       return (
         <div className="visitor-image-container">
           <img 
-            src={pictureData} 
+            src={`data:image/jpeg;base64,${pictureData}`} 
             alt="Visitor" 
-            className="visitor-image" 
+            className="visitor-image"
             onError={(e) => {
-              console.error("Error loading image with prefix");
+              console.error("Error loading image without prefix");
               e.target.outerHTML = '<div class="image-placeholder">Image failed to load</div>';
             }}
           />
         </div>
       );
+    } catch (error) {
+      console.error("Error rendering visitor picture:", error);
+      return (
+        <div className="image-placeholder">Error displaying image</div>
+      );
     }
-    
-    // If it's just the base64 string without the prefix, add it
-    return (
-      <div className="visitor-image-container">
-        <img 
-          src={`data:image/jpeg;base64,${pictureData}`} 
-          alt="Visitor" 
-          className="visitor-image"
-          onError={(e) => {
-            console.error("Error loading image without prefix");
-            e.target.outerHTML = '<div class="image-placeholder">Image failed to load</div>';
-          }}
-        />
-      </div>
-    );
-  } catch (error) {
-    console.error("Error rendering visitor picture:", error);
-    return (
-      <div className="image-placeholder">Error displaying image</div>
-    );
-  }
-};
+  };
 
   if (!authenticated && !contextLoading) {
     return null;
   }
-
-  // Debug function to inspect the picture data
-  const debugPictureData = (entry) => {
-    if (entry && entry.picture) {
-      const pictureData = entry.picture;
-      console.log("Picture data type:", typeof pictureData);
-      console.log("Picture data length:", typeof pictureData === 'string' ? pictureData.length : 'not a string');
-      console.log("Picture data starts with:", typeof pictureData === 'string' ? pictureData.substring(0, 50) + '...' : 'not a string');
-    } else {
-      console.log("No picture data for this entry:", entry);
-    }
-  };
 
   return (
     <div className="visitor-details">
@@ -358,8 +362,10 @@ const renderVisitorPicture = (pictureData) => {
           <div key={date} className="details-section">
             <h2>{date}</h2>
             {visitorData[date].map((entry, index) => {
-              // Debug the picture data
-              debugPictureData(entry);
+              console.log(`Rendering entry ${index} with picture data:`, 
+                typeof entry.picture === 'string' 
+                  ? `${entry.picture.substring(0, 30)}... (${entry.picture.length} chars)` 
+                  : entry.picture);
               
               return (
                 <div key={index} className="entry-container">
