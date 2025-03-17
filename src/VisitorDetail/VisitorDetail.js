@@ -386,7 +386,7 @@ const VisitorDetail = () => {
                     <tbody>
                       <tr>
                         <td>{entry.company || "---"}</td>
-                        <td>{entry.branch || entry.branchname || "---"}</td>
+                        <td>{entry.branchName || entry.branchname || "---"}</td>
                         <td>{entry.telephone || "---"}</td>
                         <td>{entry.timein || entry.timeIn || "---"}</td>
                         <td>{entry.timeout || entry.timeOut || "---"}</td>
