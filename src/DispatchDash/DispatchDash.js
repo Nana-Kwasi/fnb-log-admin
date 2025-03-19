@@ -247,7 +247,7 @@ const PPD = () => {
           );
         })}
       </div>
-<Graphs typeCount={typeCount} subjectCount={subjectCount} />
+
       <div className="buttons-row">
         <div className="dropdown-container">
           <div
@@ -282,7 +282,7 @@ const PPD = () => {
         </div>
         
       </div>
-     
+      <Graphs typeCount={typeCount} subjectCount={subjectCount} />
       {showReceiveModal && (
         <div className="modal-overlay">
           <div className="modal-container">
