@@ -655,3 +655,22 @@ const Login = ({ onLogin }) => {
 };
 
 export default Login;
+
+
+
+
+// authRouter.js
+const express = require('express');
+const router = express.Router();
+const authController = require('../controllers/authController');
+
+// Route for user login
+router.post('/login', authController.login);
+
+// Route for user registration (admin only)
+router.post('/register', authController.registerUser);
+
+// Route to verify token
+router.get('/verify-token', authController.verifyToken);
+
+module.exports = router;
