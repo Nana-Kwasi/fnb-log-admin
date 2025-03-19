@@ -224,3 +224,20 @@ pool.connect((err) => {
 });
 
 module.exports = pool;
+
+
+//api format
+OAuth 2.0 Bearer Token Usage
+OAuth 2.0 Bearer Token Usage
+ 
+Standard API Format:
+ 
+http://localhost:5001/controller/function
+ 
+Example:
+Login: POST -> http://localhost:5001/auth/login
+ 
+Get all visitors -> http://localhost:5001/visitors/index
+ 
+Get visitors from specific branch -> http://localhost:5001/visitors/index?branchCode=3001
+ 
