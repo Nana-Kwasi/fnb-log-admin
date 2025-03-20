@@ -553,7 +553,7 @@ const verifyToken = async () => {
 };
 
   // Login function - integrated with token-based auth
-  const login = async (email, password, branch, authToken = null) => {
+  const login = async (email, branch,password, authToken = null) => {
     setLoading(true);
     setError("");
     
@@ -563,7 +563,7 @@ const verifyToken = async () => {
         setToken(authToken);
         localStorage.setItem('token', authToken);
         
-        const userData = { email, branch,password };
+        const userData = { email, branch ,password};
         setUser(userData);
         localStorage.setItem('user', JSON.stringify(userData));
         
@@ -585,7 +585,7 @@ const verifyToken = async () => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, password: 'default-needed-in-body', branch })
+        body: JSON.stringify({ email, password:  branch })
       });
       
       if (!response.ok) {
