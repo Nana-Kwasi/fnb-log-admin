@@ -673,3 +673,87 @@ CREATE TABLE IF NOT EXISTS admin_users (
 -- This is just an example, use bcrypt to generate a real hash
 INSERT INTO admin_users (email, password, branches, role)
 VALUES ('admin@example.com', '$2b$10$rNC7tMxRDHxuQqGYFt.xB.QsQHy2mNmO5abIiTNPQxxwNFMnXFV7K', ARRAY['Headquarters', 'Main Branch'], 'admin');
+
+
+require('dotenv').config(); // If you're using environment variables
+const pool = require('../db');
+const bcrypt = require('bcrypt');
+
+async function createAdminUser() {
+  try {
+    // Check if admin_users table exists
+    const tableCheck = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'admin_users'
+      );
+    `);
+    
+    if (!tableCheck.rows[0].exists) {
+      console.log('Creating admin_users table...');
+      
+      await pool.query(`
+        CREATE TABLE admin_users (
+          id SERIAL PRIMARY KEY,
+          email VARCHAR(255) UNIQUE NOT NULL,
+          password VARCHAR(255) NOT NULL,
+          branches TEXT[] NOT NULL,
+          role VARCHAR(50) DEFAULT 'user',
+          created_at TIMESTAMP DEFAULT NOW(),
+          last_login TIMESTAMP
+        );
+      `);
+      
+      console.log('Table created successfully');
+    } else {
+      console.log('Table admin_users already exists');
+    }
+
+    // Admin user details
+    const email = 'admin@fnb.com';
+    const password = 'admin123'; // Change this to a secure password!
+    
+    // Check if admin already exists
+    const userCheck = await pool.query(
+      'SELECT * FROM admin_users WHERE email = $1',
+      [email]
+    );
+    
+    if (userCheck.rows.length > 0) {
+      console.log(`Admin user ${email} already exists`);
+      return;
+    }
+    
+    // Hash password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+    
+    // Fetch available branches from visitor_log
+    const branchesResult = await pool.query(`
+      SELECT DISTINCT branchname FROM visitor_log WHERE branchname IS NOT NULL AND branchname != '';
+    `);
+    
+    const branches = branchesResult.rows.map(row => row.branchname);
+    
+    // If no branches found, add a default
+    if (branches.length === 0) {
+      branches.push('Headquarters');
+    }
+    
+    // Insert admin user
+    await pool.query(
+      'INSERT INTO admin_users (email, password, branches, role) VALUES ($1, $2, $3, $4)',
+      [email, hashedPassword, branches, 'admin']
+    );
+    
+    console.log(`Admin user ${email} created successfully with access to branches:`, branches);
+    console.log('Please change the default password after first login!');
+    
+  } catch (err) {
+    console.error('Error creating admin user:', err);
+  } finally {
+    pool.end();
+  }
+}
+
+createAdminUser();
