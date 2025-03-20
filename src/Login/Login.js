@@ -62,45 +62,46 @@ const Login = ({ onLogin }) => {
 
     fetchBranches();
   }, [API_URL, setError]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    console.log("Login form submitted");
+    setLocalError("");
   
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  console.log("Login form submitted");
-  setLocalError("");
-
-  if (email.length > 25) {
-    setLocalError("F number is incorrect");
-    return;
-  }
-
-  if (!selectedBranch) {
-    setLocalError("Please select a branch");
-    return;
-  }
-
-  try {
-    console.log("Login validation passed, setting manual login attempt flag");
-    // Set flag to indicate this is a manual login attempt
-    setManualLoginAttempt(true);
-    
-    console.log("Attempting login with:", { email, branch: selectedBranch });
-    
-    // Pass password as the second parameter
-    const success = await login(email, password, selectedBranch);
-    
-    console.log("Login result:", success);
-    
-    if (!success) {
-      console.log("Login failed, resetting manual login attempt flag");
-      setManualLoginAttempt(false);
-      setLocalError("Login failed. Please check your credentials and try again.");
+    if (email.length > 25) {
+      setLocalError("F number is incorrect");
+      return;
     }
-  } catch (err) {
-    console.error("Login submission error:", err);
-    setManualLoginAttempt(false);
-    setLocalError("An unexpected error occurred. Please try again.");
-  }
-};
+  
+    if (!selectedBranch) {
+      setLocalError("Please select a branch");
+      return;
+    }
+  
+    try {
+      console.log("Login validation passed, setting manual login attempt flag");
+      // Set flag to indicate this is a manual login attempt
+      setManualLoginAttempt(true);
+      
+      console.log("Attempting login with:", { email, branch: selectedBranch });
+      
+      // Call the login function from the context
+      const success = await login(email, selectedBranch);
+      
+      console.log("Login result:", success);
+      
+      if (!success) {
+        console.log("Login failed, resetting manual login attempt flag");
+        setManualLoginAttempt(false);
+        setLocalError("Login failed. Please check your credentials and try again.");
+      }
+    } catch (err) {
+      console.error("Login submission error:", err);
+      setManualLoginAttempt(false);
+      setLocalError("An unexpected error occurred. Please try again.");
+    }
+  };
+
   // Display the context error or local error
   const displayError = error || localError;
 
