@@ -757,3 +757,284 @@ async function createAdminUser() {
 }
 
 createAdminUser();
+
+
+
+
+
+2025-03-20T12:35:43.961Z - POST /auth/login
+Login attempt: admin@fnb.com for branch ACCRA BRANCH
+Invalid password for user: admin@fnb.com
+2025-03-20T12:38:03.422Z - POST /auth/login
+Login attempt: admin@fnb.com for branch ACCRA BRANCH
+Invalid password for user: admin@fnb.com
+2025-03-20T12:39:35.988Z - POST /auth/login
+Login attempt: admin@fnb.com for branch ACCRA BRANCH
+Invalid password for user: admin@fnb.com
+
+
+
+//jwt screen
+
+//  const jwt = require('jsonwebtoken');
+
+
+// const JWT_SECRET = 'your-secret-key-should-be-in-env-file';
+
+// module.exports = function (req, res, next) {
+  
+//   const token = req.header('x-auth-token');
+
+  
+//   if (!token) {
+//     return res.status(401).json({ error: 'No token, authorization denied' });
+//   }
+
+ 
+//   try {
+//     const decoded = jwt.verify(token, JWT_SECRET);
+//     req.user = decoded;
+//     next();
+//   } catch (err) {
+//     res.status(401).json({ error: 'Token is not valid' });
+//   }
+// };
+
+//auth router
+// const express = require('express');
+// const router = express.Router();
+// const authController = require('../controllers/authController');
+
+// router.post('/login', authController.login);
+// router.post('/register', authController.registerUser);
+// router.post('/verify', authController.verifyToken);
+
+// module.exports = router
+
+//controller login
+const pool = require('../db');
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcrypt');
+
+// JWT secret key (use an environment variable in production)
+const JWT_SECRET = 'your-secret-key-should-be-in-env-file';
+
+// Login user
+const login = async (req, res) => {
+  const { email, password, branch } = req.body;
+
+  try {
+    console.log(`Login attempt: ${email} for branch ${branch}`);
+
+    // Validate inputs
+    if (!email || !password || !branch) {
+      return res.status(400).json({ error: 'Email, password, and branch are required' });
+    }
+
+    // Query the database for the user
+    const result = await pool.query(
+      'SELECT * FROM admin_users WHERE email = $1',
+      [email]
+    );
+
+    const user = result.rows[0];
+
+    // Check if user exists
+    if (!user) {
+      console.log(`User not found: ${email}`);
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    // Check if user has access to the requested branch
+    if (user.branches && !user.branches.includes(branch)) {
+      console.log(`User ${email} attempted to access unauthorized branch: ${branch}`);
+      return res.status(403).json({ error: 'You do not have access to this branch' });
+    }
+
+    // Compare password with hashed password in database
+    const isMatch = await bcrypt.compare(password, user.password);
+
+    if (!isMatch) {
+      console.log(`Invalid password for user: ${email}`);
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+   
+    const payload = {
+      user_id: user.id,
+      email: user.email,
+      branch: branch,
+      role: user.role || 'user'
+    };
+
+    // Generate JWT token
+    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '8h' });
+
+    // Send response with token and user info
+    res.json({
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        branch: branch,
+        role: user.role || 'user',
+      }
+    });
+
+  } catch (err) {
+    console.error('Login error:', err);
+    res.status(500).json({ error: 'Server error during login' });
+  }
+};
+
+// Register new user (admin only)
+const registerUser = async (req, res) => {
+  const { email, password, branches, role } = req.body;
+
+  try {
+    // Check if user making request is admin (implement middleware for this later)
+    
+    // Validate inputs
+    if (!email || !password || !branches || !Array.isArray(branches)) {
+      return res.status(400).json({ error: 'Email, password, and branches array are required' });
+    }
+
+    // Check if user already exists
+    const checkUser = await pool.query('SELECT * FROM admin_users WHERE email = $1', [email]);
+    
+    if (checkUser.rows.length > 0) {
+      return res.status(400).json({ error: 'User already exists' });
+    }
+
+    // Hash password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    // Insert new user
+    const result = await pool.query(
+      'INSERT INTO admin_users (email, password, branches, role, created_at) VALUES ($1, $2, $3, $4, NOW()) RETURNING id, email, role, created_at',
+      [email, hashedPassword, branches, role || 'user']
+    );
+
+    res.status(201).json({
+      message: 'User registered successfully',
+      user: {
+        id: result.rows[0].id,
+        email: result.rows[0].email,
+        role: result.rows[0].role,
+        created_at: result.rows[0].created_at
+      }
+    });
+
+  } catch (err) {
+    console.error('Registration error:', err);
+    res.status(500).json({ error: 'Server error during registration' });
+  }
+};
+
+// Verify JWT token
+const verifyToken = (req, res) => {
+  const token = req.header('x-auth-token');
+
+  if (!token) {
+    return res.status(401).json({ error: 'No token, authorization denied' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    res.json({ valid: true, user: decoded });
+  } catch (err) {
+    res.status(401).json({ error: 'Token is not valid' });
+  }
+};
+
+module.exports = {
+  login,
+  registerUser,
+  verifyToken
+};
+
+//script to create admin user
+
+require('dotenv').config(); // If you're using environment variables
+const pool = require('../db');
+const bcrypt = require('bcrypt');
+
+async function createAdminUser() {
+  try {
+    // Check if admin_users table exists
+    const tableCheck = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'admin_users'
+      );
+    `);
+    
+    if (!tableCheck.rows[0].exists) {
+      console.log('Creating admin_users table...');
+      
+      await pool.query(`
+        CREATE TABLE admin_users (
+          id SERIAL PRIMARY KEY,
+          email VARCHAR(255) UNIQUE NOT NULL,
+          password VARCHAR(255) NOT NULL,
+          branches TEXT[] NOT NULL,
+          role VARCHAR(50) DEFAULT 'user',
+          created_at TIMESTAMP DEFAULT NOW(),
+          last_login TIMESTAMP
+        );
+      `);
+      
+      console.log('Table created successfully');
+    } else {
+      console.log('Table admin_users already exists');
+    }
+
+   
+    const email = 'admin@fnb.com';
+    const password = 'password12345'; 
+    
+   
+    const userCheck = await pool.query(
+      'SELECT * FROM admin_users WHERE email = $1',
+      [email]
+    );
+    
+    if (userCheck.rows.length > 0) {
+      console.log(`Admin user ${email} already exists`);
+      return;
+    }
+    
+  
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+    
+    
+    const branchesResult = await pool.query(`
+      SELECT DISTINCT branchname FROM visitor_log WHERE branchname IS NOT NULL AND branchname != '';
+    `);
+    
+    const branches = branchesResult.rows.map(row => row.branchname);
+    
+    
+    if (branches.length === 0) {
+      branches.push('No Branch');
+    }
+    
+    
+    await pool.query(
+      'INSERT INTO admin_users (email, password, branches, role) VALUES ($1, $2, $3, $4)',
+      [email, hashedPassword, branches, 'admin']
+    );
+    
+    console.log(`Admin user ${email} created successfully with access to branches:`, branches);
+    console.log('Please change the default password after first login!');
+    
+  } catch (err) {
+    console.error('Error creating admin user:', err);
+  } finally {
+    pool.end();
+  }
+}
+
+createAdminUser();
