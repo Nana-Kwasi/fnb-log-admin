@@ -774,44 +774,44 @@ Invalid password for user: admin@fnb.com
 
 
 
-//jwt screen
+// jwt screen
 
-//  const jwt = require('jsonwebtoken');
+ const jwt = require('jsonwebtoken');
 
 
-// const JWT_SECRET = 'your-secret-key-should-be-in-env-file';
+const JWT_SECRET = 'your-secret-key-should-be-in-env-file';
 
-// module.exports = function (req, res, next) {
+module.exports = function (req, res, next) {
   
-//   const token = req.header('x-auth-token');
+  const token = req.header('x-auth-token');
 
   
-//   if (!token) {
-//     return res.status(401).json({ error: 'No token, authorization denied' });
-//   }
+  if (!token) {
+    return res.status(401).json({ error: 'No token, authorization denied' });
+  }
 
  
-//   try {
-//     const decoded = jwt.verify(token, JWT_SECRET);
-//     req.user = decoded;
-//     next();
-//   } catch (err) {
-//     res.status(401).json({ error: 'Token is not valid' });
-//   }
-// };
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (err) {
+    res.status(401).json({ error: 'Token is not valid' });
+  }
+};
 
-//auth router
-// const express = require('express');
-// const router = express.Router();
-// const authController = require('../controllers/authController');
+// auth router
+const express = require('express');
+const router = express.Router();
+const authController = require('../controllers/authController');
 
-// router.post('/login', authController.login);
-// router.post('/register', authController.registerUser);
-// router.post('/verify', authController.verifyToken);
+router.post('/login', authController.login);
+router.post('/register', authController.registerUser);
+router.post('/verify', authController.verifyToken);
 
-// module.exports = router
+module.exports = router
 
-//controller login
+controller login
 const pool = require('../db');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');

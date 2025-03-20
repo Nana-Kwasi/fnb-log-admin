@@ -533,26 +533,26 @@ export const VisitorProvider = ({ children }) => {
     }
   };
 
-  // Authentication functions
-  const verifyToken = async () => {
-    if (!token) return false;
+const verifyToken = async () => {
+  if (!token) return false;
+  
+  try {
+    // Change this from verify-token to verify
+    const response = await fetch(`${AUTH_URL}/verify`, {
+      headers: {
+        'x-auth-token': token
+      }
+    });
     
-    try {
-      const response = await fetch(`${AUTH_URL}/verify-token`, {
-        headers: {
-          'x-auth-token': token
-        }
-      });
-      
-      return response.ok;
-    } catch (err) {
-      console.error("Token verification error:", err);
-      return false;
-    }
-  };
+    return response.ok;
+  } catch (err) {
+    console.error("Token verification error:", err);
+    return false;
+  }
+};
 
   // Login function - integrated with token-based auth
-  const login = async (email, branch, authToken = null) => {
+  const login = async (email, password, branch, authToken = null) => {
     setLoading(true);
     setError("");
     
@@ -562,7 +562,7 @@ export const VisitorProvider = ({ children }) => {
         setToken(authToken);
         localStorage.setItem('token', authToken);
         
-        const userData = { email, branch };
+        const userData = { email, branch,password };
         setUser(userData);
         localStorage.setItem('user', JSON.stringify(userData));
         
@@ -615,6 +615,7 @@ export const VisitorProvider = ({ children }) => {
     }
   };
 
+
   // Logout function
   const logout = () => {
     console.log("Logging out, clearing context and localStorage");
@@ -636,88 +637,84 @@ export const VisitorProvider = ({ children }) => {
   };
 
   // Check for stored session on initial load
-  useEffect(() => {
-    const checkAuth = async () => {
-      const storedToken = localStorage.getItem('token');
-      const storedUser = localStorage.getItem('user');
-      const savedData = localStorage.getItem("dashboardData");
-      
-      if (storedToken && storedUser) {
-        try {
-          // Verify token with the backend
-          const response = await fetch(`${AUTH_URL}/verify-token`, {
-            headers: {
-              'x-auth-token': storedToken
-            }
-          });
+ // Check for stored session on initial load
+useEffect(() => {
+  const checkAuth = async () => {
+    const storedToken = localStorage.getItem('token');
+    const storedUser = localStorage.getItem('user');
+    const savedData = localStorage.getItem("dashboardData");
+    
+    if (storedToken && storedUser) {
+      try {
+        // Use the verifyToken function instead of direct fetch
+        const isValid = await verifyToken();
+        
+        if (isValid) {
+          const userData = JSON.parse(storedUser);
+          setToken(storedToken);
+          setUser(userData);
+          setAuthenticated(true);
           
-          if (response.ok) {
-            const userData = JSON.parse(storedUser);
-            setToken(storedToken);
-            setUser(userData);
-            setAuthenticated(true);
-            
-            if (userData.branch) {
-              setSelectedBranch(userData.branch);
-            }
-            
-            // Check saved dashboard data
-            if (savedData) {
-              try {
-                console.log("Found saved dashboard data in localStorage");
-                const parsedData = JSON.parse(savedData);
-                
-                // Check if data is stale (from a different day)
-                const lastUpdated = new Date(parsedData.lastUpdated || 0);
-                const today = new Date();
-                const isSameDay = lastUpdated.toDateString() === today.toDateString();
-                
-                if (isSameDay) {
-                  console.log("Restoring dashboard data from localStorage:", parsedData);
-                  setBranchData({
-                    analyticsData: parsedData.analyticsData || [],
-                    totalVisitors: parsedData.totalVisitors || 0,
-                    visitorsToday: parsedData.visitorsToday || 0,
-                    todayVisitorsData: parsedData.todayVisitorsData || [],
-                    allVisitorsData: parsedData.allVisitorsData || [],
-                  });
-                } else {
-                  console.log("Saved data is from a different day, fetching fresh data");
-                  if (userData.branch) {
-                    fetchBranchData(userData.branch);
-                  }
-                }
-              } catch (err) {
-                console.error("Error parsing stored dashboard data:", err);
-                localStorage.removeItem("dashboardData");
+          if (userData.branch) {
+            setSelectedBranch(userData.branch);
+          }
+          
+          // Check saved dashboard data
+          if (savedData) {
+            try {
+              console.log("Found saved dashboard data in localStorage");
+              const parsedData = JSON.parse(savedData);
+              
+              // Check if data is stale (from a different day)
+              const lastUpdated = new Date(parsedData.lastUpdated || 0);
+              const today = new Date();
+              const isSameDay = lastUpdated.toDateString() === today.toDateString();
+              
+              if (isSameDay) {
+                console.log("Restoring dashboard data from localStorage:", parsedData);
+                setBranchData({
+                  analyticsData: parsedData.analyticsData || [],
+                  totalVisitors: parsedData.totalVisitors || 0,
+                  visitorsToday: parsedData.visitorsToday || 0,
+                  todayVisitorsData: parsedData.todayVisitorsData || [],
+                  allVisitorsData: parsedData.allVisitorsData || [],
+                });
+              } else {
+                console.log("Saved data is from a different day, fetching fresh data");
                 if (userData.branch) {
                   fetchBranchData(userData.branch);
                 }
               }
-            } else if (userData.branch) {
-              // No saved data but we have branch info, fetch fresh data
-              fetchBranchData(userData.branch);
+            } catch (err) {
+              console.error("Error parsing stored dashboard data:", err);
+              localStorage.removeItem("dashboardData");
+              if (userData.branch) {
+                fetchBranchData(userData.branch);
+              }
             }
-          } else {
-            // Token invalid, clear storage
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            localStorage.removeItem("dashboardData");
+          } else if (userData.branch) {
+            // No saved data but we have branch info, fetch fresh data
+            fetchBranchData(userData.branch);
           }
-        } catch (err) {
-          console.error('Token verification error:', err);
+        } else {
+          // Token invalid, clear storage
           localStorage.removeItem('token');
           localStorage.removeItem('user');
           localStorage.removeItem("dashboardData");
         }
-      } else {
-        console.log("No saved authentication found in localStorage");
+      } catch (err) {
+        console.error('Token verification error:', err);
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        localStorage.removeItem("dashboardData");
       }
-    };
-    
-    checkAuth();
-  }, []);
-
+    } else {
+      console.log("No saved authentication found in localStorage");
+    }
+  };
+  
+  checkAuth();
+}, []);
   // Create context value
   const contextValue = {
     // Authentication context
