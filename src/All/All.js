@@ -679,9 +679,7 @@ CREATE TABLE IF NOT EXISTS admin_users (
   last_login TIMESTAMP
 );
 
--- Example of inserting an initial admin user
--- Password: admin123 (hashed version would be different)
--- This is just an example, use bcrypt to generate a real hash
+
 INSERT INTO admin_users (email, password, branches, role)
-VALUES ('admin@example.com', '$2b$10$rNC7tMxRDHxuQqGYFt.xB.QsQHy2mNmO5abIiTNPQxxwNFMnXFV7K', ARRAY['Headquarters', 'Main Branch'], 'admin');
->>>>>>> 30bd51ea78a4fcde9857d2d3469a7cfd5af6102e
+VALUES ('admin@fnb.co.za', '$2b$10$rNC7tMxRDHxuQqGYFt.xB.QsQHy2mNmO5abIiTNPQxxwNFMnXFV7K', ARRAY['Headquarters', 'WEST HILL MALL'], 'admin');
+
