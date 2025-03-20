@@ -320,7 +320,7 @@ import React, { createContext, useState, useContext, useEffect } from "react";
 const VisitorContext = createContext();
 
 export const VisitorProvider = ({ children }) => {
-  // Branch and visitor data state
+
   const [selectedBranch, setSelectedBranch] = useState("");
   const [branchData, setBranchData] = useState({
     analyticsData: [],
