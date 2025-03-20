@@ -44,6 +44,7 @@ const Login = ({ onLogin }) => {
         const data = await response.json();
         console.log(`Received ${data.length} entries from API`);
         
+        // Extract unique branch names (handle both branchname and branch)
         const uniqueBranches = [...new Set(data
           .map(entry => entry.branchname )
           .filter(branch => branch && branch.trim() !== "")
@@ -79,10 +80,12 @@ const Login = ({ onLogin }) => {
   
     try {
       console.log("Login validation passed, setting manual login attempt flag");
+      // Set flag to indicate this is a manual login attempt
       setManualLoginAttempt(true);
       
       console.log("Attempting login with:", { email, branch: selectedBranch });
       
+      // Call the login function from the context
       const success = await login(email, selectedBranch);
       
       console.log("Login result:", success);
@@ -99,7 +102,7 @@ const Login = ({ onLogin }) => {
     }
   };
 
- 
+  // Display the context error or local error
   const displayError = error || localError;
 
   return (
