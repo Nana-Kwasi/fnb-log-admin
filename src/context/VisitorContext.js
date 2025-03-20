@@ -313,8 +313,6 @@
 //   }
 //   return context;
 // };
-
-
 import React, { createContext, useState, useContext, useEffect } from "react";
 
 const VisitorContext = createContext();
@@ -533,27 +531,26 @@ export const VisitorProvider = ({ children }) => {
     }
   };
 
-  // Change this in VisitorContext.js (around line 440)
-const verifyToken = async () => {
-  if (!token) return false;
-  
-  try {
-    // Change this from verify-token to verify
-    const response = await fetch(`${AUTH_URL}/verify`, {
-      headers: {
-        'x-auth-token': token
-      }
-    });
+  // Authentication functions
+  const verifyToken = async () => {
+    if (!token) return false;
     
-    return response.ok;
-  } catch (err) {
-    console.error("Token verification error:", err);
-    return false;
-  }
-};
+    try {
+      const response = await fetch(`${AUTH_URL}/verify-token`, {
+        headers: {
+          'x-auth-token': token
+        }
+      });
+      
+      return response.ok;
+    } catch (err) {
+      console.error("Token verification error:", err);
+      return false;
+    }
+  };
 
   // Login function - integrated with token-based auth
-  const login = async (email, branch,password, authToken = null) => {
+  const login = async (email, branch, authToken = null) => {
     setLoading(true);
     setError("");
     
@@ -563,7 +560,7 @@ const verifyToken = async () => {
         setToken(authToken);
         localStorage.setItem('token', authToken);
         
-        const userData = { email, branch ,password};
+        const userData = { email, branch };
         setUser(userData);
         localStorage.setItem('user', JSON.stringify(userData));
         
@@ -616,7 +613,6 @@ const verifyToken = async () => {
     }
   };
 
-
   // Logout function
   const logout = () => {
     console.log("Logging out, clearing context and localStorage");
@@ -647,7 +643,7 @@ const verifyToken = async () => {
       if (storedToken && storedUser) {
         try {
           // Verify token with the backend
-          const response = await fetch(`${AUTH_URL}/verify`, {
+          const response = await fetch(`${AUTH_URL}/verify-token`, {
             headers: {
               'x-auth-token': storedToken
             }
