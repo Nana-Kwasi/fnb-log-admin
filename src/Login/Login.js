@@ -189,27 +189,28 @@ const Login = ({ onLogin }) => {
     }
   }, [authenticated, email, onLogin, manualLoginAttempt]);
 
+
   useEffect(() => {
     const fetchBranches = async () => {
       try {
         setFetchingBranches(true);
-        console.log("Fetching branches from:", API_URL);
-        const response = await fetch(API_URL);
+        console.log("Fetching branches from:", `${API_URL}/branches`);
+        const response = await fetch(`${API_URL}/branches`);
         
         if (!response.ok) {
           throw new Error(`API response error: ${response.status}`);
         }
         
         const data = await response.json();
-        console.log(`Received ${data.length} entries from API`);
+        console.log(`Received ${data.length} branches from API`);
         
-        const uniqueBranches = [...new Set(data
-          .map(entry => entry.branchname )
-          .filter(branch => branch && branch.trim() !== "")
-        )];
+        // Format branches for dropdown
+        const formattedBranches = data.map(item => ({
+          code: item.branch,
+          name: item.branchname
+        }));
         
-        console.log(`Found ${uniqueBranches.length} unique branches`);
-        setBranches(uniqueBranches.sort());
+        setBranches(formattedBranches);
       } catch (err) {
         console.error("Error fetching branches:", err);
         setLocalError("Failed to load branches. Please try again later.");
@@ -217,10 +218,10 @@ const Login = ({ onLogin }) => {
         setFetchingBranches(false);
       }
     };
-
+  
     fetchBranches();
   }, [API_URL, setError]);
-
+  
   const handleSubmit = async (e) => {
     e.preventDefault();
     console.log("Login form submitted");
@@ -305,25 +306,26 @@ const Login = ({ onLogin }) => {
             required
           />
           
-          <div className="select-container">
-            <select
-              value={selectedBranch}
-              onChange={(e) => setSelectedBranch(e.target.value)}
-              required
-              disabled={fetchingBranches}
-              className="branch-select"
-            >
-              <option value="">Select Branch</option>
-              {branches.map((branch) => (
-                <option key={branch} value={branch}>
-                  {branch}
-                </option>
-              ))}
-            </select>
-            {fetchingBranches && (
-              <span className="select-spinner"></span>
-            )}
-          </div>
+         
+<div className="select-container">
+  <select
+    value={selectedBranch}
+    onChange={(e) => setSelectedBranch(e.target.value)}
+    required
+    disabled={fetchingBranches}
+    className="branch-select"
+  >
+    <option value="">Select Branch</option>
+    {branches.map((branch) => (
+      <option key={branch.code} value={branch.code}>
+        {branch.name}
+      </option>
+    ))}
+  </select>
+  {fetchingBranches && (
+    <span className="select-spinner"></span>
+  )}
+</div>
           
           {displayError && <p className="error-message">{displayError}</p>}
           <button type="submit" className="login-button" disabled={loading || fetchingBranches}>

@@ -385,32 +385,41 @@ export const VisitorProvider = ({ children }) => {
   };
 
   // Fetch branch data from API
-  const fetchBranchData = async (branchName) => {
-    setLoading(true);
-    setError("");
+   
+const fetchBranchData = async (branchName, branchCode) => {
+  setLoading(true);
+  setError("");
+  
+  try {
+    console.log(`Fetching data for branch: ${branchName} (code: ${branchCode})`);
     
-    try {
-      console.log(`Fetching data for branch: ${branchName}`);
-      
-      // Use authentication token if available
-      const headers = {};
-      if (token) {
-        headers['x-auth-token'] = token;
-      }
-      
-      const response = await fetch(API_URL, { headers });
-      
-      if (!response.ok) {
-        throw new Error(`API response error: ${response.status}`);
-      }
-      
-      const allData = await response.json();
-      console.log("API response received with entries:", allData.length);
+    // Use authentication token if available
+    const headers = {};
+    if (token) {
+      headers['x-auth-token'] = token;
+      console.log('Using auth token for request');
+    }
+    
+    // Use branch-specific endpoint if branch code is available
+    const url = branchCode 
+      ? `${API_URL}/branch/${branchCode}`
+      : API_URL;
+    
+    console.log(`Requesting data from: ${url}`);
+    const response = await fetch(url, { headers });
+    
+    if (!response.ok) {
+      throw new Error(`API response error: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    console.log("API response received with entries:", data.length);
+    
       
       // Filter data by selected branch
-      const branchData = allData.filter(item => 
-        item.branchname === branchName || item.branch === branchName
-      );
+      // const branchData = allData.filter(item => 
+      //   item.branchname === branchName || item.branch === branchName
+      // );
       console.log(`Filtered ${branchData.length} entries for branch: ${branchName}`);
       
       // Process data for dashboard

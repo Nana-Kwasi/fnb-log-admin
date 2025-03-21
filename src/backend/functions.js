@@ -14,6 +14,7 @@ const getAllVisitorLogs = async (req, res) => {
 
   //jwt updated
   // Updated middleware for auth
+
 const jwt = require('jsonwebtoken');
 const JWT_SECRET = 'your-secret-key-should-be-in-env-file';
 
@@ -45,6 +46,7 @@ module.exports = function (req, res, next) {
 
 //updated authcontroller for login
 // Updated login function in authController
+
 const login = async (req, res) => {
   const { email, password, branch } = req.body;
 
@@ -116,6 +118,7 @@ const login = async (req, res) => {
 
 //endpoint to get branchcode
 // Add to visitorsLogsController.js
+
 const getVisitorsByBranchCode = async (req, res) => {
   const { branchCode } = req.params;
   
@@ -142,6 +145,7 @@ const getVisitorsByBranchCode = async (req, res) => {
 
 //update visitor route
 // Updated visitors route
+
 const express = require('express');
 const router = express.Router();
 const visitorsController = require('../controllers/visitorsLogsController');
@@ -164,6 +168,7 @@ module.exports = router;
 
 //update context screen
 // Update in VisitorContext.jsx
+
 const fetchBranchData = async (branchName, branchCode) => {
   setLoading(true);
   setError("");
@@ -201,6 +206,7 @@ const fetchBranchData = async (branchName, branchCode) => {
 };
 
 // Update in Login.jsx
+
 useEffect(() => {
   const fetchBranches = async () => {
     try {
@@ -234,6 +240,7 @@ useEffect(() => {
 }, [API_URL, setError]);
 
 //update login screen dropdown
+
 <div className="select-container">
   <select
     value={selectedBranch}
@@ -253,3 +260,189 @@ useEffect(() => {
     <span className="select-spinner"></span>
   )}
 </div>
+
+
+error: invalid input syntax for type integer: "branches"
+    at C:\Users\f8877557\file-backend\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async getVisitorLogById (C:\Users\f8877557\file-backend\new-backend\controllers\visitorsLogsController.js:170:20) { 
+  length: 146,
+  severity: 'ERROR',
+  code: '22P02',
+  detail: undefined,
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: "unnamed portal parameter $1 = '...'",
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'numutils.c',
+  line: '235',
+  routine: 'pg_strtoint32'
+}
+2025-03-21T12:07:29.091Z - GET /visitors/branches
+error: invalid input syntax for type integer: "branches"
+    at C:\Users\f8877557\file-backend\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async getVisitorLogById (C:\Users\f8877557\file-backend\new-backend\controllers\visitorsLogsController.js:170:20) { 
+  length: 146,
+  severity: 'ERROR',
+  code: '22P02',
+  detail: undefined,
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: "unnamed portal parameter $1 = '...'",
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'numutils.c',
+  line: '235',
+  routine: 'pg_strtoint32'
+}
+2025-03-21T12:10:45.290Z - GET /visitors/branches
+error: invalid input syntax for type integer: "branches"
+    at C:\Users\f8877557\file-backend\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async getVisitorLogById (C:\Users\f8877557\file-backend\new-backend\controllers\visitorsLogsController.js:170:20) { 
+  length: 146,
+  severity: 'ERROR',
+  code: '22P02',
+  detail: undefined,
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: "unnamed portal parameter $1 = '...'",
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'numutils.c',
+  line: '235',
+  routine: 'pg_strtoint32'
+}
+2025-03-21T12:10:45.381Z - GET /visitors/branches
+error: invalid input syntax for type integer: "branches"
+    at C:\Users\f8877557\file-backend\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async getVisitorLogById (C:\Users\f8877557\file-backend\new-backend\controllers\visitorsLogsController.js:170:20) { 
+  length: 146,
+  severity: 'ERROR',
+  code: '22P02',
+  detail: undefined,
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: "unnamed portal parameter $1 = '...'",
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'numutils.c',
+  line: '235',
+  routine: 'pg_strtoint32'
+}
+2025-03-21T12:10:45.975Z - GET /visitors/branches
+error: invalid input syntax for type integer: "branches"
+    at C:\Users\f8877557\file-backend\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async getVisitorLogById (C:\Users\f8877557\file-backend\new-backend\controllers\visitorsLogsController.js:170:20) { 
+  length: 146,
+  severity: 'ERROR',
+  code: '22P02',
+  detail: undefined,
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: "unnamed portal parameter $1 = '...'",
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'numutils.c',
+  line: '235',
+  routine: 'pg_strtoint32'
+}
+2025-03-21T12:10:46.082Z - GET /visitors/branches
+error: invalid input syntax for type integer: "branches"
+    at C:\Users\f8877557\file-backend\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async getVisitorLogById (C:\Users\f8877557\file-backend\new-backend\controllers\visitorsLogsController.js:170:20) { 
+  length: 146,
+  severity: 'ERROR',
+  code: '22P02',
+  detail: undefined,
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: "unnamed portal parameter $1 = '...'",
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'numutils.c',
+  line: '235',
+  routine: 'pg_strtoint32'
+}
+2025-03-21T12:11:42.901Z - GET /visitors/branches
+2025-03-21T12:11:42.904Z - GET /visitors/branches
+error: invalid input syntax for type integer: "branches"
+    at C:\Users\f8877557\file-backend\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async getVisitorLogById (C:\Users\f8877557\file-backend\new-backend\controllers\visitorsLogsController.js:170:20) { 
+  length: 146,
+  severity: 'ERROR',
+  code: '22P02',
+  detail: undefined,
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: "unnamed portal parameter $1 = '...'",
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'numutils.c',
+  line: '235',
+  routine: 'pg_strtoint32'
+}
+error: invalid input syntax for type integer: "branches"
+    at C:\Users\f8877557\file-backend\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async getVisitorLogById (C:\Users\f8877557\file-backend\new-backend\controllers\visitorsLogsController.js:170:20) { 
+  length: 146,
+  severity: 'ERROR',
+  code: '22P02',
+  detail: undefined,
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: "unnamed portal parameter $1 = '...'",
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'numutils.c',
+  line: '235',
+  routine: 'pg_strtoint32'
+}
+'getVisitorsByBranchCode' is declared but its value is never read.
