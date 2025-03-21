@@ -645,7 +645,7 @@ export const VisitorProvider = ({ children }) => {
       if (storedToken && storedUser) {
         try {
           // Verify token with the backend
-          const response = await fetch(`${AUTH_URL}/verify-token`, {
+          const response = await fetch(`${AUTH_URL}/verify`, {
             headers: {
               'x-auth-token': storedToken
             }
