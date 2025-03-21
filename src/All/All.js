@@ -1037,7 +1037,7 @@ const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const visitorsRouter = require('./route/visitors');
-const authRouter = require('./route/auth'); // Add the auth router
+const authRouter = require('./route/auth'); 
 
 const app = express();
 
