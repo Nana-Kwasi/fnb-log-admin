@@ -318,7 +318,7 @@ import React, { createContext, useState, useContext, useEffect } from "react";
 const VisitorContext = createContext();
 
 export const VisitorProvider = ({ children }) => {
-  // Branch and visitor data state
+
   const [selectedBranch, setSelectedBranch] = useState("");
   const [branchData, setBranchData] = useState({
     analyticsData: [],
@@ -582,7 +582,7 @@ export const VisitorProvider = ({ children }) => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, password:  branch })
+        body: JSON.stringify({ email, password: 'default-needed-in-body', branch })
       });
       
       if (!response.ok) {
@@ -643,7 +643,7 @@ export const VisitorProvider = ({ children }) => {
       if (storedToken && storedUser) {
         try {
           // Verify token with the backend
-          const response = await fetch(`${AUTH_URL}/verify-token`, {
+          const response = await fetch(`${AUTH_URL}/verify`, {
             headers: {
               'x-auth-token': storedToken
             }

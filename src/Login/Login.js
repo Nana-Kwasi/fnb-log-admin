@@ -11,25 +11,22 @@ const Login = ({ onLogin }) => {
   const [localError, setLocalError] = useState("");
   const [manualLoginAttempt, setManualLoginAttempt] = useState(false);
   
-  // Use the visitor context
+  
   const { login, loading, error, setError, authenticated } = useVisitor();
 
   const API_URL = "http://localhost:5001/visitors";
+  const AUTH_URL = "http://localhost:5001/auth";
 
-  // Modified useEffect to prevent automatic login
   useEffect(() => {
-    // Only perform automatic login if it was triggered by a manual login attempt
     if (authenticated && email && manualLoginAttempt) {
       console.log("Authentication successful after manual login attempt, navigating to dashboard");
       onLogin(email);
-      // Reset the flag after login
       setManualLoginAttempt(false);
     } else if (authenticated) {
       console.log("Already authenticated from storage, but not navigating (waiting for manual login)");
     }
   }, [authenticated, email, onLogin, manualLoginAttempt]);
 
-  // Fetch all branches from the API
   useEffect(() => {
     const fetchBranches = async () => {
       try {
@@ -44,7 +41,6 @@ const Login = ({ onLogin }) => {
         const data = await response.json();
         console.log(`Received ${data.length} entries from API`);
         
-        // Extract unique branch names (handle both branchname and branch)
         const uniqueBranches = [...new Set(data
           .map(entry => entry.branchname )
           .filter(branch => branch && branch.trim() !== "")
@@ -80,13 +76,33 @@ const Login = ({ onLogin }) => {
   
     try {
       console.log("Login validation passed, setting manual login attempt flag");
-      // Set flag to indicate this is a manual login attempt
       setManualLoginAttempt(true);
       
       console.log("Attempting login with:", { email, branch: selectedBranch });
       
-      // Call the login function from the context
-      const success = await login(email, selectedBranch);
+      const response = await fetch(`${AUTH_URL}/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password,
+          branch: selectedBranch
+        })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Login failed');
+      }
+      
+      const data = await response.json();
+      
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      
+      const success = await login(email, selectedBranch, data.token);
       
       console.log("Login result:", success);
       
@@ -98,11 +114,11 @@ const Login = ({ onLogin }) => {
     } catch (err) {
       console.error("Login submission error:", err);
       setManualLoginAttempt(false);
-      setLocalError("An unexpected error occurred. Please try again.");
+      setLocalError(err.message || "An unexpected error occurred. Please try again.");
     }
   };
 
-  // Display the context error or local error
+  
   const displayError = error || localError;
 
   return (
