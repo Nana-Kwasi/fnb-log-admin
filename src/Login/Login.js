@@ -9,19 +9,14 @@ const Login = ({ onLogin }) => {
   const [branches, setBranches] = useState([]);
   const [fetchingBranches, setFetchingBranches] = useState(false);
   const [localError, setLocalError] = useState("");
-  const [loginStage, setLoginStage] = useState("credentials"); // New state to manage login stages
+  const [loginStage, setLoginStage] = useState("credentials");
 
   const { login, loading, error, setError, authenticated, token } = useVisitor();
 
-  const AUTH_URL = "http://localhost:5001/auth/login";
+  const AUTH_URL = "http://localhost:5001/auth";
 
   // Fetch branches after successful authentication
   const fetchBranches = async () => {
-    if (!token) {
-      console.error("No authentication token available");
-      return;
-    }
-
     try {
       setFetchingBranches(true);
       const response = await fetch(`${AUTH_URL}/branches`, {
@@ -37,13 +32,18 @@ const Login = ({ onLogin }) => {
       }
 
       const data = await response.json();
-      const uniqueBranches = [...new Set(data.branches)].sort();
+      const uniqueBranches = [...new Set(data.branches)].filter(branch => branch).sort();
+      
+      if (uniqueBranches.length === 0) {
+        throw new Error("No branches available");
+      }
       
       setBranches(uniqueBranches);
+      setSelectedBranch(uniqueBranches[0]); // Automatically select first branch
       setLoginStage("branch-selection");
     } catch (err) {
       console.error("Error fetching branches:", err);
-      setLocalError("Failed to load branches. Please try again.");
+      setLocalError(err.message || "Failed to load branches. Please try again.");
     } finally {
       setFetchingBranches(false);
     }
@@ -69,11 +69,6 @@ const Login = ({ onLogin }) => {
 
   const handleBranchSelection = async (e) => {
     e.preventDefault();
-
-    if (!selectedBranch) {
-      setLocalError("Please select a branch");
-      return;
-    }
 
     try {
       // Update user's branch context
