@@ -1,4 +1,4 @@
-//authcontroller
+//auth controller
 const pool = require('../db');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
@@ -141,8 +141,7 @@ module.exports = {
   verifyToken
 };
 
-//visitorlogscontroller
-
+// visitor controler
 
 const getAllVisitorLogs = async (req, res) => {
   try {
@@ -269,10 +268,10 @@ module.exports = {
   createVisitorLog,
   updateVisitorLog,
   deleteVisitorLog,
-  checkTelephoneExists, // Export the new function
+  checkTelephoneExists, 
 };
 
-//middleware auth
+//auth middleware
 
 const jwt = require('jsonwebtoken');
 
@@ -298,16 +297,25 @@ module.exports = function (req, res, next) {
   }
 };
 
-//rout auth
 
+
+//rout auth
 const express = require('express');
 const router = express.Router();
-const authMiddleware = require('../middleware/auth');
-const pool = require('../db');  // Assuming you have a database connection pool
+const { login, registerUser, verifyToken } = require('../controllers/authController');
+const authMiddleware = require('../middleware/auth'); 
+// Login route
+router.post('/login', login);
 
+// Register route
+router.post('/register', registerUser);
+
+// Token verification route
+router.post('/verify', verifyToken);
+
+// Branches route (as you already had)
 router.get('/branches', authMiddleware, async (req, res) => {
   try {
-    // Fetch branches from visitor_log or wherever your branches are stored
     const result = await pool.query('SELECT DISTINCT branchname FROM visitor_log');
     
     const branches = result.rows.map(row => row.branchname).filter(branch => branch);
@@ -319,16 +327,11 @@ router.get('/branches', authMiddleware, async (req, res) => {
   }
 });
 
-module.exports = router
-
-
-//validation route
-
+// Branch validation route
 router.post('/validate-branch', authMiddleware, async (req, res) => {
   const { email, branch } = req.body;
 
   try {
-    // Check if the user has access to the specified branch
     const userResult = await pool.query(
       'SELECT branches FROM admin_users WHERE email = $1', 
       [email]
@@ -351,38 +354,94 @@ router.post('/validate-branch', authMiddleware, async (req, res) => {
   }
 });
 
-
-
-
-//routh visitors
-
-
-
-const express = require('express');
-const router = express.Router();
-const visitorsController = require('../controllers/visitorsLogsController');
-const authMiddleware = require('../middleware/auth'); // Import auth middleware
-
-// Public routes (no authentication required)
-router.get('/check-telephone/:telephone', visitorsController.checkTelephoneExists);
-
-// Protected routes (authentication required)
-router.get('/', authMiddleware, visitorsController.getAllVisitorLogs);
-router.get('/by-phone', authMiddleware, visitorsController.getVisitorLogsByPhoneNumber);
-router.get('/:id', authMiddleware, visitorsController.getVisitorLogById);
-router.post('/', authMiddleware, visitorsController.createVisitorLog);
-router.put('/:id', authMiddleware, visitorsController.updateVisitorLog);
-router.delete('/:id', authMiddleware, visitorsController.deleteVisitorLog);
-
 module.exports = router;
+//route validate-branch
 
-//server
+router.post('/validate-branch', authMiddleware, async (req, res) => {
+  const { email, branch } = req.body;
+
+  try {
+    
+    const userResult = await pool.query(
+      'SELECT branches FROM admin_users WHERE email = $1', 
+      [email]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(403).json({ error: 'User not found' });
+    }
+
+    const userBranches = userResult.rows[0].branches;
+
+    if (!userBranches || !userBranches.includes(branch)) {
+      return res.status(403).json({ error: 'Branch access denied' });
+    }
+
+    res.json({ message: 'Branch access validated' });
+  } catch (err) {
+    console.error('Branch validation error:', err);
+    res.status(500).json({ error: 'Server error during branch validation' });
+  }
+});
+
+// server
+// const express = require('express');
+// const cors = require('cors');
+// const bodyParser = require('body-parser');
+// const visitorsRouter = require('./route/visitors');
+
+// const app = express();
+
+// // CORS configuration
+// app.use(cors());
+
+// // Body parser middleware
+// app.use(bodyParser.json({ limit: '10mb' })); 
+// app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }));
+
+// // Debug middleware to log all requests
+// app.use((req, res, next) => {
+//   console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+//   next();
+// });
+
+// // Health check endpoint
+// app.get('/health', (req, res) => {
+//   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+// });
+
+// // Mount the visitors router
+// app.use('/visitors', visitorsRouter);
+
+// // Catch-all 404 handler
+// app.use((req, res) => {
+//   console.log(`Route not found: ${req.method} ${req.url}`);
+//   res.status(404).json({ error: 'Route not found' });
+// });
+
+// // Error handler
+// app.use((err, req, res, next) => {
+//   console.error('Server error:', err);
+//   res.status(500).json({
+//     error: 'Server error',
+//     message: err.message
+//   });
+// });
+
+// const PORT = 5001;
+// app.listen(PORT, () => {
+//   console.log(`Server is running on port ${PORT}`);
+//   console.log(`Health check available at: http://localhost:${PORT}/health`);
+//   console.log(`Check telephone endpoint: http://localhost:${PORT}/visitors/check-telephone/:telephone`);
+// });
+
+
 
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const visitorsRouter = require('./route/visitors');
-const authRouter = require('./route/auth'); // Add the auth router
+const authRouter = require('./route/auth'); 
 
 const app = express();
 
