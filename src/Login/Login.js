@@ -11,7 +11,7 @@ const Login = ({ onLogin }) => {
   const [localError, setLocalError] = useState("");
   const [loginStage, setLoginStage] = useState("credentials");
 
-  const { login, loading, error, setError, authenticated, token } = useVisitor();
+  const { login, loading, error, setError, authenticated, user, token } = useVisitor();
 
   const AUTH_URL = "http://localhost:5001/auth";
 
@@ -35,7 +35,7 @@ const Login = ({ onLogin }) => {
       const uniqueBranches = [...new Set(data.branches)].filter(branch => branch).sort();
       
       if (uniqueBranches.length === 0) {
-        throw new Error("No branches available");
+        throw new Error("No branches have been assigned to your account. Please contact an administrator.");
       }
       
       setBranches(uniqueBranches);
@@ -43,7 +43,8 @@ const Login = ({ onLogin }) => {
       setLoginStage("branch-selection");
     } catch (err) {
       console.error("Error fetching branches:", err);
-      setLocalError(err.message || "Failed to load branches. Please try again.");
+      setLocalError(err.message || "Failed to load branches. Please contact support.");
+      setLoginStage("credentials"); // Go back to credentials stage
     } finally {
       setFetchingBranches(false);
     }
@@ -57,8 +58,15 @@ const Login = ({ onLogin }) => {
       const success = await login(email, password);
       
       if (success) {
-        // If login is successful, proceed to fetch branches
-        fetchBranches();
+        // If user has multiple branches, proceed to branch selection
+        if (user && user.branches && user.branches.length > 1) {
+          fetchBranches();
+        } else if (user && user.branch) {
+          // If only one branch, directly login
+          onLogin(email, user.branch);
+        } else {
+          setLocalError("No branches assigned to your account.");
+        }
       } else {
         setLocalError("Login failed. Please check your credentials.");
       }
