@@ -552,16 +552,17 @@ export const VisitorProvider = ({ children }) => {
   };
 
   // Login function - integrated with token-based auth
+  
   const login = async (emailOrBranch, passwordOrToken, optionalToken = null) => {
     setLoading(true);
     setError("");
 
     try {
-      // Scenario 1: Initial Login with Credentials
+      // Scenario 1: Initial login with credentials
       if (!optionalToken && typeof passwordOrToken === 'string') {
         console.log(`Attempting initial login for ${emailOrBranch}`);
         
-        // Fetch available branches for the user
+        // First, fetch available branches
         const branchesResponse = await fetch(`${AUTH_URL}/branches`, {
           method: 'GET',
           headers: {
@@ -569,19 +570,11 @@ export const VisitorProvider = ({ children }) => {
           }
         });
 
-        if (!branchesResponse.ok) {
-          throw new Error("Failed to fetch user branches");
-        }
-
         const branchesData = await branchesResponse.json();
         const availableBranches = branchesData.branches || [];
+        const defaultBranch = availableBranches[0] || 'default';
 
-        // Validate branches exist
-        if (availableBranches.length === 0) {
-          throw new Error("No branches assigned to this user");
-        }
-
-        // Attempt login with first available branch
+        // Attempt login with default branch
         const loginResponse = await fetch(`${AUTH_URL}/login`, {
           method: 'POST',
           headers: {
@@ -590,7 +583,7 @@ export const VisitorProvider = ({ children }) => {
           body: JSON.stringify({ 
             email: emailOrBranch, 
             password: passwordOrToken,
-            branch: availableBranches[0]
+            branch: defaultBranch
           })
         });
 
@@ -602,30 +595,29 @@ export const VisitorProvider = ({ children }) => {
 
         const loginData = await loginResponse.json();
 
-        // Prepare user data
+        // Store token and user data
+        localStorage.setItem('token', loginData.token);
+        
         const userData = {
           id: loginData.user.id,
           email: loginData.user.email,
           role: loginData.user.role,
-          branches: availableBranches,
-          branch: availableBranches[0]
+          branch: defaultBranch
         };
 
-        // Store authentication information
-        localStorage.setItem('token', loginData.token);
         localStorage.setItem('user', JSON.stringify(userData));
 
         // Update context state
         setToken(loginData.token);
         setUser(userData);
         setAuthenticated(true);
-        setSelectedBranch(availableBranches[0]);
+        setSelectedBranch(defaultBranch);
 
         setLoading(false);
         return true;
       }
 
-      // Scenario 2: Branch Selection after Initial Authentication
+      // Scenario 2: Branch selection after initial authentication
       if (optionalToken) {
         console.log(`Attempting branch selection for ${emailOrBranch}`);
         
@@ -660,7 +652,7 @@ export const VisitorProvider = ({ children }) => {
         setUser(updatedUserData);
         setSelectedBranch(passwordOrToken);
 
-        // Fetch branch-specific data
+        // Fetch branch-specific data if needed
         const branchDataSuccess = await fetchBranchData(passwordOrToken);
 
         if (!branchDataSuccess) {
@@ -671,7 +663,7 @@ export const VisitorProvider = ({ children }) => {
         return true;
       }
 
-      // Scenario 3: Token-based Authentication (Persistent Session)
+      // Scenario 3: Token-based authentication (persistent session)
       if (optionalToken === null && typeof passwordOrToken === 'string') {
         console.log(`Attempting token-based authentication for ${emailOrBranch}`);
         
@@ -694,8 +686,7 @@ export const VisitorProvider = ({ children }) => {
           id: tokenData.user.user_id,
           email: tokenData.user.email,
           branch: tokenData.user.branch,
-          role: tokenData.user.role,
-          branches: tokenData.user.branches || []
+          role: tokenData.user.role
         };
 
         // Update context state
@@ -722,7 +713,6 @@ export const VisitorProvider = ({ children }) => {
       // Clear authentication state
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      localStorage.removeItem('dashboardData');
 
       setToken(null);
       setUser(null);
