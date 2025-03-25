@@ -538,7 +538,7 @@ export const VisitorProvider = ({ children }) => {
     if (!token) return false;
     
     try {
-      const response = await fetch(`${AUTH_URL}/verify-token`, {
+      const response = await fetch(`${AUTH_URL}/verify`, {
         headers: {
           'x-auth-token': token
         }
@@ -581,7 +581,7 @@ export const VisitorProvider = ({ children }) => {
         
         const data = await response.json();
         
-        // Store token and initial user info
+        
         localStorage.setItem('token', data.token);
         
         // Prepare user object without branch initially

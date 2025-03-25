@@ -299,6 +299,7 @@ module.exports = function (req, res, next) {
 };
 
 //rout auth
+
 const express = require('express');
 const router = express.Router();
 const authMiddleware = require('../middleware/auth');
@@ -322,6 +323,7 @@ module.exports = router
 
 
 //validation route
+
 router.post('/validate-branch', authMiddleware, async (req, res) => {
   const { email, branch } = req.body;
 

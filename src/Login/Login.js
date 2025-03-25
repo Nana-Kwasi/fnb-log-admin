@@ -13,7 +13,7 @@ const Login = ({ onLogin }) => {
 
   const { login, loading, error, setError, authenticated, token } = useVisitor();
 
-  const AUTH_URL = "http://localhost:5001/auth";
+  const AUTH_URL = "http://localhost:5001/auth/login";
 
   // Fetch branches after successful authentication
   const fetchBranches = async () => {
