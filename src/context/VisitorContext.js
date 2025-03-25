@@ -313,6 +313,8 @@
 //   }
 //   return context;
 // };
+
+
 import React, { createContext, useState, useContext, useEffect } from "react";
 
 const VisitorContext = createContext();
@@ -550,69 +552,162 @@ export const VisitorProvider = ({ children }) => {
   };
 
   // Login function - integrated with token-based auth
-  const login = async (email, branch, authToken = null) => {
+  const login = async (emailOrBranch, passwordOrToken, optionalToken = null) => {
     setLoading(true);
     setError("");
     
     try {
-      // If token is provided directly, use it
-      if (authToken) {
-        setToken(authToken);
-        localStorage.setItem('token', authToken);
+      // Scenario 1: Full login with credentials (initial authentication)
+      if (!optionalToken && typeof passwordOrToken === 'string') {
+        console.log(`Attempting initial login for ${emailOrBranch}`);
         
-        const userData = { email, branch };
-        setUser(userData);
+        const response = await fetch(`${AUTH_URL}/login`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ 
+            email: emailOrBranch, 
+            password: passwordOrToken,
+            // Temporary branch, will be selected later
+            branch: null 
+          })
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || "Authentication failed");
+        }
+        
+        const data = await response.json();
+        
+        // Store token and initial user info
+        localStorage.setItem('token', data.token);
+        
+        // Prepare user object without branch initially
+        const userData = {
+          id: data.user.id,
+          email: data.user.email,
+          role: data.user.role
+        };
+        
         localStorage.setItem('user', JSON.stringify(userData));
         
-        setSelectedBranch(branch);
+        // Update context state
+        setToken(data.token);
+        setUser(userData);
         setAuthenticated(true);
-        
-        // Fetch branch data with the token
-        await fetchBranchData(branch);
         
         setLoading(false);
         return true;
       }
       
-      // Otherwise attempt login with credentials
-      console.log(`Attempting login for ${email} at branch ${branch}`);
-      
-      const response = await fetch(`${AUTH_URL}/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password: 'default-needed-in-body', branch })
-      });
-      
-      if (!response.ok) {
-        throw new Error("Authentication failed");
+      // Scenario 2: Branch selection after initial authentication
+      if (optionalToken) {
+        console.log(`Attempting branch selection for ${emailOrBranch}`);
+        
+        // Validate branch access
+        const branchValidationResponse = await fetch(`${AUTH_URL}/validate-branch`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-auth-token': optionalToken
+          },
+          body: JSON.stringify({ 
+            email: emailOrBranch, 
+            branch: passwordOrToken 
+          })
+        });
+        
+        if (!branchValidationResponse.ok) {
+          const errorData = await branchValidationResponse.json();
+          throw new Error(errorData.error || "Branch access denied");
+        }
+        
+        // Update user with selected branch
+        const updatedUserData = {
+          ...JSON.parse(localStorage.getItem('user')),
+          branch: passwordOrToken
+        };
+        
+        localStorage.setItem('user', JSON.stringify(updatedUserData));
+        
+        // Update context state
+        setUser(updatedUserData);
+        setSelectedBranch(passwordOrToken);
+        
+        // Fetch branch-specific data
+        const branchDataSuccess = await fetchBranchData(passwordOrToken);
+        
+        if (!branchDataSuccess) {
+          throw new Error("Failed to fetch branch data");
+        }
+        
+        setLoading(false);
+        return true;
       }
       
-      const data = await response.json();
+      // Scenario 3: Token-based authentication (for persistent sessions)
+      if (optionalToken === null && typeof passwordOrToken === 'string') {
+        console.log(`Attempting token-based authentication for ${emailOrBranch}`);
+        
+        // Verify the token
+        const tokenVerificationResponse = await fetch(`${AUTH_URL}/verify`, {
+          method: 'POST',
+          headers: {
+            'x-auth-token': passwordOrToken
+          }
+        });
+        
+        if (!tokenVerificationResponse.ok) {
+          throw new Error("Invalid or expired token");
+        }
+        
+        const tokenData = await tokenVerificationResponse.json();
+        
+        // Reconstruct user object from token data
+        const userData = {
+          id: tokenData.user.user_id,
+          email: tokenData.user.email,
+          branch: tokenData.user.branch,
+          role: tokenData.user.role
+        };
+        
+        // Update context state
+        setToken(passwordOrToken);
+        setUser(userData);
+        setSelectedBranch(userData.branch);
+        setAuthenticated(true);
+        
+        // Fetch branch data if branch is available
+        if (userData.branch) {
+          await fetchBranchData(userData.branch);
+        }
+        
+        setLoading(false);
+        return true;
+      }
       
-      // Store token and user info
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user || { email, branch }));
+      // If no scenario matches
+      throw new Error("Invalid login parameters");
       
-      setToken(data.token);
-      setUser(data.user || { email, branch });
-      setSelectedBranch(branch);
-      setAuthenticated(true);
-      
-      // Fetch branch data with new authentication
-      await fetchBranchData(branch);
-      
-      setLoading(false);
-      return true;
     } catch (err) {
       console.error("Login error:", err);
-      setError(err.message || "Login failed. Please try again.");
+      
+      // Clear any partial authentication state
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      
+      setToken(null);
+      setUser(null);
+      setAuthenticated(false);
+      setSelectedBranch("");
+      
+      setError(err.message || "Authentication failed");
       setLoading(false);
       return false;
     }
   };
-
   // Logout function
   const logout = () => {
     console.log("Logging out, clearing context and localStorage");

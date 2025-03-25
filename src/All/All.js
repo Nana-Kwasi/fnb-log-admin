@@ -301,13 +301,56 @@ module.exports = function (req, res, next) {
 //rout auth
 const express = require('express');
 const router = express.Router();
-const authController = require('../controllers/authController');
+const authMiddleware = require('../middleware/auth');
+const pool = require('../db');  // Assuming you have a database connection pool
 
-router.post('/login', authController.login);
-router.post('/register', authController.registerUser);
-router.post('/verify', authController.verifyToken);
+router.get('/branches', authMiddleware, async (req, res) => {
+  try {
+    // Fetch branches from visitor_log or wherever your branches are stored
+    const result = await pool.query('SELECT DISTINCT branchname FROM visitor_log');
+    
+    const branches = result.rows.map(row => row.branchname).filter(branch => branch);
+    
+    res.json({ branches });
+  } catch (err) {
+    console.error('Error fetching branches:', err);
+    res.status(500).json({ error: 'Failed to fetch branches' });
+  }
+});
 
 module.exports = router
+
+
+//validation route
+router.post('/validate-branch', authMiddleware, async (req, res) => {
+  const { email, branch } = req.body;
+
+  try {
+    // Check if the user has access to the specified branch
+    const userResult = await pool.query(
+      'SELECT branches FROM admin_users WHERE email = $1', 
+      [email]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(403).json({ error: 'User not found' });
+    }
+
+    const userBranches = userResult.rows[0].branches;
+
+    if (!userBranches || !userBranches.includes(branch)) {
+      return res.status(403).json({ error: 'Branch access denied' });
+    }
+
+    res.json({ message: 'Branch access validated' });
+  } catch (err) {
+    console.error('Branch validation error:', err);
+    res.status(500).json({ error: 'Server error during branch validation' });
+  }
+});
+
+
+
 
 //routh visitors
 
