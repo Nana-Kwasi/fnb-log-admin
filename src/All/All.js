@@ -1,5 +1,6 @@
-//server
 
+
+//server
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
@@ -202,6 +203,7 @@ module.exports = function (req, res, next) {
 };
 
 //auth controller
+
 const pool = require('../db');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
