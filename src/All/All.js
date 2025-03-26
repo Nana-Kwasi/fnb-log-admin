@@ -1,3 +1,206 @@
+//server
+
+const express = require('express');
+const cors = require('cors');
+const bodyParser = require('body-parser');
+const visitorsRouter = require('./route/visitors');
+const authRouter = require('./route/auth'); 
+
+const app = express();
+
+// CORS configuration
+app.use(cors());
+
+// Body parser middleware
+app.use(bodyParser.json({ limit: '10mb' })); 
+app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }));
+
+// Debug middleware to log all requests
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  next();
+});
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Mount the routers
+app.use('/visitors', visitorsRouter);
+app.use('/auth', authRouter); // Mount the auth router at /auth
+
+// Catch-all 404 handler
+app.use((req, res) => {
+  console.log(`Route not found: ${req.method} ${req.url}`);
+  res.status(404).json({ error: 'Route not found' });
+});
+
+// Error handler
+app.use((err, req, res, next) => {
+  console.error('Server error:', err);
+  res.status(500).json({
+    error: 'Server error',
+    message: err.message
+  });
+});
+
+const PORT = 5001;
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+  console.log(`Health check available at: http://localhost:${PORT}/health`);
+  console.log(`Auth endpoints available at: http://localhost:${PORT}/auth/login`);
+});
+
+// auth rout
+
+//rout auth
+const express = require('express');
+const router = express.Router();
+const { login, registerUser, verifyToken } = require('../controllers/authController');
+const authMiddleware = require('../middleware/auth'); 
+// Login route
+router.post('/login', login);
+
+// Register route
+router.post('/register', registerUser);
+
+// Token verification route
+router.post('/verify', verifyToken);
+
+// Branches route (as you already had)
+router.get('/branches', authMiddleware, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT DISTINCT branchname FROM visitor_log');
+    
+    const branches = result.rows.map(row => row.branchname).filter(branch => branch);
+    
+    res.json({ branches });
+  } catch (err) {
+    console.error('Error fetching branches:', err);
+    res.status(500).json({ error: 'Failed to fetch branches' });
+  }
+});
+
+// Branch validation route
+router.post('/validate-branch', authMiddleware, async (req, res) => {
+  const { email, branch } = req.body;
+
+  try {
+    const userResult = await pool.query(
+      'SELECT branches FROM admin_users WHERE email = $1', 
+      [email]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(403).json({ error: 'User not found' });
+    }
+
+    const userBranches = userResult.rows[0].branches;
+
+    if (!userBranches || !userBranches.includes(branch)) {
+      return res.status(403).json({ error: 'Branch access denied' });
+    }
+
+    res.json({ message: 'Branch access validated' });
+  } catch (err) {
+    console.error('Branch validation error:', err);
+    res.status(500).json({ error: 'Server error during branch validation' });
+  }
+});
+
+module.exports = router;
+ 
+// route validate-branch
+
+router.post('/validate-branch', authMiddleware, async (req, res) => {
+  const { email, branch } = req.body;
+
+  try {
+    
+    const userResult = await pool.query(
+      'SELECT branches FROM admin_users WHERE email = $1', 
+      [email]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(403).json({ error: 'User not found' });
+    }
+
+    const userBranches = userResult.rows[0].branches;
+
+    if (!userBranches || !userBranches.includes(branch)) {
+      return res.status(403).json({ error: 'Branch access denied' });
+    }
+
+    res.json({ message: 'Branch access validated' });
+  } catch (err) {
+    console.error('Branch validation error:', err);
+    res.status(500).json({ error: 'Server error during branch validation' });
+  }
+});
+
+// route visitor
+// const express = require('express');
+// const router = express.Router();
+// const visitorsController = require('../controllers/visitorsLogsController');
+
+
+
+// // Existing routes
+// router.get('/by-phone', visitorsController.getVisitorLogsByPhoneNumber);
+// router.get('/:id', visitorsController.getVisitorLogById);
+// router.post('/', visitorsController.createVisitorLog);
+// router.put('/:id', visitorsController.updateVisitorLog);
+// router.delete('/:id', visitorsController.deleteVisitorLog);
+// router.get('/check-telephone/:telephone', visitorsController.checkTelephoneExists);
+
+
+
+const express = require('express');
+const router = express.Router();
+const visitorsController = require('../controllers/visitorsLogsController');
+const authMiddleware = require('../middleware/auth'); // Import auth middleware
+
+// Public routes (no authentication required)
+router.get('/check-telephone/:telephone', visitorsController.checkTelephoneExists);
+
+// Protected routes (authentication required)
+router.get('/', authMiddleware, visitorsController.getAllVisitorLogs);
+router.get('/by-phone', authMiddleware, visitorsController.getVisitorLogsByPhoneNumber);
+router.get('/:id', authMiddleware, visitorsController.getVisitorLogById);
+router.post('/', authMiddleware, visitorsController.createVisitorLog);
+router.put('/:id', authMiddleware, visitorsController.updateVisitorLog);
+router.delete('/:id', authMiddleware, visitorsController.deleteVisitorLog);
+
+module.exports = router;
+
+// middleware auth
+
+const jwt = require('jsonwebtoken');
+
+
+const JWT_SECRET = 'your-secret-key-should-be-in-env-file';
+
+module.exports = function (req, res, next) {
+  
+  const token = req.header('x-auth-token');
+
+  
+  if (!token) {
+    return res.status(401).json({ error: 'No token, authorization denied' });
+  }
+
+ 
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (err) {
+    res.status(401).json({ error: 'Token is not valid' });
+  }
+};
+
 //auth controller
 const pool = require('../db');
 const jwt = require('jsonwebtoken');
@@ -141,7 +344,8 @@ module.exports = {
   verifyToken
 };
 
-// visitor controler
+// visitor controller
+
 
 const getAllVisitorLogs = async (req, res) => {
   try {
@@ -270,221 +474,3 @@ module.exports = {
   deleteVisitorLog,
   checkTelephoneExists, 
 };
-
-//auth middleware
-
-const jwt = require('jsonwebtoken');
-
-
-const JWT_SECRET = 'your-secret-key-should-be-in-env-file';
-
-module.exports = function (req, res, next) {
-  
-  const token = req.header('x-auth-token');
-
-  
-  if (!token) {
-    return res.status(401).json({ error: 'No token, authorization denied' });
-  }
-
- 
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = decoded;
-    next();
-  } catch (err) {
-    res.status(401).json({ error: 'Token is not valid' });
-  }
-};
-
-
-
-//rout auth
-const express = require('express');
-const router = express.Router();
-const { login, registerUser, verifyToken } = require('../controllers/authController');
-const authMiddleware = require('../middleware/auth'); 
-// Login route
-router.post('/login', login);
-
-// Register route
-router.post('/register', registerUser);
-
-// Token verification route
-router.post('/verify', verifyToken);
-
-// Branches route (as you already had)
-router.get('/branches', authMiddleware, async (req, res) => {
-  try {
-    const result = await pool.query('SELECT DISTINCT branchname FROM visitor_log');
-    
-    const branches = result.rows.map(row => row.branchname).filter(branch => branch);
-    
-    res.json({ branches });
-  } catch (err) {
-    console.error('Error fetching branches:', err);
-    res.status(500).json({ error: 'Failed to fetch branches' });
-  }
-});
-
-// Branch validation route
-router.post('/validate-branch', authMiddleware, async (req, res) => {
-  const { email, branch } = req.body;
-
-  try {
-    const userResult = await pool.query(
-      'SELECT branches FROM admin_users WHERE email = $1', 
-      [email]
-    );
-
-    if (userResult.rows.length === 0) {
-      return res.status(403).json({ error: 'User not found' });
-    }
-
-    const userBranches = userResult.rows[0].branches;
-
-    if (!userBranches || !userBranches.includes(branch)) {
-      return res.status(403).json({ error: 'Branch access denied' });
-    }
-
-    res.json({ message: 'Branch access validated' });
-  } catch (err) {
-    console.error('Branch validation error:', err);
-    res.status(500).json({ error: 'Server error during branch validation' });
-  }
-});
-
-module.exports = router;
-//route validate-branch
-
-router.post('/validate-branch', authMiddleware, async (req, res) => {
-  const { email, branch } = req.body;
-
-  try {
-    
-    const userResult = await pool.query(
-      'SELECT branches FROM admin_users WHERE email = $1', 
-      [email]
-    );
-
-    if (userResult.rows.length === 0) {
-      return res.status(403).json({ error: 'User not found' });
-    }
-
-    const userBranches = userResult.rows[0].branches;
-
-    if (!userBranches || !userBranches.includes(branch)) {
-      return res.status(403).json({ error: 'Branch access denied' });
-    }
-
-    res.json({ message: 'Branch access validated' });
-  } catch (err) {
-    console.error('Branch validation error:', err);
-    res.status(500).json({ error: 'Server error during branch validation' });
-  }
-});
-
-// server
-// const express = require('express');
-// const cors = require('cors');
-// const bodyParser = require('body-parser');
-// const visitorsRouter = require('./route/visitors');
-
-// const app = express();
-
-// // CORS configuration
-// app.use(cors());
-
-// // Body parser middleware
-// app.use(bodyParser.json({ limit: '10mb' })); 
-// app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }));
-
-// // Debug middleware to log all requests
-// app.use((req, res, next) => {
-//   console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
-//   next();
-// });
-
-// // Health check endpoint
-// app.get('/health', (req, res) => {
-//   res.json({ status: 'ok', timestamp: new Date().toISOString() });
-// });
-
-// // Mount the visitors router
-// app.use('/visitors', visitorsRouter);
-
-// // Catch-all 404 handler
-// app.use((req, res) => {
-//   console.log(`Route not found: ${req.method} ${req.url}`);
-//   res.status(404).json({ error: 'Route not found' });
-// });
-
-// // Error handler
-// app.use((err, req, res, next) => {
-//   console.error('Server error:', err);
-//   res.status(500).json({
-//     error: 'Server error',
-//     message: err.message
-//   });
-// });
-
-// const PORT = 5001;
-// app.listen(PORT, () => {
-//   console.log(`Server is running on port ${PORT}`);
-//   console.log(`Health check available at: http://localhost:${PORT}/health`);
-//   console.log(`Check telephone endpoint: http://localhost:${PORT}/visitors/check-telephone/:telephone`);
-// });
-
-
-
-const express = require('express');
-const cors = require('cors');
-const bodyParser = require('body-parser');
-const visitorsRouter = require('./route/visitors');
-const authRouter = require('./route/auth'); 
-
-const app = express();
-
-// CORS configuration
-app.use(cors());
-
-// Body parser middleware
-app.use(bodyParser.json({ limit: '10mb' })); 
-app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }));
-
-// Debug middleware to log all requests
-app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
-  next();
-});
-
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
-
-// Mount the routers
-app.use('/visitors', visitorsRouter);
-app.use('/auth', authRouter); // Mount the auth router at /auth
-
-// Catch-all 404 handler
-app.use((req, res) => {
-  console.log(`Route not found: ${req.method} ${req.url}`);
-  res.status(404).json({ error: 'Route not found' });
-});
-
-// Error handler
-app.use((err, req, res, next) => {
-  console.error('Server error:', err);
-  res.status(500).json({
-    error: 'Server error',
-    message: err.message
-  });
-});
-
-const PORT = 5001;
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-  console.log(`Health check available at: http://localhost:${PORT}/health`);
-  console.log(`Auth endpoints available at: http://localhost:${PORT}/auth/login`);
-});

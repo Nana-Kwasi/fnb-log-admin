@@ -724,6 +724,8 @@ export const VisitorProvider = ({ children }) => {
       return false;
     }
   };
+
+  
   const logout = () => {
     // Clear authentication state
     localStorage.removeItem('token');
