@@ -1,179 +1,56 @@
-
-
 //server
-
-// const express = require('express');
-// const cors = require('cors');
-// const bodyParser = require('body-parser');
-// const visitorsRouter = require('./route/visitors');
-// const authRouter = require('./route/auth'); 
-
-// const app = express();
-
-// // CORS configuration
-// app.use(cors());
-
-// // Body parser middleware
-// app.use(bodyParser.json({ limit: '10mb' })); 
-// app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }));
-
-// // Debug middleware to log all requests
-// app.use((req, res, next) => {
-//   console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
-//   next();
-// });
-
-// // Health check endpoint
-// app.get('/health', (req, res) => {
-//   res.json({ status: 'ok', timestamp: new Date().toISOString() });
-// });
-
-// // Mount the routers
-// app.use('/visitors', visitorsRouter);
-// app.use('/auth', authRouter); // Mount the auth router at /auth
-
-// // Catch-all 404 handler
-// app.use((req, res) => {
-//   console.log(`Route not found: ${req.method} ${req.url}`);
-//   res.status(404).json({ error: 'Route not found' });
-// });
-
-// // Error handler
-// app.use((err, req, res, next) => {
-//   console.error('Server error:', err);
-//   res.status(500).json({
-//     error: 'Server error',
-//     message: err.message
-//   });
-// });
-
-// const PORT = 5001;
-// app.listen(PORT, () => {
-//   console.log(`Server is running on port ${PORT}`);
-//   console.log(`Health check available at: http://localhost:${PORT}/health`);
-//   console.log(`Auth endpoints available at: http://localhost:${PORT}/auth/login`);
-// });
-console.log('Current directory:', __dirname);
-console.log('Attempting to import visitors router from:', path.join(__dirname, 'route', 'visitors'));
-console.log('Attempting to import auth router from:', path.join(__dirname, 'route', 'auth'));
-
+const express = require('express');
+const cors = require('cors');
+const bodyParser = require('body-parser');
 const visitorsRouter = require('./route/visitors');
 const authRouter = require('./route/auth'); 
 
 const app = express();
 
-// Enhanced CORS configuration
-app.use(cors({
-  origin: '*',  // Be cautious with this in production
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'x-auth-token']
-}));
+// CORS configuration
+app.use(cors());
 
-// Body parser middleware with increased logging
-app.use(bodyParser.json({ 
-  limit: '10mb',
-  verify: (req, res, buf) => {
-    try {
-      JSON.parse(buf.toString());
-    } catch (e) {
-      console.error('Invalid JSON:', buf.toString());
-      throw new Error('Invalid JSON');
-    }
-  }
-})); 
+// Body parser middleware
+app.use(bodyParser.json({ limit: '10mb' })); 
 app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }));
 
-// Comprehensive debug middleware to log all requests in detail
+// Debug middleware to log all requests
 app.use((req, res, next) => {
-  console.log(`
-    ===== Incoming Request =====
-    Timestamp: ${new Date().toISOString()}
-    Method: ${req.method}
-    URL: ${req.url}
-    Headers: ${JSON.stringify(req.headers)}
-    Query Params: ${JSON.stringify(req.query)}
-    Body: ${JSON.stringify(req.body)}
-    ===========================
-  `);
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
   next();
 });
 
-// Explicit route logging middleware
-const logRoutes = (router, routerName) => {
-  if (router.stack) {
-    console.log(`Routes for ${routerName}:`);
-    router.stack.forEach((r) => {
-      if (r.route && r.route.path) {
-        console.log(`  ${r.route.stack[0].method.toUpperCase()} ${routerName}${r.route.path}`);
-      }
-    });
-  }
-};
-
-// Log routes before mounting
-logRoutes(visitorsRouter, '/visitors');
-logRoutes(authRouter, '/auth');
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
 
 // Mount the routers
 app.use('/visitors', visitorsRouter);
-app.use('/auth', authRouter);
+app.use('/auth', authRouter); // Mount the auth router at /auth
 
-// Detailed 404 handler
+// Catch-all 404 handler
 app.use((req, res) => {
-  console.error(`
-    ===== 404 ROUTE NOT FOUND =====
-    Full Request Details:
-    Method: ${req.method}
-    URL: ${req.url}
-    Full Path: ${req.protocol}://${req.get('host')}${req.originalUrl}
-    Headers: ${JSON.stringify(req.headers)}
-  `);
-  res.status(404).json({ 
-    error: 'Route not found', 
-    requestedUrl: req.url,
-    availableRoutes: [
-      '/auth/login',
-      '/auth/register',
-      '/auth/verify',
-      '/auth/branches',
-      '/visitors/'
-    ]
-  });
+  console.log(`Route not found: ${req.method} ${req.url}`);
+  res.status(404).json({ error: 'Route not found' });
 });
 
-// Enhanced error handler
+// Error handler
 app.use((err, req, res, next) => {
-  console.error(`
-    ===== SERVER ERROR =====
-    Timestamp: ${new Date().toISOString()}
-    Error: ${err.message}
-    Stack Trace: ${err.stack}
-    Request Details:
-    Method: ${req.method}
-    URL: ${req.url}
-    Headers: ${JSON.stringify(req.headers)}
-    Body: ${JSON.stringify(req.body)}
-  `);
-  
+  console.error('Server error:', err);
   res.status(500).json({
     error: 'Server error',
-    message: err.message,
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+    message: err.message
   });
 });
 
 const PORT = 5001;
 app.listen(PORT, () => {
-  console.log(`
-    ===== SERVER STARTUP =====
-    Server is running on port ${PORT}
-    
-    Available Endpoints:
-    - Health Check: http://localhost:${PORT}/health
-    - Auth Base: http://localhost:${PORT}/auth
-    - Visitors Base: http://localhost:${PORT}/visitors
-  `);
+  console.log(`Server is running on port ${PORT}`);
+  console.log(`Health check available at: http://localhost:${PORT}/health`);
+  console.log(`Auth endpoints available at: http://localhost:${PORT}/auth/login`);
 });
+
 // auth rout
 
 //rout auth
@@ -262,36 +139,32 @@ router.post('/validate-branch', authMiddleware, async (req, res) => {
   }
 });
 
+// route visitor
+// const express = require('express');
+// const router = express.Router();
+// const visitorsController = require('../controllers/visitorsLogsController');
+
+
+
+// // Existing routes
+// router.get('/by-phone', visitorsController.getVisitorLogsByPhoneNumber);
+// router.get('/:id', visitorsController.getVisitorLogById);
+// router.post('/', visitorsController.createVisitorLog);
+// router.put('/:id', visitorsController.updateVisitorLog);
+// router.delete('/:id', visitorsController.deleteVisitorLog);
+// router.get('/check-telephone/:telephone', visitorsController.checkTelephoneExists);
+
+
+
 const express = require('express');
-const visitorsController = require('../controllers/visitorsLogsController');
-const authMiddleware = require('../middleware/auth')
 const router = express.Router();
+const visitorsController = require('../controllers/visitorsLogsController');
+const authMiddleware = require('../middleware/auth'); // Import auth middleware
 
-
-router.get('/index', authMiddleware, async (req, res) => {
-    const { branch } = req.query;
-  
-    if (!branch) {
-      return res.status(400).json({ error: 'Branch parameter is required' });
-    }
-  
-    try {
-      const result = await pool.query(
-        'SELECT * FROM visitor_log WHERE branch = $1 OR branchName = $1', 
-        [branch]
-      );
-  
-      console.log(`Fetched ${result.rows.length} visitor logs for branch: ${branch}`);
-  
-      res.json(result.rows);
-    } catch (err) {
-      console.error(`Error fetching visitor logs for branch ${branch}:`, err);
-      res.status(500).json({ error: 'Failed to fetch visitor logs' });
-    }
-  });
-
-  
+// Public routes (no authentication required)
 router.get('/check-telephone/:telephone', visitorsController.checkTelephoneExists);
+
+// Protected routes (authentication required)
 router.get('/', authMiddleware, visitorsController.getAllVisitorLogs);
 router.get('/by-phone', authMiddleware, visitorsController.getVisitorLogsByPhoneNumber);
 router.get('/:id', authMiddleware, visitorsController.getVisitorLogById);
@@ -339,10 +212,10 @@ const login = async (req, res) => {
   const { email, password, branch } = req.body;
 
   try {
-    console.log(`Login attempt: ${email}`);
+    console.log(`Login attempt: ${email} for branch ${branch}`);
 
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
+    if (!email || !password || !branch) {
+      return res.status(400).json({ error: 'Email, password, and branch are required' });
     }
 
     const result = await pool.query(
@@ -357,16 +230,19 @@ const login = async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // Check if user has any branches
-    if (!user.branches || user.branches.length === 0) {
-      console.log(`User ${email} has no branch access`);
+    // Verify branch access
+    console.log(`Checking if user ${email} has access to branch: ${branch}`);
+    console.log(`User's authorized branches:`, user.branches);
+    
+    if (!user.branches || !user.branches.includes(branch)) {
+      console.log(`Branch access denied: User ${email} attempted to access unauthorized branch: ${branch}`);
       return res.status(403).json({ 
-        error: 'No branch access',
-        message: 'This account does not have access to any branches.'
+        error: 'Branch access denied',
+        message: 'You do not have access to this branch. Please select a branch you are authorized to access.'
       });
     }
+    console.log(`Branch access granted for user ${email} to branch ${branch}`);
 
-    // Password verification
     const isMatch = await bcrypt.compare(password, user.password);
 
     if (!isMatch) {
@@ -374,36 +250,24 @@ const login = async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // If no specific branch provided, use the first available branch
-    const selectedBranch = branch || user.branches[0];
-
-    // Verify branch access
-    if (!user.branches.includes(selectedBranch)) {
-      console.log(`Branch access denied: User ${email} does not have access to ${selectedBranch}`);
-      return res.status(403).json({ 
-        error: 'Branch access denied',
-        message: 'You do not have access to this branch.',
-        availableBranches: user.branches
-      });
-    }
-
     const payload = {
       user_id: user.id,
       email: user.email,
-      branch: selectedBranch,
+      branch: branch,
       role: user.role || 'user'
     };
 
+    console.log(`Creating JWT token with payload:`, payload);
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '8h' });
+    console.log(`JWT token created successfully`);
 
     res.json({
       token,
       user: {
         id: user.id,
         email: user.email,
-        branch: selectedBranch,
+        branch: branch,
         role: user.role || 'user',
-        availableBranches: user.branches
       }
     });
 
@@ -478,6 +342,7 @@ module.exports = {
   registerUser,
   verifyToken
 };
+
 // visitor controller
 
 
