@@ -441,7 +441,7 @@ export const VisitorProvider = ({ children }) => {
         if (!log.date) {
           console.warn('Skipping entry without a date:', log);
           return acc;
-        }
+        } 
         
         try {
           const logDate = parseAPIDate(log.date);

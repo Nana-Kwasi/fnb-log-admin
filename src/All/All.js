@@ -1,58 +1,179 @@
 
 
 //server
-const express = require('express');
-const cors = require('cors');
-const bodyParser = require('body-parser');
+
+// const express = require('express');
+// const cors = require('cors');
+// const bodyParser = require('body-parser');
+// const visitorsRouter = require('./route/visitors');
+// const authRouter = require('./route/auth'); 
+
+// const app = express();
+
+// // CORS configuration
+// app.use(cors());
+
+// // Body parser middleware
+// app.use(bodyParser.json({ limit: '10mb' })); 
+// app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }));
+
+// // Debug middleware to log all requests
+// app.use((req, res, next) => {
+//   console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+//   next();
+// });
+
+// // Health check endpoint
+// app.get('/health', (req, res) => {
+//   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+// });
+
+// // Mount the routers
+// app.use('/visitors', visitorsRouter);
+// app.use('/auth', authRouter); // Mount the auth router at /auth
+
+// // Catch-all 404 handler
+// app.use((req, res) => {
+//   console.log(`Route not found: ${req.method} ${req.url}`);
+//   res.status(404).json({ error: 'Route not found' });
+// });
+
+// // Error handler
+// app.use((err, req, res, next) => {
+//   console.error('Server error:', err);
+//   res.status(500).json({
+//     error: 'Server error',
+//     message: err.message
+//   });
+// });
+
+// const PORT = 5001;
+// app.listen(PORT, () => {
+//   console.log(`Server is running on port ${PORT}`);
+//   console.log(`Health check available at: http://localhost:${PORT}/health`);
+//   console.log(`Auth endpoints available at: http://localhost:${PORT}/auth/login`);
+// });
+console.log('Current directory:', __dirname);
+console.log('Attempting to import visitors router from:', path.join(__dirname, 'route', 'visitors'));
+console.log('Attempting to import auth router from:', path.join(__dirname, 'route', 'auth'));
+
 const visitorsRouter = require('./route/visitors');
 const authRouter = require('./route/auth'); 
 
 const app = express();
 
-// CORS configuration
-app.use(cors());
+// Enhanced CORS configuration
+app.use(cors({
+  origin: '*',  // Be cautious with this in production
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'x-auth-token']
+}));
 
-// Body parser middleware
-app.use(bodyParser.json({ limit: '10mb' })); 
+// Body parser middleware with increased logging
+app.use(bodyParser.json({ 
+  limit: '10mb',
+  verify: (req, res, buf) => {
+    try {
+      JSON.parse(buf.toString());
+    } catch (e) {
+      console.error('Invalid JSON:', buf.toString());
+      throw new Error('Invalid JSON');
+    }
+  }
+})); 
 app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }));
 
-// Debug middleware to log all requests
+// Comprehensive debug middleware to log all requests in detail
 app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  console.log(`
+    ===== Incoming Request =====
+    Timestamp: ${new Date().toISOString()}
+    Method: ${req.method}
+    URL: ${req.url}
+    Headers: ${JSON.stringify(req.headers)}
+    Query Params: ${JSON.stringify(req.query)}
+    Body: ${JSON.stringify(req.body)}
+    ===========================
+  `);
   next();
 });
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
+// Explicit route logging middleware
+const logRoutes = (router, routerName) => {
+  if (router.stack) {
+    console.log(`Routes for ${routerName}:`);
+    router.stack.forEach((r) => {
+      if (r.route && r.route.path) {
+        console.log(`  ${r.route.stack[0].method.toUpperCase()} ${routerName}${r.route.path}`);
+      }
+    });
+  }
+};
+
+// Log routes before mounting
+logRoutes(visitorsRouter, '/visitors');
+logRoutes(authRouter, '/auth');
 
 // Mount the routers
 app.use('/visitors', visitorsRouter);
-app.use('/auth', authRouter); // Mount the auth router at /auth
+app.use('/auth', authRouter);
 
-// Catch-all 404 handler
+// Detailed 404 handler
 app.use((req, res) => {
-  console.log(`Route not found: ${req.method} ${req.url}`);
-  res.status(404).json({ error: 'Route not found' });
+  console.error(`
+    ===== 404 ROUTE NOT FOUND =====
+    Full Request Details:
+    Method: ${req.method}
+    URL: ${req.url}
+    Full Path: ${req.protocol}://${req.get('host')}${req.originalUrl}
+    Headers: ${JSON.stringify(req.headers)}
+  `);
+  res.status(404).json({ 
+    error: 'Route not found', 
+    requestedUrl: req.url,
+    availableRoutes: [
+      '/auth/login',
+      '/auth/register',
+      '/auth/verify',
+      '/auth/branches',
+      '/visitors/'
+    ]
+  });
 });
 
-// Error handler
+// Enhanced error handler
 app.use((err, req, res, next) => {
-  console.error('Server error:', err);
+  console.error(`
+    ===== SERVER ERROR =====
+    Timestamp: ${new Date().toISOString()}
+    Error: ${err.message}
+    Stack Trace: ${err.stack}
+    Request Details:
+    Method: ${req.method}
+    URL: ${req.url}
+    Headers: ${JSON.stringify(req.headers)}
+    Body: ${JSON.stringify(req.body)}
+  `);
+  
   res.status(500).json({
     error: 'Server error',
-    message: err.message
+    message: err.message,
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
   });
 });
 
 const PORT = 5001;
 app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-  console.log(`Health check available at: http://localhost:${PORT}/health`);
-  console.log(`Auth endpoints available at: http://localhost:${PORT}/auth/login`);
+  console.log(`
+    ===== SERVER STARTUP =====
+    Server is running on port ${PORT}
+    
+    Available Endpoints:
+    - Health Check: http://localhost:${PORT}/health
+    - Auth Base: http://localhost:${PORT}/auth
+    - Visitors Base: http://localhost:${PORT}/visitors
+  `);
 });
-
 // auth rout
 
 //rout auth
