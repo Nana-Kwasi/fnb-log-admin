@@ -1,5 +1,6 @@
-//server
 
+
+//server
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
@@ -140,31 +141,36 @@ router.post('/validate-branch', authMiddleware, async (req, res) => {
   }
 });
 
-// route visitor
-// const express = require('express');
-// const router = express.Router();
-// const visitorsController = require('../controllers/visitorsLogsController');
-
-
-
-// // Existing routes
-// router.get('/by-phone', visitorsController.getVisitorLogsByPhoneNumber);
-// router.get('/:id', visitorsController.getVisitorLogById);
-// router.post('/', visitorsController.createVisitorLog);
-// router.put('/:id', visitorsController.updateVisitorLog);
-// router.delete('/:id', visitorsController.deleteVisitorLog);
-// router.get('/check-telephone/:telephone', visitorsController.checkTelephoneExists);
-
-
-
 const express = require('express');
 const visitorsController = require('../controllers/visitorsLogsController');
-const authMiddleware = require('../middleware/auth'); // Import auth middleware
+const authMiddleware = require('../middleware/auth')
+const router = express.Router();
 
-// Public routes (no authentication required)
+
+router.get('/index', authMiddleware, async (req, res) => {
+    const { branch } = req.query;
+  
+    if (!branch) {
+      return res.status(400).json({ error: 'Branch parameter is required' });
+    }
+  
+    try {
+      const result = await pool.query(
+        'SELECT * FROM visitor_log WHERE branch = $1 OR branchName = $1', 
+        [branch]
+      );
+  
+      console.log(`Fetched ${result.rows.length} visitor logs for branch: ${branch}`);
+  
+      res.json(result.rows);
+    } catch (err) {
+      console.error(`Error fetching visitor logs for branch ${branch}:`, err);
+      res.status(500).json({ error: 'Failed to fetch visitor logs' });
+    }
+  });
+
+  
 router.get('/check-telephone/:telephone', visitorsController.checkTelephoneExists);
-
-// Protected routes (authentication required)
 router.get('/', authMiddleware, visitorsController.getAllVisitorLogs);
 router.get('/by-phone', authMiddleware, visitorsController.getVisitorLogsByPhoneNumber);
 router.get('/:id', authMiddleware, visitorsController.getVisitorLogById);
@@ -212,10 +218,10 @@ const login = async (req, res) => {
   const { email, password, branch } = req.body;
 
   try {
-    console.log(`Login attempt: ${email} for branch ${branch}`);
+    console.log(`Login attempt: ${email}`);
 
-    if (!email || !password || !branch) {
-      return res.status(400).json({ error: 'Email, password, and branch are required' });
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
     }
 
     const result = await pool.query(
@@ -230,19 +236,16 @@ const login = async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // Verify branch access
-    console.log(`Checking if user ${email} has access to branch: ${branch}`);
-    console.log(`User's authorized branches:`, user.branches);
-    
-    if (!user.branches || !user.branches.includes(branch)) {
-      console.log(`Branch access denied: User ${email} attempted to access unauthorized branch: ${branch}`);
+    // Check if user has any branches
+    if (!user.branches || user.branches.length === 0) {
+      console.log(`User ${email} has no branch access`);
       return res.status(403).json({ 
-        error: 'Branch access denied',
-        message: 'You do not have access to this branch. Please select a branch you are authorized to access.'
+        error: 'No branch access',
+        message: 'This account does not have access to any branches.'
       });
     }
-    console.log(`Branch access granted for user ${email} to branch ${branch}`);
 
+    // Password verification
     const isMatch = await bcrypt.compare(password, user.password);
 
     if (!isMatch) {
@@ -250,24 +253,36 @@ const login = async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
+    // If no specific branch provided, use the first available branch
+    const selectedBranch = branch || user.branches[0];
+
+    // Verify branch access
+    if (!user.branches.includes(selectedBranch)) {
+      console.log(`Branch access denied: User ${email} does not have access to ${selectedBranch}`);
+      return res.status(403).json({ 
+        error: 'Branch access denied',
+        message: 'You do not have access to this branch.',
+        availableBranches: user.branches
+      });
+    }
+
     const payload = {
       user_id: user.id,
       email: user.email,
-      branch: branch,
+      branch: selectedBranch,
       role: user.role || 'user'
     };
 
-    console.log(`Creating JWT token with payload:`, payload);
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '8h' });
-    console.log(`JWT token created successfully`);
 
     res.json({
       token,
       user: {
         id: user.id,
         email: user.email,
-        branch: branch,
+        branch: selectedBranch,
         role: user.role || 'user',
+        availableBranches: user.branches
       }
     });
 
@@ -342,7 +357,6 @@ module.exports = {
   registerUser,
   verifyToken
 };
-
 // visitor controller
 
 

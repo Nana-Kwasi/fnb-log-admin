@@ -1,16 +1,18 @@
-PS C:\Users\f8877557\file-backend> cd new-backend
-PS C:\Users\f8877557\file-backend\new-backend> node server.js
-Server is running on port 5001
-Health check available at: http://localhost:5001/health
-Auth endpoints available at: http://localhost:5001/auth/login
-Connected to the database
-2025-03-25T13:35:45.667Z - GET /auth/branches
-2025-03-25T13:35:45.736Z - POST /auth/login
-Login attempt: admin@fnb.com for branch default
-Checking if user admin@fnb.com has access to branch: default
-User's authorized branches: [
-  'JUNCTION SHOPPING CENTRE BRANCH',
-  'WEST HILLS MALL',
-  'ACCRA BRANCH'
-]
-Branch access denied: User admin@fnb.com attempted to access unauthorized branch: default
+VisitorContext.js:565 
+ 
+ GET http://localhost:5001/auth/branches 404 (Not Found)
+login	@	VisitorContext.js:565
+handleCredentialsSubmit	@	Login.js:57
+VisitorContext.js:577 
+ 
+ POST http://localhost:5001/auth/login 404 (Not Found)
+login	@	VisitorContext.js:577
+await in login		
+handleCredentialsSubmit	@	Login.js:57
+VisitorContext.js:710 
+ Login error: Error: Route not found
+    at login (VisitorContext.js:592:1)
+    at async handleCredentialsSubmit (Login.js:57:1)
+login	@	VisitorContext.js:710
+await in login		
+handleCredentialsSubmit	@	Login.js:57
