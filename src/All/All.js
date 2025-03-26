@@ -158,7 +158,6 @@ router.post('/validate-branch', authMiddleware, async (req, res) => {
 
 
 const express = require('express');
-const router = express.Router();
 const visitorsController = require('../controllers/visitorsLogsController');
 const authMiddleware = require('../middleware/auth'); // Import auth middleware
 
