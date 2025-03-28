@@ -173,3 +173,83 @@ async function createUsersTable() {
 
 createUsersTable();
 
+//update login function on authcontroller
+const login = async (req, res) => {
+  const { email, password, branch } = req.body;
+
+  try {
+    console.log(`Login attempt: ${email} for branch ${branch}`);
+
+    if (!email || !password || !branch) {
+      return res.status(400).json({ error: 'Email, password, and branch are required' });
+    }
+
+    // First, check admin_users
+    const adminResult = await pool.query(
+      'SELECT * FROM admin_users WHERE email = $1',
+      [email]
+    );
+
+    let user = adminResult.rows[0];
+    let userTable = 'admin_users';
+
+    // If not found in admin_users, check users_table
+    if (!user) {
+      const userResult = await pool.query(
+        'SELECT * FROM users_table WHERE email = $1',
+        [email]
+      );
+      user = userResult.rows[0];
+      userTable = 'users_table';
+    }
+
+    if (!user) {
+      console.log(`User not found: ${email}`);
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    // Check branch access
+    const branchesKey = userTable === 'admin_users' ? 'branches' : 'branch';
+    const userBranches = userTable === 'admin_users' ? user[branchesKey] : [user[branchesKey]];
+
+    if (!userBranches.includes(branch)) {
+      console.log(`User ${email} attempted to access unauthorized branch: ${branch}`);
+      return res.status(403).json({ error: 'You do not have access to this branch' });
+    }
+
+    // Verify password
+    const isMatch = await bcrypt.compare(password, user.password);
+
+    if (!isMatch) {
+      console.log(`Invalid password for user: ${email}`);
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    // Prepare payload
+    const payload = {
+      user_id: user.id,
+      email: user.email,
+      branch: branch,
+      role: user.role || 'user',
+      user_table: userTable
+    };
+
+    // Generate token
+    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '8h' });
+
+    // Respond with token and user info
+    res.json({
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        branch: branch,
+        role: user.role || 'user',
+      }
+    });
+
+  } catch (err) {
+    console.error('Login error:', err);
+    res.status(500).json({ error: 'Server error during login' });
+  }
+};
