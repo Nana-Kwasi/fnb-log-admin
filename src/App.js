@@ -136,7 +136,7 @@ const App = () => {
                 <li>
                   <NavLink to="/AddUsers" className={({ isActive }) => (isActive ? "active" : "")}>
                     <AiOutlineBarChart className="icon" />
-                    Administrative
+                    Manage Users
                   </NavLink>
                 </li>
                 <li>
