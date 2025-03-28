@@ -1850,3 +1850,78 @@ module.exports = {
   createUsersTable
 };
 
+//toggle code
+const handleToggleUserStatus = async (userId, currentStatus) => {
+    try {
+      const response = await fetch(`${API_URL}/${userId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-auth-token': token
+        },
+        body: JSON.stringify({
+          is_active: !currentStatus
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update user status');
+      }
+
+      // Update users list with new status
+      setUsers(users.map(user => 
+        user.id === userId 
+          ? { ...user, is_active: !currentStatus } 
+          : user
+      ));
+
+      setSuccess(`User ${!currentStatus ? 'enabled' : 'disabled'} successfully!`);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  // jselement
+  <div>
+  <p>Branch: {user.branch}</p>
+  <p>Role: {user.role}</p>
+  <p>Created At: {new Date(user.created_at).toLocaleString()}</p>
+  <p>Status: {user.is_active ? 'Active' : 'Disabled'}</p>
+  
+  <div style={{display: 'flex', justifyContent: 'space-between', marginTop: '10px'}}>
+    <button 
+      onClick={() => handleDeleteUser(user.id)}
+      style={{...styles.actionButton, ...styles.deleteButton}}
+    >
+      Delete
+    </button>
+    <button 
+      onClick={() => {
+        setEditingUser({
+          id: user.id,
+          email: user.email,
+          branch: user.branch,
+          role: user.role
+        });
+      }}
+      style={{...styles.actionButton, ...styles.editButton}}
+    >
+      Edit
+    </button>
+    <button 
+      onClick={() => handleToggleUserStatus(user.id, user.is_active)}
+      style={{
+        ...styles.actionButton, 
+        backgroundColor: user.is_active ? '#dc3545' : '#28a745',
+        color: 'white'
+      }}
+    >
+      {user.is_active ? 'Disable' : 'Enable'}
+    </button>
+  </div>
+</div>
+)}
+</div>
+)}
