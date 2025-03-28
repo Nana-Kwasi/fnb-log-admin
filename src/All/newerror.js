@@ -1,5 +1,5 @@
 //usercontroller
-const pool = require('../db');
+   const pool = require('../db');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
@@ -112,6 +112,7 @@ module.exports = {
 };
 
 //users route
+
 const express = require('express');
 const router = express.Router();
 const usersController = require('../controllers/usersController');
@@ -132,6 +133,7 @@ router.delete('/:id', authMiddleware, usersController.deleteUser);
 module.exports = router;
 
 //script to create the table
+
 require('dotenv').config();
 const pool = require('../db');
 
@@ -174,6 +176,7 @@ async function createUsersTable() {
 createUsersTable();
 
 //update login function on authcontroller
+
 const login = async (req, res) => {
   const { email, password, branch } = req.body;
 

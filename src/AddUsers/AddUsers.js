@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useVisitor } from "../context/VisitorContext";
 
-const UserRegistration = () => {
+const AddUsers = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -103,9 +103,70 @@ const UserRegistration = () => {
     }
   };
 
+  const styles = {
+    container: {
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      height: '100vh',
+      backgroundColor: '#f0f2f5',
+    },
+    card: {
+      background: '#fff',
+      padding: '2rem',
+      borderRadius: '8px',
+      boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
+      width: '100%',
+      maxWidth: '400px',
+      textAlign: 'center',
+    },
+    input: {
+      width: '100%',
+      padding: '0.75rem',
+      marginBottom: '1rem',
+      border: '1px solid #ccc',
+      borderRadius: '4px',
+      fontSize: '1rem',
+    },
+    select: {
+      width: '100%',
+      padding: '0.75rem',
+      marginBottom: '1rem',
+      border: '1px solid #ccc',
+      borderRadius: '4px',
+      fontSize: '1rem',
+    },
+    errorMessage: {
+      color: '#e74c3c',
+      marginBottom: '1rem',
+    },
+    successMessage: {
+      color: '#2ecc71',
+      marginBottom: '1rem',
+    },
+    button: {
+      width: '100%',
+      padding: '0.75rem',
+      backgroundColor: '#007bff',
+      color: '#fff',
+      border: 'none',
+      borderRadius: '4px',
+      fontSize: '1rem',
+      cursor: 'pointer',
+      transition: 'background-color 0.3s ease',
+    },
+    buttonDisabled: {
+      backgroundColor: '#ccc',
+      cursor: 'not-allowed',
+    },
+    buttonHover: {
+      backgroundColor: '#0056b3',
+    },
+  };
+
   return (
-    <div className="user-registration-container">
-      <div className="registration-card">
+    <div style={styles.container}>
+      <div style={styles.card}>
         <h2>Create New User</h2>
         <form onSubmit={handleSubmit}>
           <input
@@ -114,6 +175,7 @@ const UserRegistration = () => {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
+            style={styles.input}
           />
           <input
             type="password"
@@ -121,6 +183,7 @@ const UserRegistration = () => {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
+            style={styles.input}
           />
           <input
             type="password"
@@ -128,12 +191,14 @@ const UserRegistration = () => {
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             required
+            style={styles.input}
           />
           
           <select
             value={selectedBranch}
             onChange={(e) => setSelectedBranch(e.target.value)}
             required
+            style={styles.select}
           >
             <option value="">Select Branch</option>
             {branches.map((branch) => (
@@ -146,18 +211,19 @@ const UserRegistration = () => {
           <select
             value={role}
             onChange={(e) => setRole(e.target.value)}
+            style={styles.select}
           >
             <option value="user">User</option>
             <option value="admin">Admin</option>
           </select>
 
-          {error && <p className="error-message">{error}</p>}
-          {success && <p className="success-message">{success}</p>}
+          {error && <p style={styles.errorMessage}>{error}</p>}
+          {success && <p style={styles.successMessage}>{success}</p>}
 
           <button 
             type="submit" 
             disabled={loading}
-            className="registration-button"
+            style={loading ? { ...styles.button, ...styles.buttonDisabled } : styles.button}
           >
             {loading ? 'Creating User...' : 'Create User'}
           </button>
@@ -167,4 +233,4 @@ const UserRegistration = () => {
   );
 };
 
-export default UserRegistration;
+export default AddUsers;
