@@ -1698,3 +1698,154 @@ async function createAdminUser() {
 }
 
 createAdminUser();
+
+
+
+
+
+
+//new backend for adding users
+const pool = require('../db');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+
+const JWT_SECRET = 'your-secret-key-should-be-in-env-file';
+
+const registerNewUser = async (req, res) => {
+  const { email, password, branch } = req.body;
+
+  try {
+    // Validation
+    if (!email || !password || !branch) {
+      return res.status(400).json({ error: 'Email, password, and branch are required' });
+    }
+
+    // Check if user already exists
+    const checkUser = await pool.query('SELECT * FROM users_table WHERE email = $1', [email]);
+    
+    if (checkUser.rows.length > 0) {
+      return res.status(400).json({ error: 'User already exists' });
+    }
+
+    // Hash password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    // Insert new user
+    const result = await pool.query(
+      'INSERT INTO users_table (email, password, branch, created_at) VALUES ($1, $2, $3, NOW()) RETURNING id, email, branch, created_at',
+      [email, hashedPassword, branch]
+    );
+
+    res.status(201).json({
+      message: 'User registered successfully',
+      user: {
+        id: result.rows[0].id,
+        email: result.rows[0].email,
+        branch: result.rows[0].branch,
+        created_at: result.rows[0].created_at
+      }
+    });
+
+  } catch (err) {
+    console.error('User registration error:', err);
+    res.status(500).json({ error: 'Server error during user registration' });
+  }
+};
+
+// Modify login controller to support users_table
+const loginUser = async (req, res) => {
+  const { email, password, branch } = req.body;
+
+  try {
+    console.log(`Login attempt: ${email} for branch ${branch}`);
+
+    if (!email || !password || !branch) {
+      return res.status(400).json({ error: 'Email, password, and branch are required' });
+    }
+
+    // Check both admin_users and users_table
+    const adminResult = await pool.query(
+      'SELECT * FROM admin_users WHERE email = $1',
+      [email]
+    );
+
+    const userResult = await pool.query(
+      'SELECT * FROM users_table WHERE email = $1',
+      [email]
+    );
+
+    const user = adminResult.rows[0] || userResult.rows[0];
+
+    if (!user) {
+      console.log(`User not found: ${email}`);
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    // Check branch access
+    if (user.branches && !user.branches.includes(branch)) {
+      console.log(`User ${email} attempted to access unauthorized branch: ${branch}`);
+      return res.status(403).json({ error: 'You do not have access to this branch' });
+    }
+
+    // Compare password
+    const isMatch = await bcrypt.compare(password, user.password);
+
+    if (!isMatch) {
+      console.log(`Invalid password for user: ${email}`);
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    // Create payload
+    const payload = {
+      user_id: user.id,
+      email: user.email,
+      branch: branch,
+      role: user.role || 'user'
+    };
+
+    // Generate token
+    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '8h' });
+
+    res.json({
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        branch: branch,
+        role: user.role || 'user',
+      }
+    });
+
+  } catch (err) {
+    console.error('Login error:', err);
+    res.status(500).json({ error: 'Server error during login' });
+  }
+};
+
+// Script to create users_table
+const createUsersTable = async () => {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users_table (
+        id SERIAL PRIMARY KEY,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        password VARCHAR(255) NOT NULL,
+        branch VARCHAR(100) NOT NULL,
+        role VARCHAR(50) DEFAULT 'user',
+        created_at TIMESTAMP DEFAULT NOW(),
+        last_login TIMESTAMP
+      );
+    `);
+    console.log('users_table created successfully');
+  } catch (err) {
+    console.error('Error creating users_table:', err);
+  }
+};
+
+module.exports = {
+  registerNewUser,
+  loginUser,
+  createUsersTable
+};
+

@@ -81,7 +81,7 @@ import DispatchDash from "./DispatchDash/DispatchDash";
 import DispatchReport from "../src/DispactReport/DispatchReport";
 import Dispatch from "../src/Dispatch/Dispatch";
 import Graphs from "./Graphs/Graphs";
-
+import AddUsers from "../src/AddUsers/AddUsers"
 const App = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userEmail, setUserEmail] = useState("");
@@ -134,6 +134,12 @@ const App = () => {
                   </NavLink>
                 </li>
                 <li>
+                  <NavLink to="/AddUsers" className={({ isActive }) => (isActive ? "active" : "")}>
+                    <AiOutlineBarChart className="icon" />
+                    Administrative
+                  </NavLink>
+                </li>
+                <li>
                   <NavLink to="/analytics" className={({ isActive }) => (isActive ? "active" : "")}>
                     <AiOutlineBarChart className="icon" />
                     Analytics
@@ -154,6 +160,7 @@ const App = () => {
                 <Route path="/Dispatch" element={<Dispatch />} />
                 <Route path="/DispatchReport" element={<DispatchReport />} />
                 <Route path="/Graphs" element={<Graphs />} />
+                <Route path="AddUsers" element={<AddUsers />} />
               </Routes>
              
             </main>
