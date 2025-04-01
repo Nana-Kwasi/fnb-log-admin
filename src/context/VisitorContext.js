@@ -634,7 +634,7 @@ export const VisitorProvider = ({ children }) => {
     setUser(null);
   };
 
-  // Check for stored session on initial load
+  
   useEffect(() => {
     const checkAuth = async () => {
       const storedToken = localStorage.getItem('token');

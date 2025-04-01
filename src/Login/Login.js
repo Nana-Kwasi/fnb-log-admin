@@ -425,7 +425,7 @@ const Login = ({ onLogin }) => {
       console.log("Login validation passed, setting manual login attempt flag");
       setManualLoginAttempt(true);
       
-      console.log("Attempting login with:", { email, branch: branchCode });
+      console.log("Attempting login with:", { email, branch: selectedBranch });
       
       const response = await fetch(`${AUTH_URL}/login`, {
         method: 'POST',
@@ -435,7 +435,7 @@ const Login = ({ onLogin }) => {
         body: JSON.stringify({
           email,
           password,
-          branch: branchCode
+          branch: selectedBranch
         })
       });
       

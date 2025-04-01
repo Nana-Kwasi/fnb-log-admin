@@ -27,6 +27,7 @@ const Dashboard = () => {
   const { 
     selectedBranch, 
     branchData, 
+    selectedBranchName,
     loading, 
     error, 
     authenticated 
@@ -151,7 +152,7 @@ const Dashboard = () => {
         
         {selectedBranch && (
           <div className="branch-display">
-            <h2>Branch: {selectedBranch}</h2>
+            <h2>Branch: {selectedBranchName} {selectedBranch}</h2>
           </div>
         )}
       </div>
