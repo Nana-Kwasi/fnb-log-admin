@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useVisitor } from "../context/VisitorContext";
 
@@ -7,7 +8,12 @@ const AddUsers = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [selectedBranch, setSelectedBranch] = useState("");
   const [role, setRole] = useState("user");
+
+  const [users, setUsers] = useState([]);
+  const [expandedUserId, setExpandedUserId] = useState(null);
+  const [editingUser, setEditingUser] = useState(null);
   const [branches, setBranches] = useState([]);
+
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
@@ -17,33 +23,44 @@ const AddUsers = () => {
   const API_URL = "http://localhost:5001/users";
   const VISITORS_URL = "http://localhost:5001/visitors";
 
+  // Fetch branches and users on component mount
   useEffect(() => {
-    const fetchBranches = async () => {
+    const fetchData = async () => {
       try {
-        const response = await fetch(VISITORS_URL);
-        
-        if (!response.ok) {
-          throw new Error(`API response error: ${response.status}`);
+        // Fetch branches
+        const branchResponse = await fetch(VISITORS_URL);
+        if (!branchResponse.ok) {
+          throw new Error(`API response error: ${branchResponse.status}`);
         }
-        
-        const data = await response.json();
-        
-        const uniqueBranches = [...new Set(data
+        const branchData = await branchResponse.json();
+        const uniqueBranches = [...new Set(branchData
           .map(entry => entry.branchname)
           .filter(branch => branch && branch.trim() !== "")
         )];
-        
         setBranches(uniqueBranches.sort());
+
+        // Fetch users
+        const usersResponse = await fetch(API_URL, {
+          headers: {
+            'x-auth-token': token
+          }
+        });
+        if (!usersResponse.ok) {
+          throw new Error(`API response error: ${usersResponse.status}`);
+        }
+        const userData = await usersResponse.json();
+        setUsers(userData);
       } catch (err) {
-        console.error("Error fetching branches:", err);
-        setError("Failed to load branches. Please try again later.");
+        console.error("Error fetching data:", err);
+        setError("Failed to load data. Please try again later.");
       }
     };
 
-    fetchBranches();
-  }, []);
+    fetchData();
+  }, [token]);
 
-  const handleSubmit = async (e) => {
+  // Handle new user creation
+  const handleCreateUser = async (e) => {
     e.preventDefault();
     setError("");
     setSuccess("");
@@ -88,6 +105,9 @@ const AddUsers = () => {
         throw new Error(data.error || 'User creation failed');
       }
 
+      // Add new user to users list
+      setUsers([...users, data.user]);
+
       setSuccess("User created successfully!");
       
       // Reset form
@@ -103,22 +123,92 @@ const AddUsers = () => {
     }
   };
 
+  // Handle user deletion
+  const handleDeleteUser = async (userId) => {
+    try {
+      const response = await fetch(`${API_URL}/${userId}`, {
+        method: 'DELETE',
+        headers: {
+          'x-auth-token': token
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete user');
+      }
+
+      // Remove user from local state
+      setUsers(users.filter(user => user.id !== userId));
+      setSuccess("User deleted successfully!");
+      setExpandedUserId(null);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  // Handle user update
+  const handleUpdateUser = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const response = await fetch(`${API_URL}/${editingUser.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-auth-token': token
+        },
+        body: JSON.stringify({
+          email: editingUser.email,
+          branch: editingUser.branch,
+          role: editingUser.role
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'User update failed');
+      }
+
+      // Update users list
+      setUsers(users.map(user => 
+        user.id === editingUser.id ? { ...user, ...editingUser } : user
+      ));
+
+      setSuccess("User updated successfully!");
+      setEditingUser(null);
+      setExpandedUserId(null);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Styles (same as previous implementation)
   const styles = {
     container: {
       display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      height: '100vh',
+      padding: '20px',
       backgroundColor: '#f0f2f5',
+      minHeight: '100vh',
+    },
+    leftPanel: {
+      width: '60%',
+      paddingRight: '20px',
+    },
+    rightPanel: {
+      width: '50%',
+      overflowY: 'auto',
+      maxHeight: '100vh',
     },
     card: {
       background: '#fff',
       padding: '2rem',
       borderRadius: '8px',
       boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
-      width: '100%',
-      maxWidth: '400px',
-      textAlign: 'center',
+      marginBottom: '20px',
     },
     input: {
       width: '100%',
@@ -136,13 +226,12 @@ const AddUsers = () => {
       borderRadius: '4px',
       fontSize: '1rem',
     },
-    errorMessage: {
-      color: '#e74c3c',
-      marginBottom: '1rem',
-    },
-    successMessage: {
-      color: '#2ecc71',
-      marginBottom: '1rem',
+    userCard: {
+      backgroundColor: '#fff',
+      borderRadius: '8px',
+      boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
+      margin: '10px 0',
+      padding: '15px',
     },
     button: {
       width: '100%',
@@ -155,85 +244,212 @@ const AddUsers = () => {
       cursor: 'pointer',
       transition: 'background-color 0.3s ease',
     },
-    buttonDisabled: {
-      backgroundColor: '#ccc',
-      cursor: 'not-allowed',
+    errorMessage: {
+      color: '#e74c3c',
+      marginBottom: '1rem',
     },
-    buttonHover: {
-      backgroundColor: '#0056b3',
+    successMessage: {
+      color: '#2ecc71',
+      marginBottom: '1rem',
+    },
+    actionButton: {
+      padding: '8px 15px',
+      margin: '0 5px',
+      borderRadius: '4px',
+      cursor: 'pointer',
+    },
+    deleteButton: {
+      backgroundColor: 'red',
+      color: 'white',
+      border: 'none',
+    },
+    editButton: {
+      backgroundColor: '#007bff',
+      color: 'white',
+      border: 'none',
     },
   };
 
   return (
     <div style={styles.container}>
-      <div style={styles.card}>
-        <h2>Create New User</h2>
-        <form onSubmit={handleSubmit}>
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            style={styles.input}
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            style={styles.input}
-          />
-          <input
-            type="password"
-            placeholder="Confirm Password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            required
-            style={styles.input}
-          />
-          
-          <select
-            value={selectedBranch}
-            onChange={(e) => setSelectedBranch(e.target.value)}
-            required
-            style={styles.select}
-          >
-            <option value="">Select Branch</option>
-            {branches.map((branch) => (
-              <option key={branch} value={branch}>
-                {branch}
-              </option>
-            ))}
-          </select>
+      {/* Left Panel - User Creation Form */}
+      <div style={styles.leftPanel}>
+        <div style={styles.card}>
+          <h2>Create New User</h2>
+          <form onSubmit={handleCreateUser}>
+            <input
+              type="email"
+              placeholder="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              style={styles.input}
+            />
+            <input
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              style={styles.input}
+            />
+            <input
+              type="password"
+              placeholder="Confirm Password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+              style={styles.input}
+            />
+            
+            <select
+              value={selectedBranch}
+              onChange={(e) => setSelectedBranch(e.target.value)}
+              required
+              style={styles.select}
+            >
+              <option value="">Select Branch</option>
+              {branches.map((branch) => (
+                <option key={branch} value={branch}>
+                  {branch}
+                </option>
+              ))}
+            </select>
 
-          <select
-            value={role}
-            onChange={(e) => setRole(e.target.value)}
-            style={styles.select}
-          >
-            <option value="user">User</option>
-            <option value="admin">Admin</option>
-          </select>
+            <select
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+              style={styles.select}
+            >
+              <option value="user">User</option>
+              <option value="admin">Admin</option>
+            </select>
 
-          {error && <p style={styles.errorMessage}>{error}</p>}
-          {success && <p style={styles.successMessage}>{success}</p>}
+            {error && <p style={styles.errorMessage}>{error}</p>}
+            {success && <p style={styles.successMessage}>{success}</p>}
 
-          <button 
-            type="submit" 
-            disabled={loading}
-            style={loading ? { ...styles.button, ...styles.buttonDisabled } : styles.button}
-          >
-            {loading ? 'Creating User...' : 'Create User'}
-          </button>
-        </form>
+            <button 
+              type="submit" 
+              disabled={loading}
+              style={styles.button}
+            >
+              {loading ? 'Creating User...' : 'Create User'}
+            </button>
+          </form>
+        </div>
+      </div>
+
+      {/* Right Panel - User Management */}
+      <div style={styles.rightPanel}>
+        <h2>All Users</h2>
+        {users.map((user) => (
+          <div key={user.id} style={styles.userCard}>
+            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+              <strong>{user.email}</strong>
+              <div>
+                <button 
+                  onClick={() => {
+                    setExpandedUserId(expandedUserId === user.id ? null : user.id);
+                    setEditingUser(null);
+                  }}
+                  style={{...styles.actionButton, backgroundColor: '#17a2b8', color: 'white'}}
+                >
+                  {expandedUserId === user.id ? 'Collapse' : 'Expand'}
+                </button>
+              </div>
+            </div>
+            
+            {expandedUserId === user.id && (
+              <div>
+                {editingUser ? (
+                  <form onSubmit={handleUpdateUser}>
+                    <input
+                      type="email"
+                      value={editingUser.email}
+                      onChange={(e) => setEditingUser({...editingUser, email: e.target.value})}
+                      style={styles.input}
+                      required
+                    />
+                    <select
+                      value={editingUser.branch}
+                      onChange={(e) => setEditingUser({...editingUser, branch: e.target.value})}
+                      style={styles.select}
+                      required
+                    >
+                      {branches.map((branch) => (
+                        <option key={branch} value={branch}>
+                          {branch}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value={editingUser.role}
+                      onChange={(e) => setEditingUser({...editingUser, role: e.target.value})}
+                      style={styles.select}
+                    >
+                      <option value="user">User</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                    <div style={{display: 'flex', justifyContent: 'space-between'}}>
+                      <button 
+                        type="submit" 
+                        style={{...styles.actionButton, ...styles.editButton}}
+                        disabled={loading}
+                      >
+                        {loading ? 'Updating...' : 'Save Changes'}
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          setEditingUser(null);
+                          setExpandedUserId(null);
+                        }}
+                        style={{...styles.actionButton, backgroundColor: '#6c757d', color: 'white'}}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <div>
+                    <p>Branch: {user.branch}</p>
+                    <p>Role: {user.role}</p>
+                    <p>Created At: {new Date(user.created_at).toLocaleString()}</p>
+                    
+                    <div style={{display: 'flex', justifyContent: 'space-between', marginTop: '10px'}}>
+                      <button 
+                        onClick={() => handleDeleteUser(user.id)}
+                        style={{...styles.actionButton, ...styles.deleteButton}}
+                      >
+                        Delete
+                      </button>
+                      <button 
+                        onClick={() => {
+                          setEditingUser({
+                            id: user.id,
+                            email: user.email,
+                            branch: user.branch,
+                            role: user.role
+                          });
+                        }}
+                        style={{...styles.actionButton, ...styles.editButton}}
+                      >
+                        Edit
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );
 };
 
 export default AddUsers;
+
 
 
 

@@ -1884,6 +1884,7 @@ const handleToggleUserStatus = async (userId, currentStatus) => {
   };
 
   // jselement
+  
   <div>
   <p>Branch: {user.branch}</p>
   <p>Role: {user.role}</p>
