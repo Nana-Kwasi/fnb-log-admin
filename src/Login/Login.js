@@ -394,81 +394,85 @@ const Login = ({ onLogin }) => {
 
     fetchBranches();
   }, [BRANCHES_URL, setError]);
+// Update the login form submission to include the role
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  console.log("Login form submitted");
+  setLocalError("");
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    console.log("Login form submitted");
-    setLocalError("");
+  if (email.length > 25) {
+    setLocalError("F number is incorrect");
+    return;
+  }
+
+  if (!selectedBranch) {
+    setLocalError("Please select a branch");
+    return;
+  }
   
-    if (email.length > 25) {
-      setLocalError("F number is incorrect");
-      return;
-    }
+  // Find the selected branch code from the branches array
+  const selectedBranchObj = branches.find(branch => branch.branchName === selectedBranch);
   
-    if (!selectedBranch) {
-      setLocalError("Please select a branch");
-      return;
+  if (!selectedBranchObj) {
+    setLocalError("Invalid branch selection");
+    return;
+  }
+  
+  const branchCode = selectedBranchObj.branchCode;
+  console.log(`Selected branch: ${selectedBranch} (code: ${branchCode})`);
+
+  try {
+    console.log("Login validation passed, setting manual login attempt flag");
+    setManualLoginAttempt(true);
+    
+    console.log("Attempting login with:", { email, branch: branchCode });
+    
+    const response = await fetch(`${AUTH_URL}/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email,
+        password,
+        branch: selectedBranch
+      })
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Login failed');
     }
     
-    // Find the selected branch code from the branches array
-    const selectedBranchObj = branches.find(branch => branch.branchName === selectedBranch);
+    const data = await response.json();
     
-    if (!selectedBranchObj) {
-      setLocalError("Invalid branch selection");
-      return;
-    }
+    // Extract user role from response or set a default
+    const userRole = data.user && data.user.role ? data.user.role : "user";
     
-    const branchCode = selectedBranchObj.branchCode;
-    console.log(`Selected branch: ${selectedBranch} (code: ${branchCode})`);
-  
-    try {
-      console.log("Login validation passed, setting manual login attempt flag");
-      setManualLoginAttempt(true);
-      
-      console.log("Attempting login with:", { email, branch: selectedBranch });
-      
-      const response = await fetch(`${AUTH_URL}/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email,
-          password,
-          branch: selectedBranch
-        })
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Login failed');
-      }
-      
-      const data = await response.json();
-      
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify({
-        ...data.user,
-        branchName: selectedBranch,  // Store both branch code and name
-        branchCode: branchCode
-      }));
-      
-      // Pass both branch name and code to login function
-      const success = await login(email, branchCode, data.token, selectedBranch);
-      
-      console.log("Login result:", success);
-      
-      if (!success) {
-        console.log("Login failed, resetting manual login attempt flag");
-        setManualLoginAttempt(false);
-        setLocalError("Login failed. Please check your credentials and try again.");
-      }
-    } catch (err) {
-      console.error("Login submission error:", err);
+    localStorage.setItem('token', data.token);
+    localStorage.setItem('user', JSON.stringify({
+      ...data.user,
+      branchName: selectedBranch,  // Store both branch code and name
+      branchCode: branchCode,
+      role: userRole
+    }));
+    
+    // Pass role to login function
+    const success = await login(email, branchCode, data.token, selectedBranch, userRole);
+    
+    console.log("Login result:", success);
+    
+    if (!success) {
+      console.log("Login failed, resetting manual login attempt flag");
       setManualLoginAttempt(false);
-      setLocalError(err.message || "An unexpected error occurred. Please try again.");
+      setLocalError("Login failed. Please check your credentials and try again.");
     }
-  };
+  } catch (err) {
+    console.error("Login submission error:", err);
+    setManualLoginAttempt(false);
+    setLocalError(err.message || "An unexpected error occurred. Please try again.");
+  }
+};
   
   const displayError = error || localError;
 

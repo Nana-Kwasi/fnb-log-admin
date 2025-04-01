@@ -313,6 +313,7 @@
 //   }
 //   return context;
 // };
+
 import React, { createContext, useState, useContext, useEffect } from "react";
 
 const VisitorContext = createContext();
@@ -548,70 +549,71 @@ export const VisitorProvider = ({ children }) => {
   };
 
   // Modified login function to accept branchName
-  const login = async (email, branchCode, authToken = null, branchName = "") => {
-    setLoading(true);
-    setError("");
-    
-    try {
-      // If token is provided directly, use it
-      if (authToken) {
-        setToken(authToken);
-        localStorage.setItem('token', authToken);
-        
-        const userData = { email, branchCode, branchName };
-        setUser(userData);
-        localStorage.setItem('user', JSON.stringify(userData));
-        
-        setSelectedBranch(branchCode);
-        setSelectedBranchName(branchName);
-        setAuthenticated(true);
-        
-        // Fetch branch data with the token
-        await fetchBranchData(branchCode);
-        
-        setLoading(false);
-        return true;
-      }
+  // Modified login function to include role information
+const login = async (email, branchCode, authToken = null, branchName = "", role = "") => {
+  setLoading(true);
+  setError("");
+  
+  try {
+    // If token is provided directly, use it
+    if (authToken) {
+      setToken(authToken);
+      localStorage.setItem('token', authToken);
       
-      // Otherwise attempt login with credentials
-      console.log(`Attempting login for ${email} at branch ${branchCode}`);
+      const userData = { email, branchCode, branchName, role };
+      setUser(userData);
+      localStorage.setItem('user', JSON.stringify(userData));
       
-      const response = await fetch(`${AUTH_URL}/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password: 'default-needed-in-body', branch: branchCode })
-      });
-      
-      if (!response.ok) {
-        throw new Error("Authentication failed");
-      }
-      
-      const data = await response.json();
-      
-      // Store token and user info
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user || { email, branchCode, branchName }));
-      
-      setToken(data.token);
-      setUser(data.user || { email, branchCode, branchName });
       setSelectedBranch(branchCode);
       setSelectedBranchName(branchName);
       setAuthenticated(true);
       
-      // Fetch branch data with new authentication
+      // Fetch branch data with the token
       await fetchBranchData(branchCode);
       
       setLoading(false);
       return true;
-    } catch (err) {
-      console.error("Login error:", err);
-      setError(err.message || "Login failed. Please try again.");
-      setLoading(false);
-      return false;
     }
-  };
+    
+    // Otherwise attempt login with credentials
+    console.log(`Attempting login for ${email} at branch ${branchCode}`);
+    
+    const response = await fetch(`${AUTH_URL}/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, password: 'default-needed-in-body', branch: branchCode })
+    });
+    
+    if (!response.ok) {
+      throw new Error("Authentication failed");
+    }
+    
+    const data = await response.json();
+    
+    // Store token and user info
+    localStorage.setItem('token', data.token);
+    localStorage.setItem('user', JSON.stringify(data.user || { email, branchCode, branchName, role }));
+    
+    setToken(data.token);
+    setUser(data.user || { email, branchCode, branchName, role });
+    setSelectedBranch(branchCode);
+    setSelectedBranchName(branchName);
+    setAuthenticated(true);
+    
+    // Fetch branch data with new authentication
+    await fetchBranchData(branchCode);
+    
+    setLoading(false);
+    return true;
+  } catch (err) {
+    console.error("Login error:", err);
+    setError(err.message || "Login failed. Please try again.");
+    setLoading(false);
+    return false;
+  }
+};
 
   // Logout function
   const logout = () => {
@@ -752,8 +754,6 @@ export const useVisitor = () => {
   }
   return context;
 };
-
-
 
 
 
