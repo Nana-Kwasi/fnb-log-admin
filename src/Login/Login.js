@@ -333,8 +333,6 @@
 
 
 
-
-
 import React, { useState, useEffect } from "react";
 import { useVisitor } from "../context/VisitorContext";
 import "../login.css";
@@ -348,10 +346,11 @@ const Login = ({ onLogin }) => {
   const [localError, setLocalError] = useState("");
   const [manualLoginAttempt, setManualLoginAttempt] = useState(false);
   
-  
   const { login, loading, error, setError, authenticated } = useVisitor();
 
+  // Updated API URLs
   const API_URL = "http://localhost:5001/visitors";
+  const BRANCHES_URL = "http://localhost:5001/visitors/index";
   const AUTH_URL = "http://localhost:5001/auth";
 
   useEffect(() => {
@@ -368,23 +367,23 @@ const Login = ({ onLogin }) => {
     const fetchBranches = async () => {
       try {
         setFetchingBranches(true);
-        console.log("Fetching branches from:", API_URL);
-        const response = await fetch(API_URL);
+        console.log("Fetching branches from:", BRANCHES_URL);
+        const response = await fetch(BRANCHES_URL);
         
         if (!response.ok) {
           throw new Error(`API response error: ${response.status}`);
         }
         
         const data = await response.json();
-        console.log(`Received ${data.length} entries from API`);
+        console.log(`Received ${data.length} branches from API`);
         
-        const uniqueBranches = [...new Set(data
-          .map(entry => entry.branchname )
-          .filter(branch => branch && branch.trim() !== "")
-        )];
+        // Store branches with their names and codes
+        const branchOptions = data
+          .filter(branch => branch.branchName && branch.branchName.trim() !== "")
+          .sort((a, b) => a.branchName.localeCompare(b.branchName));
         
-        console.log(`Found ${uniqueBranches.length} unique branches`);
-        setBranches(uniqueBranches.sort());
+        console.log(`Found ${branchOptions.length} unique branches`);
+        setBranches(branchOptions);
       } catch (err) {
         console.error("Error fetching branches:", err);
         setLocalError("Failed to load branches. Please try again later.");
@@ -394,7 +393,7 @@ const Login = ({ onLogin }) => {
     };
 
     fetchBranches();
-  }, [API_URL, setError]);
+  }, [BRANCHES_URL, setError]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -410,12 +409,23 @@ const Login = ({ onLogin }) => {
       setLocalError("Please select a branch");
       return;
     }
+    
+    // Find the selected branch code from the branches array
+    const selectedBranchObj = branches.find(branch => branch.branchName === selectedBranch);
+    
+    if (!selectedBranchObj) {
+      setLocalError("Invalid branch selection");
+      return;
+    }
+    
+    const branchCode = selectedBranchObj.branchCode;
+    console.log(`Selected branch: ${selectedBranch} (code: ${branchCode})`);
   
     try {
       console.log("Login validation passed, setting manual login attempt flag");
       setManualLoginAttempt(true);
       
-      console.log("Attempting login with:", { email, branch: selectedBranch });
+      console.log("Attempting login with:", { email, branch: branchCode });
       
       const response = await fetch(`${AUTH_URL}/login`, {
         method: 'POST',
@@ -425,7 +435,7 @@ const Login = ({ onLogin }) => {
         body: JSON.stringify({
           email,
           password,
-          branch: selectedBranch
+          branch: branchCode
         })
       });
       
@@ -437,9 +447,14 @@ const Login = ({ onLogin }) => {
       const data = await response.json();
       
       localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
+      localStorage.setItem('user', JSON.stringify({
+        ...data.user,
+        branchName: selectedBranch,  // Store both branch code and name
+        branchCode: branchCode
+      }));
       
-      const success = await login(email, selectedBranch, data.token);
+      // Pass both branch name and code to login function
+      const success = await login(email, branchCode, data.token, selectedBranch);
       
       console.log("Login result:", success);
       
@@ -454,7 +469,6 @@ const Login = ({ onLogin }) => {
       setLocalError(err.message || "An unexpected error occurred. Please try again.");
     }
   };
-
   
   const displayError = error || localError;
 
@@ -490,8 +504,8 @@ const Login = ({ onLogin }) => {
             >
               <option value="">Select Branch</option>
               {branches.map((branch) => (
-                <option key={branch} value={branch}>
-                  {branch}
+                <option key={branch.branchCode} value={branch.branchName}>
+                  {branch.branchName}
                 </option>
               ))}
             </select>

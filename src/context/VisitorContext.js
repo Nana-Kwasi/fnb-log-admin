@@ -313,7 +313,6 @@
 //   }
 //   return context;
 // };
-
 import React, { createContext, useState, useContext, useEffect } from "react";
 
 const VisitorContext = createContext();
@@ -321,6 +320,7 @@ const VisitorContext = createContext();
 export const VisitorProvider = ({ children }) => {
 
   const [selectedBranch, setSelectedBranch] = useState("");
+  const [selectedBranchName, setSelectedBranchName] = useState(""); // Add this new state
   const [branchData, setBranchData] = useState({
     analyticsData: [],
     totalVisitors: 0,
@@ -336,7 +336,9 @@ export const VisitorProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem('token') || null);
   
+  // Updated API URLs
   const API_URL = "http://localhost:5001/visitors";
+  const BRANCH_DATA_URL = "http://localhost:5001/visitors/index/branch";
   const AUTH_URL = "http://localhost:5001/auth";
 
   // Date formatting utilities
@@ -383,13 +385,13 @@ export const VisitorProvider = ({ children }) => {
     }
   };
 
-  // Fetch branch data from API
-  const fetchBranchData = async (branchName) => {
+  // Fetch branch data from API using branch code
+  const fetchBranchData = async (branchCode) => {
     setLoading(true);
     setError("");
     
     try {
-      console.log(`Fetching data for branch: ${branchName}`);
+      console.log(`Fetching data for branch code: ${branchCode}`);
       
       // Use authentication token if available
       const headers = {};
@@ -397,20 +399,14 @@ export const VisitorProvider = ({ children }) => {
         headers['x-auth-token'] = token;
       }
       
-      const response = await fetch(API_URL, { headers });
+      const response = await fetch(`${BRANCH_DATA_URL}?branchCode=${branchCode}`, { headers });
       
       if (!response.ok) {
         throw new Error(`API response error: ${response.status}`);
       }
       
-      const allData = await response.json();
-      console.log("API response received with entries:", allData.length);
-      
-      // Filter data by selected branch
-      const branchData = allData.filter(item => 
-        item.branchname === branchName || item.branch === branchName
-      );
-      console.log(`Filtered ${branchData.length} entries for branch: ${branchName}`);
+      const branchData = await response.json();
+      console.log("API response received with entries:", branchData.length);
       
       // Process data for dashboard
       const currentYear = new Date().getFullYear();
@@ -516,7 +512,8 @@ export const VisitorProvider = ({ children }) => {
         totalVisitors: groupedData.total,
         visitorsToday: groupedData.today,
         lastUpdated: new Date().toISOString(), // Add timestamp for cache validation
-        selectedBranch: branchName
+        selectedBranch: branchCode,
+        selectedBranchName: selectedBranchName // Store branch name too
       };
       
       localStorage.setItem("dashboardData", JSON.stringify(dashboardData));
@@ -550,8 +547,8 @@ export const VisitorProvider = ({ children }) => {
     }
   };
 
-  // Login function - integrated with token-based auth
-  const login = async (email, branch, authToken = null) => {
+  // Modified login function to accept branchName
+  const login = async (email, branchCode, authToken = null, branchName = "") => {
     setLoading(true);
     setError("");
     
@@ -561,29 +558,30 @@ export const VisitorProvider = ({ children }) => {
         setToken(authToken);
         localStorage.setItem('token', authToken);
         
-        const userData = { email, branch };
+        const userData = { email, branchCode, branchName };
         setUser(userData);
         localStorage.setItem('user', JSON.stringify(userData));
         
-        setSelectedBranch(branch);
+        setSelectedBranch(branchCode);
+        setSelectedBranchName(branchName);
         setAuthenticated(true);
         
         // Fetch branch data with the token
-        await fetchBranchData(branch);
+        await fetchBranchData(branchCode);
         
         setLoading(false);
         return true;
       }
       
       // Otherwise attempt login with credentials
-      console.log(`Attempting login for ${email} at branch ${branch}`);
+      console.log(`Attempting login for ${email} at branch ${branchCode}`);
       
       const response = await fetch(`${AUTH_URL}/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, password: 'default-needed-in-body', branch })
+        body: JSON.stringify({ email, password: 'default-needed-in-body', branch: branchCode })
       });
       
       if (!response.ok) {
@@ -594,15 +592,16 @@ export const VisitorProvider = ({ children }) => {
       
       // Store token and user info
       localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user || { email, branch }));
+      localStorage.setItem('user', JSON.stringify(data.user || { email, branchCode, branchName }));
       
       setToken(data.token);
-      setUser(data.user || { email, branch });
-      setSelectedBranch(branch);
+      setUser(data.user || { email, branchCode, branchName });
+      setSelectedBranch(branchCode);
+      setSelectedBranchName(branchName);
       setAuthenticated(true);
       
       // Fetch branch data with new authentication
-      await fetchBranchData(branch);
+      await fetchBranchData(branchCode);
       
       setLoading(false);
       return true;
@@ -623,6 +622,7 @@ export const VisitorProvider = ({ children }) => {
     
     setToken(null);
     setSelectedBranch("");
+    setSelectedBranchName("");
     setBranchData({
       analyticsData: [],
       totalVisitors: 0,
@@ -656,8 +656,9 @@ export const VisitorProvider = ({ children }) => {
             setUser(userData);
             setAuthenticated(true);
             
-            if (userData.branch) {
-              setSelectedBranch(userData.branch);
+            if (userData.branchCode) {
+              setSelectedBranch(userData.branchCode);
+              setSelectedBranchName(userData.branchName || "");
             }
             
             // Check saved dashboard data
@@ -682,20 +683,20 @@ export const VisitorProvider = ({ children }) => {
                   });
                 } else {
                   console.log("Saved data is from a different day, fetching fresh data");
-                  if (userData.branch) {
-                    fetchBranchData(userData.branch);
+                  if (userData.branchCode) {
+                    fetchBranchData(userData.branchCode);
                   }
                 }
               } catch (err) {
                 console.error("Error parsing stored dashboard data:", err);
                 localStorage.removeItem("dashboardData");
-                if (userData.branch) {
-                  fetchBranchData(userData.branch);
+                if (userData.branchCode) {
+                  fetchBranchData(userData.branchCode);
                 }
               }
-            } else if (userData.branch) {
+            } else if (userData.branchCode) {
               // No saved data but we have branch info, fetch fresh data
-              fetchBranchData(userData.branch);
+              fetchBranchData(userData.branchCode);
             }
           } else {
             // Token invalid, clear storage
@@ -730,6 +731,7 @@ export const VisitorProvider = ({ children }) => {
     
     // Visitor tracking context
     selectedBranch,
+    selectedBranchName,
     branchData,
     fetchBranchData,
     setError,
@@ -749,7 +751,7 @@ export const useVisitor = () => {
     throw new Error("useVisitor must be used within a VisitorProvider");
   }
   return context;
-}; 
+};
 
 
 
