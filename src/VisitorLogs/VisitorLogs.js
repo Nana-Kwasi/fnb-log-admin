@@ -38,20 +38,43 @@ const VisitorLogs = () => {
         
         // Parse the date
         let parsedDate;
-        if (typeof log.date === 'string') {
-          if (log.date.includes('T')) {
-            // ISO date string
-            parsedDate = new Date(log.date);
-          } else if (log.date.includes('/')) {
-            // MM/DD/YYYY format
-            const [month, day, year] = log.date.split('/').map(num => parseInt(num, 10));
-            parsedDate = new Date(year, month - 1, day);
+        try {
+          if (typeof log.date === 'string') {
+            if (log.date.includes('-')) {
+              // YYYY-MM-DD format (database format)
+              const parts = log.date.split('-');
+              if (parts.length >= 3) {
+                const year = parseInt(parts[0], 10);
+                const month = parseInt(parts[1], 10) - 1; // Month is 0-based in JS Date
+                const day = parseInt(parts[2].split('T')[0], 10);
+                parsedDate = new Date(year, month, day);
+              }
+            } else if (log.date.includes('T')) {
+              // ISO date string
+              parsedDate = new Date(log.date);
+            } else if (log.date.includes('/')) {
+              // MM/DD/YYYY format
+              const [month, day, year] = log.date.split('/').map(num => parseInt(num, 10));
+              parsedDate = new Date(year, month - 1, day);
+            } else {
+              // Try direct parsing as a fallback
+              parsedDate = new Date(log.date);
+            }
+          } else if (log.date instanceof Date) {
+            parsedDate = log.date;
           }
-        } else if (log.date instanceof Date) {
-          parsedDate = log.date;
+          
+          // Ensure we have a valid date
+          if (isNaN(parsedDate.getTime())) {
+            console.warn("Invalid date detected:", log.date);
+            return false;
+          }
+          
+          return parsedDate && parsedDate.getFullYear() === selectedYear;
+        } catch (err) {
+          console.error("Error parsing date:", err, log.date);
+          return false;
         }
-        
-        return parsedDate && parsedDate.getFullYear() === selectedYear;
       });
 
       // Group logs by name to show only the most recent entry per person
@@ -62,11 +85,47 @@ const VisitorLogs = () => {
           acc[log.name] = log;
         } else {
           // Compare dates to keep the most recent
-          const existingDate = new Date(existingLog.date);
-          const currentDate = new Date(log.date);
+          let existingDate, currentDate;
           
-          if (currentDate > existingDate) {
-            acc[log.name] = log;
+          try {
+            if (typeof existingLog.date === 'string') {
+              if (existingLog.date.includes('-')) {
+                // YYYY-MM-DD format
+                const parts = existingLog.date.split('-');
+                existingDate = new Date(
+                  parseInt(parts[0], 10),
+                  parseInt(parts[1], 10) - 1,
+                  parseInt(parts[2].split('T')[0], 10)
+                );
+              } else {
+                existingDate = new Date(existingLog.date);
+              }
+            } else {
+              existingDate = existingLog.date;
+            }
+            
+            if (typeof log.date === 'string') {
+              if (log.date.includes('-')) {
+                // YYYY-MM-DD format
+                const parts = log.date.split('-');
+                currentDate = new Date(
+                  parseInt(parts[0], 10),
+                  parseInt(parts[1], 10) - 1,
+                  parseInt(parts[2].split('T')[0], 10)
+                );
+              } else {
+                currentDate = new Date(log.date);
+              }
+            } else {
+              currentDate = log.date;
+            }
+            
+            if (currentDate > existingDate) {
+              acc[log.name] = log;
+            }
+          } catch (err) {
+            console.error("Error comparing dates:", err);
+            // Keep existing log in case of error
           }
         }
         
@@ -104,6 +163,51 @@ const VisitorLogs = () => {
 
   const handleRowClick = (name) => {
     navigate(`/visitor-details/${encodeURIComponent(name)}`);
+  };
+
+  // Format date for display
+  const formatDate = (dateValue) => {
+    try {
+      if (!dateValue) return "N/A";
+      
+      let date;
+      if (typeof dateValue === 'string') {
+        if (dateValue.includes('-')) {
+          // YYYY-MM-DD format
+          const parts = dateValue.split('-');
+          if (parts.length >= 3) {
+            const year = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10) - 1; // Month is 0-based in JS Date
+            const day = parseInt(parts[2].split('T')[0], 10);
+            date = new Date(year, month, day);
+          } else {
+            date = new Date(dateValue);
+          }
+        } else {
+          date = new Date(dateValue);
+        }
+      } else if (dateValue instanceof Date) {
+        date = dateValue;
+      } else {
+        return "Invalid Date";
+      }
+      
+      if (isNaN(date.getTime())) {
+        return dateValue.toString(); // Return original if parsing failed
+      }
+      
+      // Format as YYYY-MM-DD
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+      
+      // Alternatively, uncomment this to use locale-specific formatting:
+      // return date.toLocaleDateString();
+    } catch (err) {
+      console.error("Error formatting date:", err);
+      return dateValue?.toString() || "N/A";
+    }
   };
 
   if (!authenticated && !loading) {
@@ -163,7 +267,7 @@ const VisitorLogs = () => {
                 >
                   <td>{log.name}</td>
                   <td>{log.company}</td>
-                  <td>{typeof log.date === 'string' ? log.date : log.date.toLocaleDateString()}</td>
+                  <td>{formatDate(log.date)}</td>
                   <td>{log.telephone}</td>
                 </tr>
               ))}

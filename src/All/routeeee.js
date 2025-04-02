@@ -1,286 +1,374 @@
-import React, { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { useVisitor } from "../context/VisitorContext";
-import "../detail.css";
+// script to create admin users
 
-const VisitorDetail = () => {
-  const { id: visitorName } = useParams();
-  const navigate = useNavigate();
-  const { branchData, loading: contextLoading, authenticated } = useVisitor();
+require('dotenv').config(); 
+const pool = require('../db');
+const bcrypt = require('bcrypt');
 
-  const [visitorData, setVisitorData] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [profilePicture, setProfilePicture] = useState(null);
-
-  // Redirect if not authenticated
-  useEffect(() => {
-    if (!authenticated && !contextLoading) {
-      console.log("User not authenticated, redirecting to login");
-      navigate("/login");
-    }
-  }, [authenticated, contextLoading, navigate]);
-
-  useEffect(() => {
-    const fetchVisitorDetails = async () => {
-      try {
-        console.log(`Fetching details for visitor: ${decodeURIComponent(visitorName)}`);
-        console.log(`Total visitor records available: ${branchData.allVisitorsData?.length || 0}`);
-
-        // Check if we have data in the context
-        if (!branchData.allVisitorsData || branchData.allVisitorsData.length === 0) {
-          setError("No visitor data available.");
-          setLoading(false);
-          return;
-        }
-
-        // Filter records for this specific visitor
-        const visitorRecords = branchData.allVisitorsData.filter(
-          record => record.name === decodeURIComponent(visitorName)
-        );
-
-        console.log(`Found ${visitorRecords.length} records for this visitor`);
-
-        if (visitorRecords.length === 0) {
-          setError("No visitor details found.");
-          setLoading(false);
-          return;
-        }
-
-        // Set the profile picture from the first record that has one
-        for (const record of visitorRecords) {
-          if (record.picture && 
-              record.picture !== "[null]" && 
-              record.picture !== "null") {
-            setProfilePicture(record.picture);
-            break;
-          }
-        }
-
-        // Group the records by date
-        const groupedData = visitorRecords.reduce((acc, record) => {
-          // Format the date for display
-          let dateKey;
-          
-          if (record.date) {
-            try {
-              // Format date consistently based on database format (year-month-day)
-              if (typeof record.date === 'string') {
-                // Parse the date string to ensure correct format
-                let dateParts;
-                
-                if (record.date.includes('-')) {
-                  // YYYY-MM-DD format (database format)
-                  dateParts = record.date.split('-');
-                  
-                  // Ensure we have at least year, month, day
-                  if (dateParts.length >= 3) {
-                    const year = dateParts[0];
-                    const month = dateParts[1];
-                    const day = dateParts[2].split('T')[0]; // Remove time part if present
-                    
-                    // Format for display: YYYY-MM-DD
-                    dateKey = `${year}-${month}-${day}`;
-                  } else {
-                    dateKey = record.date;
-                  }
-                } else if (record.date.includes('/')) {
-                  // MM/DD/YYYY format
-                  dateParts = record.date.split('/');
-                  if (dateParts.length >= 3) {
-                    // Convert to YYYY-MM-DD
-                    dateKey = `${dateParts[2]}-${dateParts[0].padStart(2, '0')}-${dateParts[1].padStart(2, '0')}`;
-                  } else {
-                    dateKey = record.date;
-                  }
-                } else if (record.date.includes('T')) {
-                  // ISO format
-                  dateKey = new Date(record.date).toISOString().split('T')[0];
-                } else {
-                  dateKey = record.date;
-                }
-              } else if (record.date instanceof Date) {
-                dateKey = record.date.toISOString().split('T')[0];
-              } else {
-                dateKey = "Unknown Date";
-              }
-              
-              // Format date for display (optional)
-              // Uncomment the following lines if you want to display date in a more readable format
-              /*
-              const [year, month, day] = dateKey.split('-');
-              const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-              const monthName = months[parseInt(month) - 1];
-              dateKey = `${monthName} ${parseInt(day)}, ${year}`;
-              */
-              
-            } catch (error) {
-              console.error("Error parsing date:", error);
-              dateKey = "Unknown Date";
-            }
-          } else {
-            dateKey = "Unknown Date";
-          }
-
-          console.log(`Using date key: ${dateKey} for record:`, record);
-          
-          // Initialize the array for this date if it doesn't exist
-          acc[dateKey] = acc[dateKey] || [];
-          
-          // Add the record to the appropriate date group
-          acc[dateKey].push(record);
-          
-          return acc;
-        }, {});
-
-        console.log("Grouped visitor data:", groupedData);
-        setVisitorData(groupedData);
-        setLoading(false);
-      } catch (err) {
-        console.error("Error processing visitor details:", err);
-        setError("Error processing visitor details. Please try again.");
-        setLoading(false);
-      }
-    };
-
-    if (authenticated && branchData) {
-      fetchVisitorDetails();
-    }
-  }, [visitorName, branchData, authenticated]);
-
-  // Function to render image from base64 data
-  const renderVisitorPicture = (pictureData) => {
-    if (!pictureData || pictureData === "[null]" || pictureData === "null" || pictureData === "[null]") {
-      console.log("No picture data available");
-      return (
-        <div className="image-placeholder">No image available</div>
+async function createAdminUser() {
+  try {
+    
+    const tableCheck = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'admin_users'
       );
+    `);
+    
+    if (!tableCheck.rows[0].exists) {
+      console.log('Creating admin_users table...');
+      
+      await pool.query(`
+        CREATE TABLE admin_users (
+          id SERIAL PRIMARY KEY,
+          email VARCHAR(255) UNIQUE NOT NULL,
+          password VARCHAR(255) NOT NULL,
+          branches TEXT[] NOT NULL,
+          role VARCHAR(50) DEFAULT 'user',
+          created_at TIMESTAMP DEFAULT NOW(),
+          last_login TIMESTAMP
+        );
+      `);
+      
+      console.log('Table created successfully');
+    } else {
+      console.log('Table admin_users already exists');
+    }
+
+   
+    const email = 'admin@fnb.com';
+    const password = 'password12345'; 
+    
+   
+    const userCheck = await pool.query(
+      'SELECT * FROM admin_users WHERE email = $1',
+      [email]
+    );
+    
+    if (userCheck.rows.length > 0) {
+      console.log(`Admin user ${email} already exists`);
+      return;
     }
     
-    try {
-      console.log("Attempting to render picture data");
-      
-      // Check if the data is a string
-      if (typeof pictureData !== 'string') {
-        console.log("Picture data is not a string:", typeof pictureData);
-        return <div className="image-placeholder">Invalid image data</div>;
-      }
-      
-      // Handle cases where the data is wrapped in [] or {} brackets
-      if (pictureData.startsWith('[') && pictureData.endsWith(']')) {
-        try {
-          const parsed = JSON.parse(pictureData);
-          if (parsed === null) {
-            return <div className="image-placeholder">No image data</div>;
-          }
-          // If successfully parsed as array, use the first element if it's a string
-          if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === 'string') {
-            pictureData = parsed[0];
-          }
-        } catch (e) {
-          // Not valid JSON, just remove the brackets
-          pictureData = pictureData.substring(1, pictureData.length - 1);
-        }
-      }
-      
-      // Check if the data already has the data:image prefix
-      if (pictureData.startsWith('data:image')) {
-        return (
-          <div className="visitor-image-container">
-            <img 
-              src={pictureData} 
-              alt="Visitor" 
-              className="visitor-image" 
-              onError={(e) => {
-                console.error("Error loading image with prefix");
-                e.target.outerHTML = '<div class="image-placeholder">Image failed to load</div>';
-              }}
-            />
-          </div>
-        );
-      }
-      
-      // If it's just the base64 string without the prefix, add it
-      return (
-        <div className="visitor-image-container">
-          <img 
-            src={`data:image/jpeg;base64,${pictureData}`} 
-            alt="Visitor" 
-            className="visitor-image"
-            onError={(e) => {
-              console.error("Error loading image without prefix");
-              e.target.outerHTML = '<div class="image-placeholder">Image failed to load</div>';
-            }}
-          />
-        </div>
-      );
-    } catch (error) {
-      console.error("Error rendering visitor picture:", error);
-      return (
-        <div className="image-placeholder">Error displaying image</div>
-      );
+  
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+    
+    
+    const branchesResult = await pool.query(`
+      SELECT DISTINCT branchname FROM visitor_log WHERE branchname IS NOT NULL AND branchname != '';
+    `);
+    
+    const branches = branchesResult.rows.map(row => row.branchname);
+    
+    
+    if (branches.length === 0) {
+      branches.push('No Branch');
     }
-  };
-
-  if (!authenticated && !contextLoading) {
-    return null;
+    
+    
+    await pool.query(
+      'INSERT INTO admin_users (email, password, branches, role) VALUES ($1, $2, $3, $4)',
+      [email, hashedPassword, branches, 'admin']
+    );
+    
+    console.log(`Admin user ${email} created successfully with access to branches:`, branches);
+    console.log('Please change the default password after first login!');
+    
+  } catch (err) {
+    console.error('Error creating admin user:', err);
+  } finally {
+    pool.end();
   }
+}
 
-  return (
-    <div className="visitor-details">
-      <h1>Visitor Details for {decodeURIComponent(visitorName)}</h1>
-      
-      {/* Profile picture shown once at the top */}
-      {!loading && !error && profilePicture && (
-        <div className="visitor-profile">
-          {renderVisitorPicture(profilePicture)}
-        </div>
-      )}
-      
-      {loading || contextLoading ? (
-        <p>Loading visitor details...</p>
-      ) : error ? (
-        <p className="error">{error}</p>
-      ) : (
-        Object.keys(visitorData).map((date) => (
-          <div key={date} className="details-section">
-            <h2>{date}</h2>
-            {visitorData[date].map((entry, index) => (
-              <div key={index} className="entry-container">
-                <table className="details-table">
-                  <thead>
-                    <tr>
-                      <th style={{color:'black'}}>Company</th>
-                      <th style={{color:'black'}}>Branch</th>
-                      <th style={{color:'black'}}>Telephone</th>
-                      <th style={{color:'black'}}>Time In</th>
-                      <th style={{color:'black'}}>Time Out</th>
-                      <th style={{color:'black'}}>Purpose</th>
-                      <th style={{color:'black'}}>Department</th>
-                      <th style={{color:'black'}}>Reason</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td>{entry.company || "---"}</td>
-                      <td>{entry.branchName || entry.branchname || "---"}</td>
-                      <td>{entry.telephone || "---"}</td>
-                      <td>{entry.timein || entry.timeIn || "---"}</td>
-                      <td>{entry.timeout || entry.timeOut || "---"}</td>
-                      <td>{entry.purpose || "---"}</td>
-                      <td>{entry.department || "---"}</td>
-                      <td>{entry.reason || "---"}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            ))}
-          </div>
-        ))
-      )}
-      <button onClick={() => navigate(-1)} className="back-button">Back</button>
-    </div>
-  );
+createAdminUser();
+
+// users controll
+const pool = require('../db');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+
+const JWT_SECRET = 'your-secret-key-should-be-in-env-file';
+
+const createUser = async (req, res) => {
+  const { email, password, branch, role = 'user' } = req.body;
+
+  try {
+    // Validate input
+    if (!email || !password || !branch) {
+      return res.status(400).json({ error: 'Email, password, and branch are required' });
+    }
+
+    // Check if user already exists
+    const checkUser = await pool.query('SELECT * FROM users_table WHERE email = $1', [email]);
+    
+    if (checkUser.rows.length > 0) {
+      return res.status(400).json({ error: 'User already exists' });
+    }
+
+    // Hash password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    // Insert new user
+    const result = await pool.query(
+      'INSERT INTO users_table (email, password, branch, role, created_at) VALUES ($1, $2, $3, $4, NOW()) RETURNING id, email, branch, role, created_at',
+      [email, hashedPassword, branch, role]
+    );
+
+    res.status(201).json({
+      message: 'User created successfully',
+      user: {
+        id: result.rows[0].id,
+        email: result.rows[0].email,
+        branch: result.rows[0].branch,
+        role: result.rows[0].role,
+        created_at: result.rows[0].created_at
+      }
+    });
+
+  } catch (err) {
+    console.error('User creation error:', err);
+    res.status(500).json({ error: 'Server error during user creation' });
+  }
 };
 
-export default VisitorDetail;
+
+
+const updateUser = async (req, res) => {
+    const { id } = req.params;
+    const { email, branch, role, is_active } = req.body;
+  
+    try {
+      const result = await pool.query(
+        'UPDATE users_table SET email = $1, branch = $2, role = $3, is_active = COALESCE($4, is_active) WHERE id = $5 RETURNING *',
+        [email, branch, role, is_active, id]
+      );
+  
+      if (result.rows.length === 0) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+  
+      res.json({
+        message: 'User updated successfully',
+        user: {
+          id: result.rows[0].id,
+          email: result.rows[0].email,
+          branch: result.rows[0].branch,
+          role: result.rows[0].role,
+          is_active: result.rows[0].is_active
+        }
+      });
+    } catch (err) {
+      console.error('User update error:', err);
+      res.status(500).json({ error: 'Server error during user update' });
+    }
+  };
+  
+  // Update getAllUsers to include is_active
+  const getAllUsers = async (req, res) => {
+    try {
+      const result = await pool.query('SELECT id, email, branch, role, created_at, is_active FROM users_table');
+      res.json(result.rows);
+    } catch (err) {
+      console.error('Error fetching users:', err);
+      res.status(500).json({ error: 'Server error while fetching users' });
+    }
+  };
+  
+const deleteUser = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await pool.query('DELETE FROM users_table WHERE id = $1', [id]);
+    
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({ message: 'User deleted successfully' });
+  } catch (err) {
+    console.error('User deletion error:', err);
+    res.status(500).json({ error: 'Server error during user deletion' });
+  }
+};
+
+module.exports = {
+  createUser,
+  getAllUsers,
+  updateUser,
+  deleteUser
+};
+
+// visitor controller
+
+const getAllVisitorLogs = async (req, res) => {
+  try {
+    console.log("Fetching all visitor logs");
+    const result = await pool.query('SELECT * FROM visitor_log');
+    console.log(`Found ${result.rows.length} visitor logs`);
+    console.log("Sample data:", result.rows.slice(0, 2)); // Log first 2 entries
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Database query error:", err);
+    res.status(500).send('Server error');
+  }
+};
+
+const getVisitorLogsByPhoneNumber = async (req, res) => {
+  const { telephone } = req.query;
+  try {
+    const result = await pool.query('SELECT * FROM visitor_log WHERE telephone = $1', [telephone]);
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server error');
+  }
+};
+
+const checkTelephoneExists = async (req, res) => {
+  const { telephone } = req.params;
+  
+  // Basic validation
+  if (!telephone || telephone.trim() === '') {
+    return res.status(400).json({ 
+      error: 'Telephone number is required',
+      exists: false
+    });
+  }
+
+  try {
+    console.log(`Checking if telephone exists: ${telephone}`);
+    
+    // First check if the pool connection is working
+    const testQuery = await pool.query('SELECT NOW()');
+    console.log('Database connection successful');
+    
+    // Then perform the actual query
+    const result = await pool.query(
+      'SELECT EXISTS(SELECT 1 FROM visitor_log WHERE telephone = $1) as "exists"', 
+      [telephone]
+    );
+    
+    console.log('Query result:', result.rows[0]);
+    
+    res.json({ 
+      exists: result.rows[0].exists,
+      message: result.rows[0].exists ? 'Telephone number already registered' : 'Telephone number is available'
+    });
+  } catch (err) {
+    console.error('Error checking telephone:', err);
+    res.status(500).json({ 
+      error: 'Failed to check telephone number', 
+      details: err.message,
+      exists: false
+    });
+  }
+};
+const getVisitorLogById = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query('SELECT * FROM visitor_log WHERE id = $1', [id]);
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server error');
+  }
+};
+
+
+const getAllBranches = async (req, res) => {
+  try {
+    console.log("Fetching all unique branches");
+    const result = await pool.query(
+      'SELECT DISTINCT branchName, branch FROM visitor_log WHERE branchName IS NOT NULL AND branch IS NOT NULL'
+    );
+    
+    // Map the results to get branch name and code pairs
+    const branches = result.rows.map(row => ({
+      branchName: row.branchname,
+      branchCode: row.branch
+    }));
+    
+    console.log(`Found ${branches.length} unique branches`);
+    res.json(branches);
+  } catch (err) {
+    console.error("Database query error fetching branches:", err);
+    res.status(500).send('Server error');
+  }
+};
+
+const getVisitorLogsByBranchCode = async (req, res) => {
+  const { branchCode } = req.query;
+  
+  if (!branchCode) {
+    return res.status(400).json({ error: 'Branch code is required' });
+  }
+  
+  try {
+    console.log(`Fetching visitor logs for branch code: ${branchCode}`);
+    const result = await pool.query(
+      'SELECT * FROM visitor_log WHERE branch = $1',
+      [branchCode]
+    );
+    
+    console.log(`Found ${result.rows.length} visitor logs for branch code ${branchCode}`);
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Database query error fetching branch logs:", err);
+    res.status(500).send('Server error');
+  }
+};
+const createVisitorLog = async (req, res) => {
+  const { date, timeIn, timeOut, department, company, picture, telephone, reason, purpose, name, branch,branchName // New field
+  } = req.body;
+  try {
+    const result = await pool.query(
+      'INSERT INTO visitor_log (date, timeIn, timeOut, department, company, picture, telephone, reason, purpose, name, branch,branchName) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,$12) RETURNING *',
+      [date, timeIn, timeOut, department, company, picture, telephone, reason, purpose, name, branch,branchName]
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server error');
+  }
+};
+
+
+const updateVisitorLog = async (req, res) => {
+  const { id } = req.params;
+  const { timeOut } = req.body;
+  try {
+    const result = await pool.query(
+      'UPDATE visitor_log SET timeOut = $1 WHERE id = $2 RETURNING *',
+      [timeOut, id]
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error updating visitor log:', err);
+    res.status(500).send('Server error');
+  }
+};
+
+const deleteVisitorLog = async (req, res) => {
+  const { id } = req.params;
+  try {
+    await pool.query('DELETE FROM visitor_log WHERE id = $1', [id]);
+    res.sendStatus(204);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server error');
+  }
+};
+
+module.exports = {
+  getAllVisitorLogs,
+  getVisitorLogsByPhoneNumber,
+  getVisitorLogById,
+  createVisitorLog,
+  updateVisitorLog,
+  deleteVisitorLog,
+  checkTelephoneExists, // Export the new function
+  getAllBranches,              // Add this new function
+  getVisitorLogsByBranchCode 
+};
