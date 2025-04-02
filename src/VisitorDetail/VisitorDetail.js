@@ -479,19 +479,18 @@ const VisitorDetail = () => {
           
           if (record.date) {
             try {
-              // Try to parse and format the date
+              
               if (typeof record.date === 'string') {
-                // Handle different date formats
+               
                 if (record.date.includes('-')) {
-                  // YYYY-MM-DD format
+                  
                   const [year, month, day] = record.date.split('-');
                   dateKey = `${year}-${month}-${day}`;
                 } else if (record.date.includes('/')) {
-                  // MM/DD/YYYY format
+                  
                   const [month, day, year] = record.date.split('/');
                   dateKey = `${year}-${month}-${day}`;
                 } else if (record.date.includes('T')) {
-                  // ISO format
                   dateKey = new Date(record.date).toISOString().split('T')[0];
                 } else {
                   dateKey = record.date;
@@ -511,10 +510,10 @@ const VisitorDetail = () => {
 
           console.log(`Using date key: ${dateKey} for record:`, record);
           
-          // Initialize the array for this date if it doesn't exist
+          
           acc[dateKey] = acc[dateKey] || [];
           
-          // Add the record to the appropriate date group
+        
           acc[dateKey].push(record);
           
           return acc;
