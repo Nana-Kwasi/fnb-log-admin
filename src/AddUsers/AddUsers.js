@@ -17,6 +17,7 @@ const AddUsers = () => {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
+  const [deleteUserId, setDeleteUserId] = useState(null); // New state for delete confirmation
 
   const { token } = useVisitor();
 
@@ -125,6 +126,7 @@ const AddUsers = () => {
 
   // Handle user deletion
   const handleDeleteUser = async (userId) => {
+    setLoading(true);
     try {
       const response = await fetch(`${API_URL}/${userId}`, {
         method: 'DELETE',
@@ -143,6 +145,9 @@ const AddUsers = () => {
       setExpandedUserId(null);
     } catch (err) {
       setError(err.message);
+    } finally {
+      setLoading(false);
+      setDeleteUserId(null); // Reset delete confirmation state
     }
   };
 
@@ -185,7 +190,6 @@ const AddUsers = () => {
       setLoading(false);
     }
   };
-
   // Styles (same as previous implementation)
   const styles = {
     container: {
@@ -268,8 +272,19 @@ const AddUsers = () => {
       color: 'white',
       border: 'none',
     },
+    confirmationDialog: {
+      position: 'fixed',
+      top: '50%',
+      left: '50%',
+      transform: 'translate(-50%, -50%)',
+      padding: '20px',
+      border: '1px solid #ccc',
+      borderRadius: '8px',
+      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+      backgroundColor: 'white',
+      zIndex: 1000,
+    },
   };
-
   return (
     <div style={styles.container}>
       {/* Left Panel - User Creation Form */}
@@ -322,7 +337,7 @@ const AddUsers = () => {
               style={styles.select}
             >
               <option value="user">User</option>
-              <option value="admin">Admin</option>
+              {/* <option value="admin">Admin</option> */}
             </select>
 
             {error && <p style={styles.errorMessage}>{error}</p>}
@@ -385,8 +400,7 @@ const AddUsers = () => {
                     <select
                       value={editingUser.role}
                       onChange={(e) => setEditingUser({...editingUser, role: e.target.value})}
-                      style={styles.select}
-                    >
+                      style={styles.select}                    >
                       <option value="user">User</option>
                       <option value="admin">Admin</option>
                     </select>
@@ -418,7 +432,7 @@ const AddUsers = () => {
                     
                     <div style={{display: 'flex', justifyContent: 'space-between', marginTop: '10px'}}>
                       <button 
-                        onClick={() => handleDeleteUser(user.id)}
+                        onClick={() => setDeleteUserId(user.id)} // Set user ID for delete confirmation
                         style={{...styles.actionButton, ...styles.deleteButton}}
                       >
                         Delete
@@ -444,11 +458,34 @@ const AddUsers = () => {
           </div>
         ))}
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      {deleteUserId && (
+        <div style={styles.confirmationDialog}>
+          <p>Are you sure you want to delete this user?</p>
+          <div style={{display: 'flex', justifyContent: 'space-between'}}>
+            <button 
+              onClick={() => handleDeleteUser(deleteUserId)}
+              style={{...styles.actionButton, ...styles.deleteButton}}
+            >
+              Yes
+            </button>
+            <button 
+              onClick={() => setDeleteUserId(null)}
+              style={{...styles.actionButton, backgroundColor: '#6c757d', color: 'white'}}
+            >
+              No
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 export default AddUsers;
+
+
 
 
 
