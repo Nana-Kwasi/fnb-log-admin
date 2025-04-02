@@ -262,6 +262,8 @@ const login = async (req, res) => {
 
 
 // update all vsitors api
+
+
 const getAllVisitorLogs = async (req, res) => {
   try {
     console.log("Fetching all visitor logs");
