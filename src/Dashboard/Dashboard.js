@@ -193,7 +193,7 @@ const Dashboard = () => {
               <AiOutlineUser className="icon" />
               <h3 style={{ color: "white" }}>Visitors Today</h3>
               <p style={{color:'white'}}>{visitorsToday}</p>
-              {selectedBranch && <span className="branch-indicator">{selectedBranchName}</span>}
+              {selectedBranchName && <span className="branch-indicator">{selectedBranchName}</span>}
             </div>
              
             <div className="stat-card">

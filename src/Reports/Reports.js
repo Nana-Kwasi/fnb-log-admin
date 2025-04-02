@@ -149,8 +149,8 @@ const Reports = () => {
       log.company || "N/A",
       log.department || "N/A",
       log.telephone || "N/A",
-      log.timeIn || "N/A",
-      log.timeOut || "N/A",
+      log.timein || log.timeIn || "---",
+    log.timeout || log.timeOut || "---",
       log.purpose || "N/A",
       log.reason || "N/A",
       log.date || "N/A",
@@ -269,8 +269,8 @@ const Reports = () => {
                     <td>{log.company || "---"}</td>
                     <td>{log.department || "---"}</td>
                     <td>{log.telephone || "---"}</td>
-                    <td>{log.timeIn || "---"}</td>
-                    <td>{log.timeOut || "---"}</td>
+                    <td>{log.timein || log.timeIn || "---"}</td>
+                      <td>{log.timeout || log.timeOut || "---"}</td>
                     <td>{log.purpose || "---"}</td>
                     <td>{log.reason || "---"}</td>
                     <td>{log.date || "---"}</td>
