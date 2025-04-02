@@ -256,3 +256,5 @@ const login = async (req, res) => {
     res.status(500).json({ error: 'Server error during login' });
   }
 };
+
+,{"id":55,"date":"2025-04-01T23:00:00.000Z","timein":"12:41:00","timeout":null,"department":"Customer Service","company":"BOG", "telephone":"0247231486","reason":"hello","purpose":"Personal","name":"Yaw Kumi","branch":"330401","branchname":"MARKET CIRCLE BRANCH TAKORADI"}
