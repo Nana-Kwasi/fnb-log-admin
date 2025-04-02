@@ -258,3 +258,29 @@ const login = async (req, res) => {
 };
 
 ,{"id":55,"date":"2025-04-01T23:00:00.000Z","timein":"12:41:00","timeout":null,"department":"Customer Service","company":"BOG", "telephone":"0247231486","reason":"hello","purpose":"Personal","name":"Yaw Kumi","branch":"330401","branchname":"MARKET CIRCLE BRANCH TAKORADI"}
+
+
+
+// update all vsitors api
+const getAllVisitorLogs = async (req, res) => {
+  try {
+    console.log("Fetching all visitor logs");
+    const result = await pool.query('SELECT * FROM visitor_log');
+    
+    // Process dates to maintain the original database date
+    const formattedResults = result.rows.map(row => {
+      if (row.date) {
+        // Convert the UTC date from API back to YYYY-MM-DD format
+        const date = new Date(row.date);
+        row.date = date.toISOString().split('T')[0];
+      }
+      return row;
+    });
+    
+    console.log(`Found ${formattedResults.length} visitor logs`);
+    res.json(formattedResults);
+  } catch (err) {
+    console.error("Database query error:", err);
+    res.status(500).send('Server error');
+  }
+};
