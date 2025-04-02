@@ -1,286 +1,282 @@
-import React, { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useVisitor } from "../context/VisitorContext";
-import "../detail.css";
+import "../Log.css";
 
-const VisitorDetail = () => {
-  const { id: visitorName } = useParams();
+const VisitorLogs = () => {
+  const [filteredLogs, setFilteredLogs] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const navigate = useNavigate();
-  const { branchData, loading: contextLoading, authenticated } = useVisitor();
+  
+  // Use the visitor context
+  const { 
+    branchData, 
+    loading, 
+    error, 
+    authenticated 
+  } = useVisitor();
 
-  const [visitorData, setVisitorData] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [profilePicture, setProfilePicture] = useState(null);
+  const currentYear = new Date().getFullYear();
+  const years = Array.from(
+    { length: currentYear - 2019 },
+    (_, i) => currentYear - i
+  );
 
-  // Redirect if not authenticated
+  // Check if user is authenticated
   useEffect(() => {
-    if (!authenticated && !contextLoading) {
-      console.log("User not authenticated, redirecting to login");
+    if (!authenticated && !loading) {
       navigate("/login");
     }
-  }, [authenticated, contextLoading, navigate]);
+  }, [authenticated, loading, navigate]);
 
+  // Filter logs by year and search query
   useEffect(() => {
-    const fetchVisitorDetails = async () => {
-      try {
-        console.log(`Fetching details for visitor: ${decodeURIComponent(visitorName)}`);
-        console.log(`Total visitor records available: ${branchData.allVisitorsData?.length || 0}`);
-
-        // Check if we have data in the context
-        if (!branchData.allVisitorsData || branchData.allVisitorsData.length === 0) {
-          setError("No visitor data available.");
-          setLoading(false);
-          return;
-        }
-
-        // Filter records for this specific visitor
-        const visitorRecords = branchData.allVisitorsData.filter(
-          record => record.name === decodeURIComponent(visitorName)
-        );
-
-        console.log(`Found ${visitorRecords.length} records for this visitor`);
-
-        if (visitorRecords.length === 0) {
-          setError("No visitor details found.");
-          setLoading(false);
-          return;
-        }
-
-        // Set the profile picture from the first record that has one
-        for (const record of visitorRecords) {
-          if (record.picture && 
-              record.picture !== "[null]" && 
-              record.picture !== "null") {
-            setProfilePicture(record.picture);
-            break;
-          }
-        }
-
-        // Group the records by date
-        const groupedData = visitorRecords.reduce((acc, record) => {
-          // Format the date for display
-          let dateKey;
-          
-          if (record.date) {
-            try {
-              // Format date consistently based on database format (year-month-day)
-              if (typeof record.date === 'string') {
-                // Parse the date string to ensure correct format
-                let dateParts;
-                
-                if (record.date.includes('-')) {
-                  // YYYY-MM-DD format (database format)
-                  dateParts = record.date.split('-');
-                  
-                  // Ensure we have at least year, month, day
-                  if (dateParts.length >= 3) {
-                    const year = dateParts[0];
-                    const month = dateParts[1];
-                    const day = dateParts[2].split('T')[0]; // Remove time part if present
-                    
-                    // Format for display: YYYY-MM-DD
-                    dateKey = `${year}-${month}-${day}`;
-                  } else {
-                    dateKey = record.date;
-                  }
-                } else if (record.date.includes('/')) {
-                  // MM/DD/YYYY format
-                  dateParts = record.date.split('/');
-                  if (dateParts.length >= 3) {
-                    // Convert to YYYY-MM-DD
-                    dateKey = `${dateParts[2]}-${dateParts[0].padStart(2, '0')}-${dateParts[1].padStart(2, '0')}`;
-                  } else {
-                    dateKey = record.date;
-                  }
-                } else if (record.date.includes('T')) {
-                  // ISO format
-                  dateKey = new Date(record.date).toISOString().split('T')[0];
-                } else {
-                  dateKey = record.date;
-                }
-              } else if (record.date instanceof Date) {
-                dateKey = record.date.toISOString().split('T')[0];
-              } else {
-                dateKey = "Unknown Date";
-              }
-              
-              // Format date for display (optional)
-              // Uncomment the following lines if you want to display date in a more readable format
-              /*
-              const [year, month, day] = dateKey.split('-');
-              const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-              const monthName = months[parseInt(month) - 1];
-              dateKey = `${monthName} ${parseInt(day)}, ${year}`;
-              */
-              
-            } catch (error) {
-              console.error("Error parsing date:", error);
-              dateKey = "Unknown Date";
-            }
-          } else {
-            dateKey = "Unknown Date";
-          }
-
-          console.log(`Using date key: ${dateKey} for record:`, record);
-          
-          // Initialize the array for this date if it doesn't exist
-          acc[dateKey] = acc[dateKey] || [];
-          
-          // Add the record to the appropriate date group
-          acc[dateKey].push(record);
-          
-          return acc;
-        }, {});
-
-        console.log("Grouped visitor data:", groupedData);
-        setVisitorData(groupedData);
-        setLoading(false);
-      } catch (err) {
-        console.error("Error processing visitor details:", err);
-        setError("Error processing visitor details. Please try again.");
-        setLoading(false);
-      }
-    };
-
-    if (authenticated && branchData) {
-      fetchVisitorDetails();
-    }
-  }, [visitorName, branchData, authenticated]);
-
-  // Function to render image from base64 data
-  const renderVisitorPicture = (pictureData) => {
-    if (!pictureData || pictureData === "[null]" || pictureData === "null" || pictureData === "[null]") {
-      console.log("No picture data available");
-      return (
-        <div className="image-placeholder">No image available</div>
-      );
-    }
-    
-    try {
-      console.log("Attempting to render picture data");
-      
-      // Check if the data is a string
-      if (typeof pictureData !== 'string') {
-        console.log("Picture data is not a string:", typeof pictureData);
-        return <div className="image-placeholder">Invalid image data</div>;
-      }
-      
-      // Handle cases where the data is wrapped in [] or {} brackets
-      if (pictureData.startsWith('[') && pictureData.endsWith(']')) {
+    if (branchData.allVisitorsData?.length > 0) {
+      const yearFilteredLogs = branchData.allVisitorsData.filter((log) => {
+        if (!log.date) return false;
+        
+        // Parse the date
+        let parsedDate;
         try {
-          const parsed = JSON.parse(pictureData);
-          if (parsed === null) {
-            return <div className="image-placeholder">No image data</div>;
+          if (typeof log.date === 'string') {
+            if (log.date.includes('-')) {
+              // YYYY-MM-DD format (database format)
+              const parts = log.date.split('-');
+              if (parts.length >= 3) {
+                const year = parseInt(parts[0], 10);
+                const month = parseInt(parts[1], 10) - 1; // Month is 0-based in JS Date
+                const day = parseInt(parts[2].split('T')[0], 10);
+                parsedDate = new Date(year, month, day);
+              }
+            } else if (log.date.includes('T')) {
+              // ISO date string
+              parsedDate = new Date(log.date);
+            } else if (log.date.includes('/')) {
+              // MM/DD/YYYY format
+              const [month, day, year] = log.date.split('/').map(num => parseInt(num, 10));
+              parsedDate = new Date(year, month - 1, day);
+            } else {
+              // Try direct parsing as a fallback
+              parsedDate = new Date(log.date);
+            }
+          } else if (log.date instanceof Date) {
+            parsedDate = log.date;
           }
-          // If successfully parsed as array, use the first element if it's a string
-          if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === 'string') {
-            pictureData = parsed[0];
+          
+          // Ensure we have a valid date
+          if (isNaN(parsedDate.getTime())) {
+            console.warn("Invalid date detected:", log.date);
+            return false;
           }
-        } catch (e) {
-          // Not valid JSON, just remove the brackets
-          pictureData = pictureData.substring(1, pictureData.length - 1);
+          
+          return parsedDate && parsedDate.getFullYear() === selectedYear;
+        } catch (err) {
+          console.error("Error parsing date:", err, log.date);
+          return false;
         }
-      }
+      });
+
+      // Group logs by name to show only the most recent entry per person
+      const groupedLogs = yearFilteredLogs.reduce((acc, log) => {
+        const existingLog = acc[log.name];
+        
+        if (!existingLog) {
+          acc[log.name] = log;
+        } else {
+          // Compare dates to keep the most recent
+          let existingDate, currentDate;
+          
+          try {
+            if (typeof existingLog.date === 'string') {
+              if (existingLog.date.includes('-')) {
+                // YYYY-MM-DD format
+                const parts = existingLog.date.split('-');
+                existingDate = new Date(
+                  parseInt(parts[0], 10),
+                  parseInt(parts[1], 10) - 1,
+                  parseInt(parts[2].split('T')[0], 10)
+                );
+              } else {
+                existingDate = new Date(existingLog.date);
+              }
+            } else {
+              existingDate = existingLog.date;
+            }
+            
+            if (typeof log.date === 'string') {
+              if (log.date.includes('-')) {
+                // YYYY-MM-DD format
+                const parts = log.date.split('-');
+                currentDate = new Date(
+                  parseInt(parts[0], 10),
+                  parseInt(parts[1], 10) - 1,
+                  parseInt(parts[2].split('T')[0], 10)
+                );
+              } else {
+                currentDate = new Date(log.date);
+              }
+            } else {
+              currentDate = log.date;
+            }
+            
+            if (currentDate > existingDate) {
+              acc[log.name] = log;
+            }
+          } catch (err) {
+            console.error("Error comparing dates:", err);
+            // Keep existing log in case of error
+          }
+        }
+        
+        return acc;
+      }, {});
+
+      const logsArray = Object.values(groupedLogs);
       
-      // Check if the data already has the data:image prefix
-      if (pictureData.startsWith('data:image')) {
-        return (
-          <div className="visitor-image-container">
-            <img 
-              src={pictureData} 
-              alt="Visitor" 
-              className="visitor-image" 
-              onError={(e) => {
-                console.error("Error loading image with prefix");
-                e.target.outerHTML = '<div class="image-placeholder">Image failed to load</div>';
-              }}
-            />
-          </div>
+      // Apply search filter if query exists
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        setFilteredLogs(
+          logsArray.filter(
+            (log) =>
+              (log.name && log.name.toLowerCase().includes(query)) ||
+              (log.company && log.company.toLowerCase().includes(query)) ||
+              (log.date && log.date.toString().toLowerCase().includes(query))
+          )
         );
+      } else {
+        setFilteredLogs(logsArray);
+      }
+    } else {
+      setFilteredLogs([]);
+    }
+  }, [branchData.allVisitorsData, selectedYear, searchQuery]);
+
+  const handleSearch = (event) => {
+    setSearchQuery(event.target.value.toLowerCase());
+  };
+
+  const handleYearChange = (event) => {
+    setSelectedYear(parseInt(event.target.value));
+  };
+
+  const handleRowClick = (name) => {
+    navigate(`/visitor-details/${encodeURIComponent(name)}`);
+  };
+
+  // Format date for display
+  const formatDate = (dateValue) => {
+    try {
+      if (!dateValue) return "N/A";
+      
+      let date;
+      if (typeof dateValue === 'string') {
+        if (dateValue.includes('-')) {
+          // YYYY-MM-DD format
+          const parts = dateValue.split('-');
+          if (parts.length >= 3) {
+            const year = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10) - 1; // Month is 0-based in JS Date
+            const day = parseInt(parts[2].split('T')[0], 10);
+            date = new Date(year, month, day);
+          } else {
+            date = new Date(dateValue);
+          }
+        } else {
+          date = new Date(dateValue);
+        }
+      } else if (dateValue instanceof Date) {
+        date = dateValue;
+      } else {
+        return "Invalid Date";
       }
       
-      // If it's just the base64 string without the prefix, add it
-      return (
-        <div className="visitor-image-container">
-          <img 
-            src={`data:image/jpeg;base64,${pictureData}`} 
-            alt="Visitor" 
-            className="visitor-image"
-            onError={(e) => {
-              console.error("Error loading image without prefix");
-              e.target.outerHTML = '<div class="image-placeholder">Image failed to load</div>';
-            }}
-          />
-        </div>
-      );
-    } catch (error) {
-      console.error("Error rendering visitor picture:", error);
-      return (
-        <div className="image-placeholder">Error displaying image</div>
-      );
+      if (isNaN(date.getTime())) {
+        return dateValue.toString(); // Return original if parsing failed
+      }
+      
+      // Format as YYYY-MM-DD
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+      
+      // Alternatively, uncomment this to use locale-specific formatting:
+      // return date.toLocaleDateString();
+    } catch (err) {
+      console.error("Error formatting date:", err);
+      return dateValue?.toString() || "N/A";
     }
   };
 
-  if (!authenticated && !contextLoading) {
+  if (!authenticated && !loading) {
     return null;
   }
 
   return (
-    <div className="visitor-details">
-      <h1>Visitor Details for {decodeURIComponent(visitorName)}</h1>
-      
-      {/* Profile picture shown once at the top */}
-      {!loading && !error && profilePicture && (
-        <div className="visitor-profile">
-          {renderVisitorPicture(profilePicture)}
+    <div className="visitor-logs">
+      <h1>Visitor Logs</h1>
+      <div className="controls-container">
+        <div className="year-filter">
+          <select
+            value={selectedYear}
+            onChange={handleYearChange}
+            className="year-select"
+          >
+            {years.map((year) => (
+              <option key={year} value={year}>
+                {year}
+              </option>
+            ))}
+          </select>
         </div>
-      )}
-      
-      {loading || contextLoading ? (
-        <p>Loading visitor details...</p>
+        <div className="search-bar-container">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={handleSearch}
+            placeholder="Search by Name, Company or Date..."
+            className="search-bar"
+          />
+        </div>
+      </div>
+      {loading ? (
+        <p>Loading visitor logs...</p>
       ) : error ? (
         <p className="error">{error}</p>
+      ) : filteredLogs.length === 0 ? (
+        <p>No matching logs found for {selectedYear}.</p>
       ) : (
-        Object.keys(visitorData).map((date) => (
-          <div key={date} className="details-section">
-            <h2>{date}</h2>
-            {visitorData[date].map((entry, index) => (
-              <div key={index} className="entry-container">
-                <table className="details-table">
-                  <thead>
-                    <tr>
-                      <th style={{color:'black'}}>Company</th>
-                      <th style={{color:'black'}}>Branch</th>
-                      <th style={{color:'black'}}>Telephone</th>
-                      <th style={{color:'black'}}>Time In</th>
-                      <th style={{color:'black'}}>Time Out</th>
-                      <th style={{color:'black'}}>Purpose</th>
-                      <th style={{color:'black'}}>Department</th>
-                      <th style={{color:'black'}}>Reason</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td>{entry.company || "---"}</td>
-                      <td>{entry.branchName || entry.branchname || "---"}</td>
-                      <td>{entry.telephone || "---"}</td>
-                      <td>{entry.timein || entry.timeIn || "---"}</td>
-                      <td>{entry.timeout || entry.timeOut || "---"}</td>
-                      <td>{entry.purpose || "---"}</td>
-                      <td>{entry.department || "---"}</td>
-                      <td>{entry.reason || "---"}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            ))}
-          </div>
-        ))
+        <div className="table-container">
+          <table className="log-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Company</th>
+                <th>Date</th>
+                <th>Number</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredLogs.map((log) => (
+                <tr
+                  key={log.id || log.name}
+                  onClick={() => handleRowClick(log.name)}
+                  className="clickable-row"
+                >
+                  <td>{log.name}</td>
+                  <td>{log.company}</td>
+                  <td>{formatDate(log.date)}</td>
+                  <td>{log.telephone}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
-      <button onClick={() => navigate(-1)} className="back-button">Back</button>
     </div>
   );
 };
 
-export default VisitorDetail;
+export default VisitorLogs;
