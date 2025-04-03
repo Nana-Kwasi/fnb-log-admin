@@ -286,3 +286,65 @@ const getAllVisitorLogs = async (req, res) => {
     res.status(500).send('Server error');
   }
 };
+
+
+// new
+
+const getAllVisitorLogs = async (req, res) => {
+  try {
+    console.log("Fetching all visitor logs");
+    // Format the date directly in the SQL query to avoid timezone issues
+    const result = await pool.query(`
+      SELECT 
+        id, 
+        TO_CHAR(date, 'YYYY-MM-DD') as date, 
+        timeIn, 
+        timeOut, 
+        department, 
+        company, 
+        picture, 
+        telephone, 
+        reason, 
+        purpose, 
+        name, 
+        branch,
+        branchName
+      FROM visitor_log
+    `);
+    
+    console.log(`Found ${result.rows.length} visitor logs`);
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Database query error:", err);
+    res.status(500).send('Server error');
+  }
+};
+
+const getVisitorLogById = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query(`
+      SELECT 
+        id, 
+        TO_CHAR(date, 'YYYY-MM-DD') as date, 
+        timeIn, 
+        timeOut, 
+        department, 
+        company, 
+        picture, 
+        telephone, 
+        reason, 
+        purpose, 
+        name, 
+        branch,
+        branchName
+      FROM visitor_log 
+      WHERE id = $1
+    `, [id]);
+    
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server error');
+  }
+};
