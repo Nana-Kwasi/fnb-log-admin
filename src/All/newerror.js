@@ -386,3 +386,39 @@ const getVisitorLogsByBranchCode = async (req, res) => {
     res.status(500).send('Server error');
   }
 };
+
+// visitor api
+
+const getAllVisitorLogs = async (req, res) => {
+  try {
+    console.log("Fetching all visitor logs");
+    const result = await pool.query('SELECT * FROM visitor_log');
+    console.log(`Found ${result.rows.length} visitor logs`);
+    console.log("Sample data:", result.rows.slice(0, 2)); // Log first 2 entries
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Database query error:", err);
+    res.status(500).send('Server error');
+  }
+};
+
+const getVisitorLogsByPhoneNumber = async (req, res) => {
+  const { telephone } = req.query;
+  try {
+    const result = await pool.query('SELECT * FROM visitor_log WHERE telephone = $1', [telephone]);
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server error');
+  }
+};
+const getVisitorLogById = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query('SELECT * FROM visitor_log WHERE id = $1', [id]);
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server error');
+  }
+};
