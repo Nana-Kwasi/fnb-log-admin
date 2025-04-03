@@ -350,42 +350,92 @@ export const VisitorProvider = ({ children }) => {
     return `${year}-${month}-${day}`;
   };
 
-  const parseAPIDate = (dateStr) => {
-    if (!dateStr) {
-      console.log("parseAPIDate: No date provided");
-      return null;
-    }
-    console.log(`parseAPIDate: Parsing date string: "${dateStr}"`);
+  // const parseAPIDate = (dateStr) => {
+  //   if (!dateStr) {
+  //     console.log("parseAPIDate: No date provided");
+  //     return null;
+  //   }
+  //   console.log(`parseAPIDate: Parsing date string: "${dateStr}"`);
     
-    if (dateStr instanceof Date) {
-      console.log("parseAPIDate: Input is already a Date object");
-      return dateStr;
+  //   if (dateStr instanceof Date) {
+  //     console.log("parseAPIDate: Input is already a Date object");
+  //     return dateStr;
+  //   }
+    
+  //   try {
+  //     // Handle ISO string format and YYYY-MM-DD format
+  //     if (dateStr.includes("T") || dateStr.includes("-")) {
+  //       const parsedDate = new Date(dateStr);
+  //       console.log(`parseAPIDate: Parsed as ISO/YYYY-MM-DD: ${parsedDate}`);
+  //       return parsedDate;
+  //     }
+      
+  //     // Handle MM/DD/YYYY format
+  //     if (dateStr.includes("/")) {
+  //       const [month, day, year] = dateStr.split('/').map(num => parseInt(num, 10));
+  //       const parsedDate = new Date(year, month - 1, day);
+  //       console.log(`parseAPIDate: Parsed as MM/DD/YYYY: ${parsedDate}`);
+  //       return parsedDate;
+  //     }
+      
+  //     console.log(`parseAPIDate: Unrecognized date format: ${dateStr}`);
+  //     return null;
+  //   } catch (e) {
+  //     console.error(`parseAPIDate: Error parsing date "${dateStr}":`, e);
+  //     return null;
+  //   }
+  // };
+// Update the parseAPIDate function in your VisitorContext.jsx to better handle the YYYY-MM-DD format
+const parseAPIDate = (dateStr) => {
+  if (!dateStr) {
+    console.log("parseAPIDate: No date provided");
+    return null;
+  }
+  console.log(`parseAPIDate: Parsing date string: "${dateStr}"`);
+  
+  if (dateStr instanceof Date) {
+    console.log("parseAPIDate: Input is already a Date object");
+    return dateStr;
+  }
+  
+  try {
+    // For YYYY-MM-DD format (now returned by our API)
+    if (typeof dateStr === 'string' && dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      const [year, month, day] = dateStr.split('-').map(num => parseInt(num, 10));
+      const parsedDate = new Date(year, month - 1, day);
+      console.log(`parseAPIDate: Parsed as YYYY-MM-DD: ${parsedDate}`);
+      return parsedDate;
     }
     
-    try {
-      // Handle ISO string format and YYYY-MM-DD format
-      if (dateStr.includes("T") || dateStr.includes("-")) {
-        const parsedDate = new Date(dateStr);
-        console.log(`parseAPIDate: Parsed as ISO/YYYY-MM-DD: ${parsedDate}`);
-        return parsedDate;
-      }
-      
-      // Handle MM/DD/YYYY format
-      if (dateStr.includes("/")) {
-        const [month, day, year] = dateStr.split('/').map(num => parseInt(num, 10));
-        const parsedDate = new Date(year, month - 1, day);
-        console.log(`parseAPIDate: Parsed as MM/DD/YYYY: ${parsedDate}`);
-        return parsedDate;
-      }
-      
+    // Handle ISO string format (with T)
+    if (typeof dateStr === 'string' && dateStr.includes("T")) {
+      const parsedDate = new Date(dateStr);
+      console.log(`parseAPIDate: Parsed as ISO: ${parsedDate}`);
+      return parsedDate;
+    }
+    
+    // Handle MM/DD/YYYY format
+    if (typeof dateStr === 'string' && dateStr.includes("/")) {
+      const [month, day, year] = dateStr.split('/').map(num => parseInt(num, 10));
+      const parsedDate = new Date(year, month - 1, day);
+      console.log(`parseAPIDate: Parsed as MM/DD/YYYY: ${parsedDate}`);
+      return parsedDate;
+    }
+    
+    // Fallback to standard Date parsing
+    const parsedDate = new Date(dateStr);
+    if (isNaN(parsedDate.getTime())) {
       console.log(`parseAPIDate: Unrecognized date format: ${dateStr}`);
       return null;
-    } catch (e) {
-      console.error(`parseAPIDate: Error parsing date "${dateStr}":`, e);
-      return null;
     }
-  };
-
+    
+    console.log(`parseAPIDate: Parsed with default parser: ${parsedDate}`);
+    return parsedDate;
+  } catch (e) {
+    console.error(`parseAPIDate: Error parsing date "${dateStr}":`, e);
+    return null;
+  }
+};
   // Fetch branch data from API using branch code
   const fetchBranchData = async (branchCode) => {
     setLoading(true);
