@@ -388,11 +388,26 @@ const getVisitorLogsByBranchCode = async (req, res) => {
 };
 
 // visitor api
-
 const getAllVisitorLogs = async (req, res) => {
   try {
     console.log("Fetching all visitor logs");
-    const result = await pool.query('SELECT * FROM visitor_log');
+    const result = await pool.query(`
+      SELECT 
+        id, 
+        TO_CHAR(date, 'YYYY-MM-DD') as date, 
+        timeIn, 
+        timeOut, 
+        department, 
+        company, 
+        picture, 
+        telephone, 
+        reason, 
+        purpose, 
+        name, 
+        branch,
+        branchName
+      FROM visitor_log
+    `);
     console.log(`Found ${result.rows.length} visitor logs`);
     console.log("Sample data:", result.rows.slice(0, 2)); // Log first 2 entries
     res.json(result.rows);
@@ -405,20 +420,101 @@ const getAllVisitorLogs = async (req, res) => {
 const getVisitorLogsByPhoneNumber = async (req, res) => {
   const { telephone } = req.query;
   try {
-    const result = await pool.query('SELECT * FROM visitor_log WHERE telephone = $1', [telephone]);
+    const result = await pool.query(`
+      SELECT 
+        id, 
+        TO_CHAR(date, 'YYYY-MM-DD') as date, 
+        timeIn, 
+        timeOut, 
+        department, 
+        company, 
+        picture, 
+        telephone, 
+        reason, 
+        purpose, 
+        name, 
+        branch,
+        branchName
+      FROM visitor_log 
+      WHERE telephone = $1
+    `, [telephone]);
     res.json(result.rows);
   } catch (err) {
     console.error(err);
     res.status(500).send('Server error');
   }
 };
+
 const getVisitorLogById = async (req, res) => {
   const { id } = req.params;
   try {
-    const result = await pool.query('SELECT * FROM visitor_log WHERE id = $1', [id]);
+    const result = await pool.query(`
+      SELECT 
+        id, 
+        TO_CHAR(date, 'YYYY-MM-DD') as date, 
+        timeIn, 
+        timeOut, 
+        department, 
+        company, 
+        picture, 
+        telephone, 
+        reason, 
+        purpose, 
+        name, 
+        branch,
+        branchName
+      FROM visitor_log 
+      WHERE id = $1
+    `, [id]);
     res.json(result.rows[0]);
   } catch (err) {
     console.error(err);
     res.status(500).send('Server error');
   }
+};
+
+// beenherebefore
+const handleLogin = async () => {
+  if (!phoneNumber.match(/^\d+$/)) {
+    setError('Please enter a valid phone number.');
+    return;
+  }
+
+  setError('');
+  setLoading(true);
+
+  try {
+    const response = await fetch(`http://localhost:5001/visitors/by-phone?telephone=${phoneNumber}`);
+    const data = await response.json();
+
+    if (data.length > 0) {
+      const sortedVisits = data.sort((a, b) => {
+        // Updated sorting logic to handle YYYY-MM-DD formatted dates
+        const dateA = new Date(`${a.date}T${a.timein || a.timeIn}`);
+        const dateB = new Date(`${b.date}T${b.timein || b.timeIn}`);
+        return dateB - dateA;
+      });
+
+      const userDoc = sortedVisits[0]; 
+      
+      setUserInfo(userDoc);
+      setVisitData({
+        telephone: userDoc.telephone || '',
+        company: userDoc.company || '',
+        department: userDoc.department || '',
+        purpose: userDoc.purpose || '',
+        reason: userDoc.reason || '',
+        name: userDoc.name || '',
+        branchName: userDoc.branchname || '',
+        branch: userDoc.branch || '',
+      });
+      setVisitHistory(sortedVisits);
+    } else {
+      setError('No records found for this phone number.');
+    }
+  } catch (err) {
+    console.error('Error fetching user information:', err);
+    setError('Error fetching user information. Please try again.');
+  }
+  setLoading(false);
 };
