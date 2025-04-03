@@ -360,7 +360,22 @@ const getVisitorLogsByBranchCode = async (req, res) => {
   try {
     console.log(`Fetching visitor logs for branch code: ${branchCode}`);
     const result = await pool.query(
-      'SELECT * FROM visitor_log WHERE branch = $1',
+      `SELECT 
+        id,
+        TO_CHAR(date, 'YYYY-MM-DD') AS date,
+        timeIn,
+        timeOut,
+        department,
+        company,
+        picture,
+        telephone,
+        reason,
+        purpose,
+        name,
+        branch,
+        branchName
+      FROM visitor_log 
+      WHERE branch = $1`,
       [branchCode]
     );
     
