@@ -348,3 +348,26 @@ const getVisitorLogById = async (req, res) => {
     res.status(500).send('Server error');
   }
 };
+
+//right api
+const getVisitorLogsByBranchCode = async (req, res) => {
+  const { branchCode } = req.query;
+  
+  if (!branchCode) {
+    return res.status(400).json({ error: 'Branch code is required' });
+  }
+  
+  try {
+    console.log(`Fetching visitor logs for branch code: ${branchCode}`);
+    const result = await pool.query(
+      'SELECT * FROM visitor_log WHERE branch = $1',
+      [branchCode]
+    );
+    
+    console.log(`Found ${result.rows.length} visitor logs for branch code ${branchCode}`);
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Database query error fetching branch logs:", err);
+    res.status(500).send('Server error');
+  }
+};
