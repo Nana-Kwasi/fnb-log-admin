@@ -231,4 +231,43 @@ app.listen(PORT, () => {
 
 // group to serach users from
 APPSTEAM_DEV_IT_Works
- 
+ // request body for the search and authenticate
+ {
+    "fnumber": "string",
+    "password": "string"
+  }
+// controlls accept
+Controls Accept header.
+Example Value
+Schema
+{
+  "statusCode": 0,
+  "statusMessage": "string",
+  "serverTimestamp": "2025-04-09T12:42:05.319Z",
+  "data": {
+    "status_code": "string",
+    "status_message": "string",
+    "server_timestamp": "2025-04-09T12:42:05.319Z",
+    "token": "string"
+  }
+}
+
+// verify controlls accept
+Controls Accept header.
+Example Value
+Schema
+{
+  "status_code": "string",
+  "status_message": "string",
+  "server_timestamp": "2025-04-09T12:44:36.681Z",
+  "data": {
+    "authId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+    "clientId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+    "status": "Pending",
+    "statusMessage": "string",
+    "payload": "string",
+    "dateCreated": "2025-04-09T12:44:36.684Z",
+    "lastUpdated": "2025-04-09T12:44:36.684Z",
+    "fnumber": "string"
+  }
+}
