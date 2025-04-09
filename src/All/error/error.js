@@ -394,19 +394,11 @@ module.exports = {
 /adproxyservice/prod/ldap/search
 
 //request body
-Request body
-
-application/json
-Example Value
-Schema
 {
   "fnumber": "string"
 }
 
-// Controls
-Controls Accept header.
-Example Value
-Schema
+// response
 {
   "statusCode": 0,
   "statusMessage": "string",
@@ -426,11 +418,9 @@ Schema
 }
 
 // auth api
-Request body
+/adproxyservice/prod/Idap/authenticate
 
-application/json
-Example Value
-Schema
+//Request body
 {
   "fnumber": "string",
   "password": "string"
@@ -443,3 +433,173 @@ Schema
     "server_timestamp": "2025-04-09T16:05:25.874Z",
     "token": "string"
   }
+
+
+
+
+  //new users controller
+  const pool = require('../db');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+const axios = require('axios'); // You'll need to install axios
+
+const JWT_SECRET = 'your-secret-key-should-be-in-env-file';
+
+// New function to verify if F-number exists in the APPSTEAM_DEV_IT_Works group
+const verifyFnumber = async (req, res) => {
+  const { fnumber } = req.body;
+
+  if (!fnumber) {
+    return res.status(400).json({ error: 'F-number is required' });
+  }
+
+  try {
+    // Make request to search API
+    const searchApiUrl = '/adproxyservice/prod/ldap/search';
+    const response = await axios.post(searchApiUrl, {
+      fnumber: fnumber
+    });
+
+    // Check if the response indicates a successful search
+    if (response.data.statusCode !== 0) {
+      return res.status(400).json({ 
+        isValid: false, 
+        error: `Search API error: ${response.data.statusMessage}` 
+      });
+    }
+
+    // Check if user belongs to APPSTEAM_DEV_IT_Works group
+    const userGroups = response.data.data.memberOf || [];
+    const isInRequiredGroup = userGroups.some(group => 
+      group.includes('APPSTEAM_DEV_IT_Works')
+    );
+
+    if (!isInRequiredGroup) {
+      return res.status(403).json({ 
+        isValid: false, 
+        error: 'User not a member of the required group' 
+      });
+    }
+
+    // Return user information if valid
+    return res.status(200).json({
+      isValid: true,
+      userData: {
+        name: response.data.data.name,
+        email: response.data.data.email,
+        title: response.data.data.title
+      }
+    });
+  } catch (err) {
+    console.error('F-number verification error:', err);
+    return res.status(500).json({ 
+      isValid: false, 
+      error: 'Server error during F-number verification' 
+    });
+  }
+};
+
+// Modified to use F-number instead of email/password
+const createUser = async (req, res) => {
+  const { email, branch, branchCode, role = 'user' } = req.body;
+
+  try {
+    if (!email || !branch) {
+      return res.status(400).json({ error: 'F-number and branch are required' });
+    }
+
+    const checkUser = await pool.query('SELECT * FROM users_table WHERE email = $1', [email]);
+    if (checkUser.rows.length > 0) {
+      return res.status(400).json({ error: 'User already exists' });
+    }
+
+    // Note: No password hashing since we're no longer storing passwords
+
+    const result = await pool.query(
+      'INSERT INTO users_table (email, branch, branch_code, role, created_at) VALUES ($1, $2, $3, $4, NOW()) RETURNING id, email, branch, role, created_at',
+      [email, branch, branchCode, role]
+    );
+
+    res.status(201).json({
+      message: 'User created successfully',
+      user: {
+        id: result.rows[0].id,
+        email: result.rows[0].email,
+        branch: result.rows[0].branch,
+        role: result.rows[0].role,
+        created_at: result.rows[0].created_at
+      }
+    });
+  } catch (err) {
+    console.error('User creation error:', err);
+    res.status(500).json({ error: 'Server error during user creation' });
+  }
+};
+
+const updateUser = async (req, res) => {
+  const { id } = req.params;
+  const { email, branch, branchCode, role, is_active } = req.body;
+
+  try {
+    const result = await pool.query(
+      'UPDATE users_table SET email = $1, branch = $2, branch_code = $3, role = $4, is_active = COALESCE($5, is_active) WHERE id = $6 RETURNING *',
+      [email, branch, branchCode, role, is_active, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({
+      message: 'User updated successfully',
+      user: {
+        id: result.rows[0].id,
+        email: result.rows[0].email,
+        branch: result.rows[0].branch,
+        role: result.rows[0].role,
+        is_active: result.rows[0].is_active
+      }
+    });
+  } catch (err) {
+    console.error('User update error:', err);
+    res.status(500).json({ error: 'Server error during user update' });
+  }
+};
+
+const getAllUsers = async (req, res) => {
+  try {
+    const result = await pool.query('SELECT id, email, branch, role, created_at, is_active FROM users_table');
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching users:', err);
+    res.status(500).json({ error: 'Server error while fetching users' });
+  }
+};
+
+const deleteUser = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await pool.query('DELETE FROM users_table WHERE id = $1', [id]);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({ message: 'User deleted successfully' });
+  } catch (err) {
+    console.error('User deletion error:', err);
+    res.status(500).json({ error: 'Server error during user deletion' });
+  }
+};
+
+module.exports = {
+  createUser,
+  getAllUsers,
+  updateUser,
+  deleteUser,
+  verifyFnumber  // Export the new function
+};
+
+//add it to the route
+router.post('/verify-fnumber', auth, userController.verifyFnumber);
