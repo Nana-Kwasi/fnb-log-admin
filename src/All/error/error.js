@@ -271,3 +271,116 @@ Schema
     "fnumber": "string"
   }
 }
+
+//users controller
+const pool = require('../db');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+
+const JWT_SECRET = 'your-secret-key-should-be-in-env-file';
+
+const createUser = async (req, res) => {
+  const { email, password, branch, role = 'user' } = req.body;
+
+  try {
+    if (!email || !password || !branch) {
+      return res.status(400).json({ error: 'Email, password, and branch are required' });
+    }
+
+    const checkUser = await pool.query('SELECT * FROM users_table WHERE email = $1', [email]);
+    
+    if (checkUser.rows.length > 0) {
+      return res.status(400).json({ error: 'User already exists' });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    const result = await pool.query(
+      'INSERT INTO users_table (email, password, branch, role, created_at) VALUES ($1, $2, $3, $4, NOW()) RETURNING id, email, branch, role, created_at',
+      [email, hashedPassword, branch, role]
+    );
+
+    res.status(201).json({
+      message: 'User created successfully',
+      user: {
+        id: result.rows[0].id,
+        email: result.rows[0].email,
+        branch: result.rows[0].branch,
+        role: result.rows[0].role,
+        created_at: result.rows[0].created_at
+      }
+    });
+
+  } catch (err) {
+    console.error('User creation error:', err);
+    res.status(500).json({ error: 'Server error during user creation' });
+  }
+};
+
+
+
+const updateUser = async (req, res) => {
+    const { id } = req.params;
+    const { email, branch, role, is_active } = req.body;
+  
+    try {
+      const result = await pool.query(
+        'UPDATE users_table SET email = $1, branch = $2, role = $3, is_active = COALESCE($4, is_active) WHERE id = $5 RETURNING *',
+        [email, branch, role, is_active, id]
+      );
+  
+      if (result.rows.length === 0) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+  
+      res.json({
+        message: 'User updated successfully',
+        user: {
+          id: result.rows[0].id,
+          email: result.rows[0].email,
+          branch: result.rows[0].branch,
+          role: result.rows[0].role,
+          is_active: result.rows[0].is_active
+        }
+      });
+    } catch (err) {
+      console.error('User update error:', err);
+      res.status(500).json({ error: 'Server error during user update' });
+    }
+  };
+  
+  // Update getAllUsers to include is_active
+  const getAllUsers = async (req, res) => {
+    try {
+      const result = await pool.query('SELECT id, email, branch, role, created_at, is_active FROM users_table');
+      res.json(result.rows);
+    } catch (err) {
+      console.error('Error fetching users:', err);
+      res.status(500).json({ error: 'Server error while fetching users' });
+    }
+  };
+  
+const deleteUser = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await pool.query('DELETE FROM users_table WHERE id = $1', [id]);
+    
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({ message: 'User deleted successfully' });
+  } catch (err) {
+    console.error('User deletion error:', err);
+    res.status(500).json({ error: 'Server error during user deletion' });
+  }
+};
+
+module.exports = {
+  createUser,
+  getAllUsers,
+  updateUser,
+  deleteUser
+};
