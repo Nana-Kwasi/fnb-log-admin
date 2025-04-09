@@ -346,15 +346,15 @@ const Login = ({ onLogin }) => {
 
   const { login, loading, error, setError, authenticated } = useVisitor();
 
-  // Updated API URLs
-  const API_URL = "http://localhost:5001/visitors";
+  
+  // const API_URL = "http://localhost:5001/visitors";
   const BRANCHES_URL = "http://localhost:5001/visitors/index";
   const AUTH_URL = "http://localhost:5001/auth";
 
   useEffect(() => {
     if (authenticated && email && manualLoginAttempt) {
       console.log("Authentication successful after manual login attempt, navigating to dashboard");
-      setTimeout(() => { // Delay navigation by 30 seconds
+      setTimeout(() => { 
         onLogin(email);
         setManualLoginAttempt(false);
       }, 30000);
@@ -377,7 +377,6 @@ const Login = ({ onLogin }) => {
         const data = await response.json();
         console.log(`Received ${data.length} branches from API`);
         
-        // Store branches with their names and codes
         const branchOptions = data
           .filter(branch => branch.branchName && branch.branchName.trim() !== "")
           .sort((a, b) => a.branchName.localeCompare(b.branchName));
@@ -410,7 +409,6 @@ const Login = ({ onLogin }) => {
       return;
     }
     
-    // Find the selected branch code from the branches array
     const selectedBranchObj = branches.find(branch => branch.branchName === selectedBranch);
     
     if (!selectedBranchObj) {

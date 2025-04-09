@@ -388,6 +388,7 @@ const getVisitorLogsByBranchCode = async (req, res) => {
 };
 
 // visitor api
+
 const getAllVisitorLogs = async (req, res) => {
   try {
     console.log("Fetching all visitor logs");
@@ -474,6 +475,7 @@ const getVisitorLogById = async (req, res) => {
 };
 
 // beenherebefore
+
 const handleLogin = async () => {
   if (!phoneNumber.match(/^\d+$/)) {
     setError('Please enter a valid phone number.');

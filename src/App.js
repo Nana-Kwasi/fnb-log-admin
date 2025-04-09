@@ -243,12 +243,17 @@ const AppContent = ({ handleLogin, userEmail }) => {
             </NavLink>
           </li>
           <li>
+            <NavLink to="/DispatchDash" className={({ isActive }) => (isActive ? "active" : "")}>
+              <MdReport className="icon" />
+              Dispatch
+            </NavLink>
+          </li>
+          <li>
             <NavLink to="/reports" className={({ isActive }) => (isActive ? "active" : "")}>
               <MdReport className="icon" />
               Reports
             </NavLink>
           </li>
-         
           {isAdmin && (
             <li>
               <NavLink to="/AddUsers" className={({ isActive }) => (isActive ? "active" : "")}>

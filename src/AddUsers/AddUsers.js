@@ -1002,14 +1002,14 @@ const AddUsers = () => {
                 <span 
                   style={{
                     ...styles.statusBadge, 
-                    ...(user.isActive ? styles.statusActive : styles.statusInactive)
+                    // ...(user.isActive ? styles.statusActive : styles.statusInactive)
                   }}
                 >
-                  {user.isActive ? 'Active' : 'Inactive'}
+                  {user.isActive }
                 </span>
               </div>
               <div>
-                <button 
+                {/* <button 
                   onClick={() => handleToggleUserStatus(user)}
                   style={{
                     ...styles.actionButton, 
@@ -1019,7 +1019,7 @@ const AddUsers = () => {
                   disabled={loading}
                 >
                   {user.isActive ? 'Disable' : 'Enable'}
-                </button>
+                </button> */}
                 <button 
                   onClick={() => {
                     setExpandedUserId(expandedUserId === user.id ? null : user.id);
