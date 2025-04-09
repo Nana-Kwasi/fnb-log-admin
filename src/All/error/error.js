@@ -231,12 +231,17 @@ app.listen(PORT, () => {
 
 // group to serach users from
 APPSTEAM_DEV_IT_Works
+
+
+
+// below is the new endpoints request body and how the controller should be like
+
  // request body for the search and authenticate
  {
     "fnumber": "string",
     "password": "string"
   }
-// controlls accept
+// search and authenticate controlls accept
 Controls Accept header.
 Example Value
 Schema

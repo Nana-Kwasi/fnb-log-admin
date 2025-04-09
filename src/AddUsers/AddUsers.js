@@ -490,6 +490,7 @@
 
 
 //new addusers
+
 import React, { useState, useEffect } from "react";
 import { useVisitor } from "../context/VisitorContext";
 
@@ -775,145 +776,8 @@ const AddUsers = () => {
   };
 
   // Styles (same as previous implementation)
-  const styles = {
-    container: {
-      display: 'flex',
-      padding: '20px',
-      backgroundColor: '#f0f2f5',
-      minHeight: '100vh',
-    },
-    leftPanel: {
-      width: '60%',
-      paddingRight: '20px',
-    },
-    rightPanel: {
-      width: '50%',
-      overflowY: 'auto',
-      maxHeight: '100vh',
-    },
-    card: {
-      background: '#fff',
-      padding: '2rem',
-      borderRadius: '8px',
-      boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
-      marginBottom: '20px',
-    },
-    input: {
-      width: '100%',
-      padding: '0.75rem',
-      marginBottom: '1rem',
-      border: '1px solid #ccc',
-      borderRadius: '4px',
-      fontSize: '1rem',
-    },
-    select: {
-      width: '100%',
-      padding: '0.75rem',
-      marginBottom: '1rem',
-      border: '1px solid #ccc',
-      borderRadius: '4px',
-      fontSize: '1rem',
-      position: 'relative',
-    },
-    selectContainer: {
-      position: 'relative',
-      marginBottom: '1rem',
-    },
-    selectSpinner: {
-      position: 'absolute',
-      right: '10px',
-      top: '50%',
-      transform: 'translateY(-50%)',
-      width: '20px',
-      height: '20px',
-      border: '2px solid #f3f3f3',
-      borderTop: '2px solid #3498db',
-      borderRadius: '50%',
-      animation: 'spin 1s linear infinite',
-    },
-    userCard: {
-      backgroundColor: '#fff',
-      borderRadius: '8px',
-      boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
-      margin: '10px 0',
-      padding: '15px',
-    },
-    button: {
-      width: '100%',
-      padding: '0.75rem',
-      backgroundColor: '#007bff',
-      color: '#fff',
-      border: 'none',
-      borderRadius: '4px',
-      fontSize: '1rem',
-      cursor: 'pointer',
-      transition: 'background-color 0.3s ease',
-    },
-    errorMessage: {
-      color: '#e74c3c',
-      marginBottom: '1rem',
-    },
-    successMessage: {
-      color: '#2ecc71',
-      marginBottom: '1rem',
-    },
-    actionButton: {
-      padding: '8px 15px',
-      margin: '0 5px',
-      borderRadius: '4px',
-      cursor: 'pointer',
-    },
-    deleteButton: {
-      backgroundColor: 'red',
-      color: 'white',
-      border: 'none',
-    },
-    editButton: {
-      backgroundColor: '#007bff',
-      color: 'white',
-      border: 'none',
-    },
-    confirmationDialog: {
-      position: 'fixed',
-      top: '50%',
-      left: '50%',
-      transform: 'translate(-50%, -50%)',
-      padding: '20px',
-      border: '1px solid #ccc',
-      borderRadius: '8px',
-      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-      backgroundColor: 'white',
-      zIndex: 1000,
-    },
-    statusBadge: {
-      display: 'inline-block',
-      padding: '3px 8px',
-      borderRadius: '4px',
-      fontSize: '12px',
-      fontWeight: 'bold',
-      marginLeft: '10px',
-    },
-    statusActive: {
-      backgroundColor: '#4CAF50',
-      color: 'white',
-    },
-    statusInactive: {
-      backgroundColor: '#F44336',
-      color: 'white',
-    },
-    toggleButton: {
-      padding: '6px 12px',
-      borderRadius: '4px',
-      cursor: 'pointer',
-      border: 'none',
-      color: 'white',
-    },
-    enableButton: {
-      backgroundColor: '#4CAF50',
-    },
-    disableButton: {
-      backgroundColor: '#F44336',
-    },
+   const styles = {
+    
   };
 
   return (
