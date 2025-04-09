@@ -389,3 +389,57 @@ module.exports = {
   updateUser,
   deleteUser
 };
+
+// search api
+/adproxyservice/prod/ldap/search
+
+//request body
+Request body
+
+application/json
+Example Value
+Schema
+{
+  "fnumber": "string"
+}
+
+// Controls
+Controls Accept header.
+Example Value
+Schema
+{
+  "statusCode": 0,
+  "statusMessage": "string",
+  "serverTimestamp": "2025-04-09T16:02:49.354Z",
+  "data": {
+    "userId": "string",
+    "mobile": "string",
+    "email": "string",
+    "userPrincipalName": "string",
+    "title": "string",
+    "name": "string",
+    "manager": "string",
+    "memberOf": [
+      "string"
+    ]
+  }
+}
+
+// auth api
+Request body
+
+application/json
+Example Value
+Schema
+{
+  "fnumber": "string",
+  "password": "string"
+}
+
+// response
+{
+    "status_code": "string",
+    "status_message": "string",
+    "server_timestamp": "2025-04-09T16:05:25.874Z",
+    "token": "string"
+  }
