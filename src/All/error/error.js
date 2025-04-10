@@ -975,3 +975,21 @@ module.exports = {
   deleteUser,
   verifyFnumber  
 };
+
+
+
+// ssl error
+const verifyFnumber = async (req, res) => {
+    const { fnumber } = req.body;
+  
+    if (!fnumber) {
+      return res.status(400).json({ error: 'F-number is required' });
+    }
+  
+    try {
+      const searchApiUrl = 'http://172.29.18.126/adproxyservice/prod/ldap/search';
+      const response = await axios.post(searchApiUrl, {
+        fnumber: fnumber
+      }, { 
+        httpsAgent: new require('https').Agent({ rejectUnauthorized: false }) 
+      });
