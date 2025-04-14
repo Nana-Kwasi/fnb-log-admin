@@ -996,43 +996,7 @@ module.exports = {
 
 
 
-      //new error
-      PS C:\Users\f8877557\file-backend> cd new-backend
-PS C:\Users\f8877557\file-backend\new-backend> node server.js
-Server is running on port 5001
-Health check available at: http://localhost:5001/health
-Auth endpoints available at: http://localhost:5001/auth/login
-Connected to the database
-2025-04-10T10:59:20.655Z - GET /visitors/index
-Fetching all unique branches
-2025-04-10T10:59:20.661Z - GET /visitors/index
-Fetching all unique branches
-2025-04-10T10:59:20.663Z - GET /auth/verify
-Route not found: GET /auth/verify
-2025-04-10T10:59:20.667Z - GET /auth/verify
-Route not found: GET /auth/verify
-Found 6 unique branches
-Found 6 unique branches
-2025-04-10T10:59:25.930Z - GET /visitors/index
-Fetching all unique branches
-2025-04-10T10:59:25.933Z - GET /visitors/index
-Fetching all unique branches
-Found 6 unique branches
-Found 6 unique branches
-2025-04-10T10:59:31.183Z - POST /auth/login
-Login attempt: admin@fnb.com for branch ACCRA BRANCH
-2025-04-10T10:59:31.264Z - GET /visitors/index/branch?branchCode=330102
-Fetching visitor logs for branch code: 330102
-Found 2 visitor logs for branch code 330102
-2025-04-10T10:59:31.296Z - GET /visitors/index
-Fetching all unique branches
-Found 6 unique branches
-2025-04-10T10:59:31.301Z - GET /visitors/index
-Fetching all unique branches
-Found 6 unique branches
-2025-04-10T10:59:31.309Z - GET /users
-2025-04-10T10:59:31.319Z - GET /users
-2025-04-10T10:59:42.817Z - POST /users/verify-fnumber
+//new error
 F-number verification error: AxiosError: Request failed with status code 403
     at settle (C:\Users\f8877557\file-backend\new-backend\node_modules\axios\dist\node\axios.cjs:2031:12)
     at IncomingMessage.handleStreamEnd (C:\Users\f8877557\file-backend\new-backend\node_modules\axios\dist\node\axios.cjs:3148:11)
@@ -1089,7 +1053,7 @@ F-number verification error: AxiosError: Request failed with status code 403
       [Symbol(kCapture)]: false
     },
     method: 'post',
-    url: 'http://172.29.18.126/adproxyservice/prod/ldap/search',
+    url: 'https://172.29.18.126/adproxyservice/prod/ldap/search',
     data: '{"fnumber":"F8877557"}',
     allowAbsoluteUrls: true
   },
@@ -1114,21 +1078,23 @@ F-number verification error: AxiosError: Request failed with status code 403
     shouldKeepAlive: false,
     maxRequestsOnConnectionReached: false,
     _defaultKeepAlive: true,
-    useChunkedEncodingByDefault: false,
+    useChunkedEncodingByDefault: true,
     sendDate: false,
     _removedConnection: false,
     _removedContLen: false,
     _removedTE: false,
     strictContentLength: false,
-    _contentLength: 0,
+    _contentLength: '22',
     _hasBody: true,
     _trailer: '',
     finished: true,
     _headerSent: true,
     _closed: false,
-    _header: 'GET /adproxyservice/prod/ldap/search HTTP/1.1\r\n' +
+    _header: 'POST /adproxyservice/prod/ldap/search HTTP/1.1\r\n' +
       'Accept: application/json, text/plain, */*\r\n' +
+      'Content-Type: application/json\r\n' +
       'User-Agent: axios/1.8.4\r\n' +
+      'Content-Length: 22\r\n' +
       'Accept-Encoding: gzip, compress, deflate, br\r\n' +
       'Host: 172.29.18.126\r\n' +
       'Connection: close\r\n' +
@@ -1158,7 +1124,7 @@ F-number verification error: AxiosError: Request failed with status code 403
       [Symbol(kCapture)]: false
     },
     socketPath: undefined,
-    method: 'GET',
+    method: 'POST',
     maxHeaderSize: undefined,
     insecureHTTPParser: undefined,
     joinDuplicateHeaders: undefined,
@@ -1211,7 +1177,7 @@ F-number verification error: AxiosError: Request failed with status code 403
       _options: [Object],
       _ended: true,
       _ending: true,
-      _redirectCount: 1,
+      _redirectCount: 0,
       _redirects: [],
       _requestBodyLength: 22,
       _requestBodyBuffers: [],
@@ -1219,7 +1185,6 @@ F-number verification error: AxiosError: Request failed with status code 403
       _onNativeResponse: [Function (anonymous)],
       _currentRequest: [Circular *1],
       _currentUrl: 'https://172.29.18.126/adproxyservice/prod/ldap/search',
-      _isRedirect: true,
       [Symbol(shapeMode)]: true,
       [Symbol(kCapture)]: false
     },
@@ -1268,7 +1233,7 @@ F-number verification error: AxiosError: Request failed with status code 403
       [Symbol(res)]: [TLSWrap],
       [Symbol(verified)]: true,
       [Symbol(pendingSession)]: null,
-      [Symbol(async_id_symbol)]: 330,
+      [Symbol(async_id_symbol)]: 469,
       [Symbol(kHandle)]: [TLSWrap],
       [Symbol(lastWriteQueueSize)]: 0,
       [Symbol(timeout)]: null,
@@ -1286,7 +1251,9 @@ F-number verification error: AxiosError: Request failed with status code 403
     },
     [Symbol(kOutHeaders)]: [Object: null prototype] {
       accept: [Array],
+      'content-type': [Array],
       'user-agent': [Array],
+      'content-length': [Array],
       'accept-encoding': [Array],
       host: [Array]
     },
@@ -1300,7 +1267,7 @@ F-number verification error: AxiosError: Request failed with status code 403
     statusText: '',
     headers: Object [AxiosHeaders] {
       server: 'nginx/1.20.1',
-      date: 'Thu, 10 Apr 2025 10:59:00 GMT',
+      date: 'Mon, 14 Apr 2025 14:32:18 GMT',
       'content-type': 'application/json;charset=UTF-8',
       'content-length': '120',
       connection: 'close'
@@ -1320,7 +1287,7 @@ F-number verification error: AxiosError: Request failed with status code 403
       headers: [Object [AxiosHeaders]],
       httpsAgent: [Agent],
       method: 'post',
-      url: 'http://172.29.18.126/adproxyservice/prod/ldap/search',
+      url: 'https://172.29.18.126/adproxyservice/prod/ldap/search',
       data: '{"fnumber":"F8877557"}',
       allowAbsoluteUrls: true
     },
@@ -1337,21 +1304,23 @@ F-number verification error: AxiosError: Request failed with status code 403
       shouldKeepAlive: false,
       maxRequestsOnConnectionReached: false,
       _defaultKeepAlive: true,
-      useChunkedEncodingByDefault: false,
+      useChunkedEncodingByDefault: true,
       sendDate: false,
       _removedConnection: false,
       _removedContLen: false,
       _removedTE: false,
       strictContentLength: false,
-      _contentLength: 0,
+      _contentLength: '22',
       _hasBody: true,
       _trailer: '',
       finished: true,
       _headerSent: true,
       _closed: false,
-      _header: 'GET /adproxyservice/prod/ldap/search HTTP/1.1\r\n' +
+      _header: 'POST /adproxyservice/prod/ldap/search HTTP/1.1\r\n' +
         'Accept: application/json, text/plain, */*\r\n' +
+        'Content-Type: application/json\r\n' +
         'User-Agent: axios/1.8.4\r\n' +
+        'Content-Length: 22\r\n' +
         'Accept-Encoding: gzip, compress, deflate, br\r\n' +
         'Host: 172.29.18.126\r\n' +
         'Connection: close\r\n' +
@@ -1360,7 +1329,7 @@ F-number verification error: AxiosError: Request failed with status code 403
       _onPendingData: [Function: nop],
       agent: [Agent],
       socketPath: undefined,
-      method: 'GET',
+      method: 'POST',
       maxHeaderSize: undefined,
       insecureHTTPParser: undefined,
       joinDuplicateHeaders: undefined,
@@ -1385,24 +1354,14 @@ F-number verification error: AxiosError: Request failed with status code 403
       [Symbol(kChunkedLength)]: 0,
       [Symbol(kSocket)]: [TLSSocket],
       [Symbol(kOutHeaders)]: [Object: null prototype],
-      [Symbol(kSocket)]: [TLSSocket],
-      [Symbol(kOutHeaders)]: [Object: null prototype],
-      [Symbol(kOutHeaders)]: [Object: null prototype],
       [Symbol(errored)]: null,
-      [Symbol(kHighWaterMark)]: 16384,
       [Symbol(kHighWaterMark)]: 16384,
       [Symbol(kRejectNonStandardBodyWrites)]: false,
       [Symbol(kUniqueHeaders)]: null
     },
-    },
-    data: {
     data: {
       statusCode: 1,
-      statusCode: 1,
       statusMessage: 'Required header param Authorization was not passed',
-      serverTimestamp: null,
-      statusMessage: 'Required header param Authorization was not passed',
-      serverTimestamp: null,
       serverTimestamp: null,
       data: null
     }
@@ -1410,3 +1369,20 @@ F-number verification error: AxiosError: Request failed with status code 403
   status: 403
 }
 
+
+// create token
+//request body
+{
+  "clientId": "8CA09F75-720F-4641-9B70-5344850DF34E",
+  "duration": 300
+}
+https://172.29.18.126/adproxyservice/prod/client/create-token
+
+// serach for user
+// request body
+{
+  "fnumber": "f8872780"
+}
+
+// api endpoint
+https://172.29.18.126/adproxyservice/prod/ldap/search
