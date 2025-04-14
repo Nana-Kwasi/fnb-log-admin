@@ -1025,6 +1025,8 @@ const verifyFnumber = async (req, res) => {
   try {
     // Step 1: Create token using client ID
     const createTokenUrl = 'https://172.29.18.126/adproxyservice/prod/client/create-token';
+    console.log('Requesting token from:', createTokenUrl);
+    
     const tokenResponse = await axios.post(createTokenUrl, {
       clientId: "8CA09F75-720F-4641-9B70-5344850DF34E",
       duration: 300
@@ -1032,17 +1034,29 @@ const verifyFnumber = async (req, res) => {
       httpsAgent: new require('https').Agent({ rejectUnauthorized: false }) 
     });
 
-    if (!tokenResponse.data || !tokenResponse.data.token) {
+    console.log('Token response status:', tokenResponse.status);
+    console.log('Token response data:', JSON.stringify(tokenResponse.data, null, 2));
+
+    // Check if token exists in the response
+    if (!tokenResponse.data || tokenResponse.data.statusCode !== 0 || !tokenResponse.data.data || !tokenResponse.data.data.token) {
+      console.error('Invalid token response:', tokenResponse.data);
       return res.status(400).json({ 
         isValid: false, 
-        error: 'Failed to obtain authorization token' 
+        error: `Failed to obtain authorization token: ${
+          tokenResponse.data && tokenResponse.data.statusMessage 
+            ? tokenResponse.data.statusMessage 
+            : 'Unknown error'
+        }` 
       });
     }
 
-    const authToken = tokenResponse.data.token;
+    const authToken = tokenResponse.data.data.token;
+    console.log('Successfully obtained token');
 
     // Step 2: Use the token to search for the user
     const searchApiUrl = 'https://172.29.18.126/adproxyservice/prod/ldap/search';
+    console.log('Searching for user at:', searchApiUrl);
+    
     const response = await axios.post(searchApiUrl, {
       fnumber: fnumber
     }, { 
@@ -1052,6 +1066,9 @@ const verifyFnumber = async (req, res) => {
       httpsAgent: new require('https').Agent({ rejectUnauthorized: false }) 
     });
 
+    console.log('Search response status:', response.status);
+    console.log('Search response data:', JSON.stringify(response.data, null, 2));
+
     if (response.data.statusCode !== 0) {
       return res.status(400).json({ 
         isValid: false, 
@@ -1059,8 +1076,7 @@ const verifyFnumber = async (req, res) => {
       });
     }
 
-    // We don't need to check for group membership as it's handled server-side
-    // Just return the user data if found
+    // Return the user data if found
     return res.status(200).json({
       isValid: true,
       userData: {
@@ -1070,10 +1086,17 @@ const verifyFnumber = async (req, res) => {
       }
     });
   } catch (err) {
-    console.error('F-number verification error:', err);
+    console.error('F-number verification error details:', err.message);
+    
+    // If there's a response in the error, log it
+    if (err.response) {
+      console.error('Error response status:', err.response.status);
+      console.error('Error response data:', JSON.stringify(err.response.data, null, 2));
+    }
+    
     return res.status(500).json({ 
       isValid: false, 
-      error: 'Server error during F-number verification' 
+      error: `Server error during F-number verification: ${err.message}` 
     });
   }
 };
