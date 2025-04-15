@@ -1221,6 +1221,8 @@ const verifyFnumber = async (req, res) => {
 
 // new controllers
 //approach 1
+
+
 const verifyFnumber = async (req, res) => {
   const { fnumber } = req.body;
 
@@ -1377,6 +1379,7 @@ function processSuccessResponse(response, res) {
 }
 
 // 2
+
 const verifyFnumber = async (req, res) => {
   const { fnumber } = req.body;
 
@@ -1479,4 +1482,118 @@ const verifyFnumber = async (req, res) => {
   }
 };
 
-// 3
+// 2 approach error
+PS C:\Users\f8877557\file-backend> cd new-backend
+PS C:\Users\f8877557\file-backend\new-backend> node server.js
+Server is running on port 5001
+Health check available at: http://localhost:5001/health
+Auth endpoints available at: http://localhost:5001/auth/login
+Connected to the database
+2025-04-15T09:19:06.580Z - GET /auth/verify
+Route not found: GET /auth/verify
+2025-04-15T09:19:06.585Z - GET /visitors/index
+Fetching all unique branches
+2025-04-15T09:19:06.588Z - GET /auth/verify
+Route not found: GET /auth/verify
+2025-04-15T09:19:06.590Z - GET /visitors/index
+Fetching all unique branches
+Found 6 unique branches
+Found 6 unique branches
+2025-04-15T09:19:11.896Z - POST /auth/login
+Login attempt: admin@fnb.com for branch ACCRA BRANCH
+2025-04-15T09:19:12.009Z - GET /visitors/index/branch?branchCode=330102
+Fetching visitor logs for branch code: 330102
+Found 2 visitor logs for branch code 330102
+2025-04-15T09:19:12.024Z - GET /visitors/index
+Fetching all unique branches
+Found 6 unique branches
+2025-04-15T09:19:12.029Z - GET /visitors/index
+Fetching all unique branches
+Found 6 unique branches
+2025-04-15T09:19:12.044Z - GET /users
+2025-04-15T09:19:12.054Z - GET /users
+2025-04-15T09:19:30.215Z - POST /users/verify-fnumber
+Requesting token from: https://172.29.18.126/adproxyservice/prod/client/create-token
+Token response status: 200
+Token response data: {
+  "statusCode": 0,
+  "statusMessage": "Success",
+  "serverTimestamp": "2025-04-15T09:18:50.621773783",
+  "data": {
+    "clientId": "8ca09f75-720f-4641-9b70-5344850df34e",
+    "code": "vl_123",
+    "email": "visitors@gmail.com",
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI4Y2EwOWY3NS03MjBmLTQ2NDEtOWI3MC01MzQ0ODUwZGYzNGUiLCJpYXQiOjE3NDQ3MDg3MzAsImV4cCI6MTc0NDcwOTAzMH0.-AwqqoPyB2aSBhkso1-Tl5S4ce3DhIzUax24iQcNTSg",
+    "tokenExpiryDate": "2025-04-14T17:07:35.929133"
+  }
+}
+Successfully obtained token
+Token value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI4Y2EwOWY3NS03MjBmLTQ2NDEtOWI3MC01MzQ0ODUwZGYzNGUiLCJpYXQiOjE3NDQ3MDg3MzAsImV4cCI6MTc0NDcwOTAzMH0.-AwqqoPyB2aSBhkso1-Tl5S4ce3DhIzUax24iQcNTSg
+Searching for user at: https://172.29.18.126/adproxyservice/prod/ldap/search
+Request body: {
+  "fnumber": "f5353203"
+}
+Request headers: {
+  "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI4Y2EwOWY3NS03MjBmLTQ2NDEtOWI3MC01MzQ0ODUwZGYzNGUiLCJpYXQiOjE3NDQ3MDg3MzAsImV4cCI6MTc0NDcwOTAzMH0.-AwqqoPyB2aSBhkso1-Tl5S4ce3DhIzUax24iQcNTSg"
+}
+Full request config: {
+  "method": "post",
+  "url": "https://172.29.18.126/adproxyservice/prod/ldap/search",
+  "headers": {
+    "Accept": "application/json, text/plain, */*",
+    "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI4Y2EwOWY3NS03MjBmLTQ2NDEtOWI3MC01MzQ0ODUwZGYzNGUiLCJpYXQiOjE3NDQ3MDg3MzAsImV4cCI6MTc0NDcwOTAzMH0.-AwqqoPyB2aSBhkso1-Tl5S4ce3DhIzUax24iQcNTSg"
+  },
+  "data": {
+    "fnumber": "f5353203"
+  }
+}
+F-number verification error details: Request failed with status code 401
+Error response status: 401
+Error response data: {
+  "statusCode": 1,
+  "statusMessage": "Unauthorized. Invalidtoken",
+  "serverTimestamp": null,
+  "data": null
+}
+Error response headers: {
+  "server": "nginx/1.20.1",
+  "date": "Tue, 15 Apr 2025 09:18:50 GMT",
+  "content-type": "application/json;charset=UTF-8",
+  "content-length": "96",
+  "connection": "close"
+}
+
+
+// 1 approach error
+PS C:\Users\f8877557\file-backend> cd new-backend
+PS C:\Users\f8877557\file-backend\new-backend> node server.js
+Server is running on port 5001
+Health check available at: http://localhost:5001/health
+Auth endpoints available at: http://localhost:5001/auth/login
+Connected to the database
+2025-04-15T09:22:48.672Z - POST /users/verify-fnumber
+Requesting token from: https://172.29.18.126/adproxyservice/prod/client/create-token
+Token response status: 200
+Token response data: {
+  "statusCode": 0,
+  "statusMessage": "Success",
+  "serverTimestamp": "2025-04-15T09:22:09.007669137",
+  "data": {
+    "clientId": "8ca09f75-720f-4641-9b70-5344850df34e",
+    "code": "vl_123",
+    "email": "visitors@gmail.com",
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI4Y2EwOWY3NS03MjBmLTQ2NDEtOWI3MC01MzQ0ODUwZGYzNGUiLCJpYXQiOjE3NDQ3MDg5MjksImV4cCI6MTc0NDcwOTIyOX0.J0c-Lfmhwd6IrXiRytiDiQZACDZEHi6cQhqtxSOL1hI",
+    "tokenExpiryDate": "2025-04-14T17:07:35.929133"
+  }
+}
+Successfully obtained token
+Searching for user at: https://172.29.18.126/adproxyservice/prod/ldap/search
+Attempting API call with token as-is in Authorization header
+Direct token approach failed: Request failed with status code 401
+Attempting API call with Bearer prefix
+Bearer prefix approach failed: Request failed with status code 401
+Attempting API call with token in request body
+Token in body approach failed: Request failed with status code 403
+Attempting API call with x-auth-token header
+x-auth-token header approach failed: Request failed with status code 403
+F-number verification error details: All authentication approaches failed
