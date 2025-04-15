@@ -1483,6 +1483,7 @@ const verifyFnumber = async (req, res) => {
 };
 
 // 2 approach error
+
 PS C:\Users\f8877557\file-backend> cd new-backend
 PS C:\Users\f8877557\file-backend\new-backend> node server.js
 Server is running on port 5001
@@ -1597,3 +1598,168 @@ Token in body approach failed: Request failed with status code 403
 Attempting API call with x-auth-token header
 x-auth-token header approach failed: Request failed with status code 403
 F-number verification error details: All authentication approaches failed
+
+
+// new apprao
+const verifyFnumber = async (req, res) => {
+  const { fnumber } = req.body;
+
+  if (!fnumber) {
+    return res.status(400).json({ error: 'F-number is required' });
+  }
+
+  try {
+    // Step 1: Create token using client ID
+    const createTokenUrl = 'https://172.29.18.126/adproxyservice/prod/client/create-token';
+    console.log('Requesting token from:', createTokenUrl);
+    
+    const tokenResponse = await axios.post(createTokenUrl, {
+      clientId: "8CA09F75-720F-4641-9B70-5344850DF34E",
+      duration: 300
+    }, { 
+      httpsAgent: new require('https').Agent({ rejectUnauthorized: false }) 
+    });
+
+    console.log('Token response status:', tokenResponse.status);
+    console.log('Token response data:', JSON.stringify(tokenResponse.data, null, 2));
+
+    // Check if token exists in the response
+    if (!tokenResponse.data || tokenResponse.data.statusCode !== 0 || !tokenResponse.data.data || !tokenResponse.data.data.token) {
+      console.error('Invalid token response:', tokenResponse.data);
+      return res.status(400).json({ 
+        isValid: false, 
+        error: `Failed to obtain authorization token: ${
+          tokenResponse.data && tokenResponse.data.statusMessage 
+            ? tokenResponse.data.statusMessage 
+            : 'Unknown error'
+        }` 
+      });
+    }
+
+    const authToken = tokenResponse.data.data.token;
+    console.log('Successfully obtained token');
+
+    // Step 2: Use the token to search for the user
+    const searchApiUrl = 'https://172.29.18.126/adproxyservice/prod/ldap/search';
+    console.log('Searching for user at:', searchApiUrl);
+    
+    // Based on the API documentation, try the correct approach
+    console.log('Attempting API call with token in Authorization header');
+    try {
+      const response = await axios.post(searchApiUrl, {
+        fnumber: fnumber
+      }, { 
+        headers: {
+          'Authorization': authToken,
+          'Content-Type': 'application/json'
+        },
+        httpsAgent: new require('https').Agent({ rejectUnauthorized: false }) 
+      });
+      
+      console.log('Search response status:', response.status);
+      console.log('Search response data:', JSON.stringify(response.data, null, 2));
+
+      if (response.data.statusCode !== 0) {
+        return res.status(400).json({ 
+          isValid: false, 
+          error: `Search API error: ${response.data.statusMessage}` 
+        });
+      }
+
+      // Check if the user belongs to APPSTEAM_DEV_IT_Works group
+      const isInWorkGroup = response.data.data.memberOf && 
+                            response.data.data.memberOf.some(group => 
+                              group.includes('APPSTEAM_DEV_IT_Works'));
+      
+      if (!isInWorkGroup) {
+        return res.status(403).json({
+          isValid: false,
+          error: 'User not found in APPSTEAM_DEV_IT_Works group'
+        });
+      }
+
+      // Return the user data if found and in correct group
+      return res.status(200).json({
+        isValid: true,
+        userData: {
+          name: response.data.data.name,
+          email: response.data.data.email,
+          title: response.data.data.title,
+          memberOf: response.data.data.memberOf
+        }
+      });
+    } catch (err) {
+      console.error('Search API call failed:', err.message);
+      
+      // If there's a response in the error, log it
+      if (err.response) {
+        console.error('Error response status:', err.response.status);
+        console.error('Error response data:', JSON.stringify(err.response.data, null, 2));
+      }
+      
+      // Check if there might be an issue with HTTP vs HTTPS
+      console.log('Attempting with different protocol...');
+      try {
+        // Try with http instead of https in case that's an issue
+        const httpSearchApiUrl = searchApiUrl.replace('https://', 'http://');
+        const response = await axios.post(httpSearchApiUrl, {
+          fnumber: fnumber
+        }, { 
+          headers: {
+            'Authorization': authToken,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        // Process successful response
+        console.log('Search response status:', response.status);
+        console.log('Search response data:', JSON.stringify(response.data, null, 2));
+        
+        // Same validation logic as above
+        if (response.data.statusCode !== 0) {
+          return res.status(400).json({ 
+            isValid: false, 
+            error: `Search API error: ${response.data.statusMessage}` 
+          });
+        }
+
+        const isInWorkGroup = response.data.data.memberOf && 
+                            response.data.data.memberOf.some(group => 
+                              group.includes('APPSTEAM_DEV_IT_Works'));
+        
+        if (!isInWorkGroup) {
+          return res.status(403).json({
+            isValid: false,
+            error: 'User not found in APPSTEAM_DEV_IT_Works group'
+          });
+        }
+
+        return res.status(200).json({
+          isValid: true,
+          userData: {
+            name: response.data.data.name,
+            email: response.data.data.email,
+            title: response.data.data.title,
+            memberOf: response.data.data.memberOf
+          }
+        });
+      } catch (httpErr) {
+        console.error('HTTP attempt also failed:', httpErr.message);
+        throw new Error(`Failed to authenticate with the search API: ${err.message}`);
+      }
+    }
+  } catch (err) {
+    console.error('F-number verification error details:', err.message);
+    
+    // If there's a response in the error, log it
+    if (err.response) {
+      console.error('Error response status:', err.response.status);
+      console.error('Error response data:', JSON.stringify(err.response.data, null, 2));
+    }
+    
+    return res.status(500).json({ 
+      isValid: false, 
+      error: `Server error during F-number verification: ${err.message}` 
+    });
+  }
+};
