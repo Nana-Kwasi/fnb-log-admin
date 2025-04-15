@@ -512,89 +512,84 @@ const verifyFnumber = async (req, res) => {
       });
     }
 
-    const rawToken = tokenResponse.data.data.token;
-    // Format as Bearer token
-    const authToken = `Bearer ${rawToken}`;
+    // Get the raw token
+    const token = tokenResponse.data.data.token;
     console.log('Successfully obtained token');
-    console.log('Using authorization header:', authToken);
+    console.log('Token value:', token);
 
     // Step 2: Use the token to search for the user
     const searchApiUrl = 'https://172.29.18.126/adproxyservice/prod/ldap/search';
     console.log('Searching for user at:', searchApiUrl);
     
-    console.log('Attempting API call with Bearer token in Authorization header');
-    try {
-      // Log the exact request configuration for debugging
-      const requestConfig = {
-        url: searchApiUrl,
-        method: 'post',
-        data: { fnumber: fnumber },
-        headers: {
-          'Authorization': authToken,
-          'Content-Type': 'application/json'
-        },
-        httpsAgent: new require('https').Agent({ rejectUnauthorized: false })
-      };
-      
-      console.log('Request configuration:', JSON.stringify({
-        url: requestConfig.url,
-        method: requestConfig.method,
-        headers: requestConfig.headers,
-        data: requestConfig.data
-      }, null, 2));
-      
-      const response = await axios(requestConfig);
-      
-      console.log('Search response status:', response.status);
-      console.log('Search response data:', JSON.stringify(response.data, null, 2));
+    // Log the request details for debugging
+    console.log('Request body:', JSON.stringify({ fnumber }, null, 2));
+    console.log('Request headers:', JSON.stringify({ 
+      'Authorization': `Bearer ${token}`
+    }, null, 2));
+    
+    // Make the search request - note how we're setting the headers properly here
+    const searchResponse = await axios({
+      method: 'post',
+      url: searchApiUrl,
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      data: { fnumber },
+      httpsAgent: new require('https').Agent({ rejectUnauthorized: false })
+    });
+    
+    // Log full request config for debugging
+    console.log('Full request config:', JSON.stringify({
+      method: 'post',
+      url: searchApiUrl,
+      headers: {
+        'Accept': 'application/json, text/plain, */*',
+        'Authorization': `Bearer ${token}`
+      },
+      data: { fnumber }
+    }, null, 2));
 
-      if (response.data.statusCode !== 0) {
-        return res.status(400).json({ 
-          isValid: false, 
-          error: `Search API error: ${response.data.statusMessage}` 
-        });
-      }
+    console.log('Search response status:', searchResponse.status);
+    console.log('Search response data:', JSON.stringify(searchResponse.data, null, 2));
 
-      // Check if the user belongs to APPSTEAM_DEV_IT_Works group
-      const isInWorkGroup = response.data.data.memberOf && 
-                            response.data.data.memberOf.some(group => 
-                              group.includes('APPSTEAM_DEV_IT_Works'));
-      
-      if (!isInWorkGroup) {
-        return res.status(403).json({
-          isValid: false,
-          error: 'User not found in APPSTEAM_DEV_IT_Works group'
-        });
-      }
-
-      // Return the user data if found and in correct group
-      return res.status(200).json({
-        isValid: true,
-        userData: {
-          name: response.data.data.name,
-          email: response.data.data.email,
-          title: response.data.data.title,
-          memberOf: response.data.data.memberOf
-        }
+    if (searchResponse.data.statusCode !== 0) {
+      return res.status(400).json({ 
+        isValid: false, 
+        error: `Search API error: ${searchResponse.data.statusMessage}` 
       });
-    } catch (err) {
-      console.error('Search API call failed:', err.message);
-      
-      // If there's a response in the error, log it
-      if (err.response) {
-        console.error('Error response status:', err.response.status);
-        console.error('Error response data:', JSON.stringify(err.response.data, null, 2));
-      }
-      
-      throw new Error(`Failed to authenticate with the search API: ${err.message}`);
     }
+
+    // Check if the user belongs to APPSTEAM_DEV_IT_Works group
+    const isInWorkGroup = searchResponse.data.data.memberOf && 
+                         searchResponse.data.data.memberOf.some(group => 
+                           group.includes('APPSTEAM_DEV_IT_Works'));
+    
+    if (!isInWorkGroup) {
+      return res.status(403).json({
+        isValid: false,
+        error: 'User not found in APPSTEAM_DEV_IT_Works group'
+      });
+    }
+
+    // Return the user data if found and in correct group
+    return res.status(200).json({
+      isValid: true,
+      userData: {
+        name: searchResponse.data.data.name,
+        email: searchResponse.data.data.email,
+        title: searchResponse.data.data.title,
+        memberOf: searchResponse.data.data.memberOf
+      }
+    });
   } catch (err) {
     console.error('F-number verification error details:', err.message);
     
-    // If there's a response in the error, log it
+    // If there's a response in the error, log it for debugging
     if (err.response) {
       console.error('Error response status:', err.response.status);
       console.error('Error response data:', JSON.stringify(err.response.data, null, 2));
+      console.error('Error response headers:', JSON.stringify(err.response.headers, null, 2));
     }
     
     return res.status(500).json({ 
