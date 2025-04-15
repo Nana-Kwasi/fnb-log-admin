@@ -1216,3 +1216,267 @@ const verifyFnumber = async (req, res) => {
 // response
 
 {"statusCode":0,"statusMessage":"Success","serverTimestamp":"2025-04-14T16:38:04.213137362","data":{"userId":"F5353203","mobile":"+233208600342","email":"wise.ofori@firstnationalbank.com.gh","userPrincipalName":"F5353203@FNB.CO.ZA","title":"National Service Personnel E","name":"Ofori, Wise","manager":"CN=Quartey\\, Andrews,OU=DomainUsers,DC=fnb,DC=co,DC=za","memberOf":["CN=APPSTEAM_DEV_IT_Works,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za","CN=AWS_INT_FNBGhana_EC2,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za","CN=AWS_QA_FNBGhana_EC2,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za","CN=AWS_DEV_FNBGhana_EC2,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za","CN=W365_VDI_2vCPU8GB256GB_FNB,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za","CN=ELevyPS_PROD_IT_FNBG Application Access,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za","CN=AWS_DEV_UNIFIED_FNBGhanaIT,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za","CN=GlobalWorkDay_CloudApps_Ghana_Users,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za","CN=CLOUD_VDI_LIMITEDACCESS_FNB,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za","CN=GlobalERP_CloudApps_All_Employees,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za","CN=Myappstore_Prod_AllUsers_FNB,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za","CN=FRGOracleSaaSUsers_Non-PRD_ERP_FRG,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za","CN=t24dev_aws_nonprod_corelite,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za","CN=GlobalERP_CloudApps_All_Users,OU=Office365,OU=DomainUsers,DC=fnb,DC=co,DC=za","CN=FRGOracleSaaSTech_Non-PRD_ERP_FRG,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za","CN=DATAACCESS_PROD_GHANA_ANALYST,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za","CN=Udemy_Learning_FNB_Access,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za","CN=FILESHARE_DIGITAL_ITFIREANDBRIMSON_RW,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za","CN=2V_production_FNB_Staff,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za","CN=DLP_Level-1-FullLockdown_prod_FNB,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za","CN=Online-dev-web-dev_prod_digital_fol,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za","CN=Online-wtl_uat_digital_fol,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za","CN=Venafi_Prod_FNB_GhanaRequester,OU=Admin Groups,OU=ADCCreated,DC=fnb,DC=co,DC=za","CN=Server_AD_GHA_Admins,OU=Admin Groups,OU=ADCCreated,DC=fnb,DC=co,DC=za","CN=Sccm_Sql_LocalGroup,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za"]}}
+
+
+
+// new controllers
+//approach 1
+const verifyFnumber = async (req, res) => {
+  const { fnumber } = req.body;
+
+  if (!fnumber) {
+    return res.status(400).json({ error: 'F-number is required' });
+  }
+
+  try {
+    // Step 1: Create token using client ID
+    const createTokenUrl = 'https://172.29.18.126/adproxyservice/prod/client/create-token';
+    console.log('Requesting token from:', createTokenUrl);
+    
+    const tokenResponse = await axios.post(createTokenUrl, {
+      clientId: "8CA09F75-720F-4641-9B70-5344850DF34E",
+      duration: 300
+    }, { 
+      httpsAgent: new require('https').Agent({ rejectUnauthorized: false }) 
+    });
+
+    console.log('Token response status:', tokenResponse.status);
+    console.log('Token response data:', JSON.stringify(tokenResponse.data, null, 2));
+
+    // Check if token exists in the response
+    if (!tokenResponse.data || tokenResponse.data.statusCode !== 0 || !tokenResponse.data.data || !tokenResponse.data.data.token) {
+      console.error('Invalid token response:', tokenResponse.data);
+      return res.status(400).json({ 
+        isValid: false, 
+        error: `Failed to obtain authorization token: ${
+          tokenResponse.data && tokenResponse.data.statusMessage 
+            ? tokenResponse.data.statusMessage 
+            : 'Unknown error'
+        }` 
+      });
+    }
+
+    const authToken = tokenResponse.data.data.token;
+    console.log('Successfully obtained token');
+
+    // Step 2: Use the token to search for the user
+    const searchApiUrl = 'https://172.29.18.126/adproxyservice/prod/ldap/search';
+    console.log('Searching for user at:', searchApiUrl);
+    
+    // Try direct approach with no modifications to the token
+    try {
+      console.log('Attempting API call with token as-is in Authorization header');
+      const response = await axios.post(searchApiUrl, {
+        fnumber: fnumber
+      }, { 
+        headers: {
+          'Authorization': authToken
+        },
+        httpsAgent: new require('https').Agent({ rejectUnauthorized: false }) 
+      });
+      
+      console.log('Success with direct token approach');
+      return processSuccessResponse(response, res);
+    } catch (err) {
+      console.log('Direct token approach failed:', err.message);
+      // Continue to next approach
+    }
+    
+    // Try with Bearer prefix
+    try {
+      console.log('Attempting API call with Bearer prefix');
+      const response = await axios.post(searchApiUrl, {
+        fnumber: fnumber
+      }, { 
+        headers: {
+          'Authorization': `Bearer ${authToken}`
+        },
+        httpsAgent: new require('https').Agent({ rejectUnauthorized: false }) 
+      });
+      
+      console.log('Success with Bearer prefix approach');
+      return processSuccessResponse(response, res);
+    } catch (err) {
+      console.log('Bearer prefix approach failed:', err.message);
+      // Continue to next approach
+    }
+    
+    // Try with token property
+    try {
+      console.log('Attempting API call with token in request body');
+      const response = await axios.post(searchApiUrl, {
+        fnumber: fnumber,
+        token: authToken
+      }, { 
+        httpsAgent: new require('https').Agent({ rejectUnauthorized: false }) 
+      });
+      
+      console.log('Success with token in body approach');
+      return processSuccessResponse(response, res);
+    } catch (err) {
+      console.log('Token in body approach failed:', err.message);
+      // Continue to next approach
+    }
+    
+    // Try with x-auth-token header (common in some APIs)
+    try {
+      console.log('Attempting API call with x-auth-token header');
+      const response = await axios.post(searchApiUrl, {
+        fnumber: fnumber
+      }, { 
+        headers: {
+          'x-auth-token': authToken
+        },
+        httpsAgent: new require('https').Agent({ rejectUnauthorized: false }) 
+      });
+      
+      console.log('Success with x-auth-token header approach');
+      return processSuccessResponse(response, res);
+    } catch (err) {
+      console.log('x-auth-token header approach failed:', err.message);
+      // All approaches failed
+      throw new Error('All authentication approaches failed');
+    }
+  } catch (err) {
+    console.error('F-number verification error details:', err.message);
+    
+    // If there's a response in the error, log it
+    if (err.response) {
+      console.error('Error response status:', err.response.status);
+      console.error('Error response data:', JSON.stringify(err.response.data, null, 2));
+    }
+    
+    return res.status(500).json({ 
+      isValid: false, 
+      error: `Server error during F-number verification: ${err.message}` 
+    });
+  }
+};
+
+// Helper function to process successful responses
+function processSuccessResponse(response, res) {
+  console.log('Search response status:', response.status);
+  console.log('Search response data:', JSON.stringify(response.data, null, 2));
+
+  if (response.data.statusCode !== 0) {
+    return res.status(400).json({ 
+      isValid: false, 
+      error: `Search API error: ${response.data.statusMessage}` 
+    });
+  }
+
+  // Return the user data if found
+  return res.status(200).json({
+    isValid: true,
+    userData: {
+      name: response.data.data.name,
+      email: response.data.data.email,
+      title: response.data.data.title
+    }
+  });
+}
+
+// 2
+const verifyFnumber = async (req, res) => {
+  const { fnumber } = req.body;
+
+  if (!fnumber) {
+    return res.status(400).json({ error: 'F-number is required' });
+  }
+
+  try {
+    // Step 1: Create token using client ID
+    const createTokenUrl = 'https://172.29.18.126/adproxyservice/prod/client/create-token';
+    console.log('Requesting token from:', createTokenUrl);
+    
+    const tokenResponse = await axios.post(createTokenUrl, {
+      clientId: "8CA09F75-720F-4641-9B70-5344850DF34E",
+      duration: 300
+    }, { 
+      httpsAgent: new require('https').Agent({ rejectUnauthorized: false }) 
+    });
+
+    console.log('Token response status:', tokenResponse.status);
+    console.log('Token response data:', JSON.stringify(tokenResponse.data, null, 2));
+
+    // Check if token exists in the response
+    if (!tokenResponse.data || tokenResponse.data.statusCode !== 0 || !tokenResponse.data.data || !tokenResponse.data.data.token) {
+      console.error('Invalid token response:', tokenResponse.data);
+      return res.status(400).json({ 
+        isValid: false, 
+        error: `Failed to obtain authorization token: ${
+          tokenResponse.data && tokenResponse.data.statusMessage 
+            ? tokenResponse.data.statusMessage 
+            : 'Unknown error'
+        }` 
+      });
+    }
+
+    const authToken = tokenResponse.data.data.token;
+    console.log('Successfully obtained token');
+    console.log('Token value:', authToken);
+
+    // Step 2: Use the token to search for the user
+    const searchApiUrl = 'https://172.29.18.126/adproxyservice/prod/ldap/search';
+    console.log('Searching for user at:', searchApiUrl);
+    
+    // Detailed request logging
+    const requestBody = { fnumber: fnumber };
+    const requestHeaders = { 'Authorization': `Bearer ${authToken}` };
+    
+    console.log('Request body:', JSON.stringify(requestBody, null, 2));
+    console.log('Request headers:', JSON.stringify(requestHeaders, null, 2));
+    
+    // Create axios interceptor to log the actual request being sent
+    axios.interceptors.request.use(request => {
+      console.log('Full request config:', JSON.stringify({
+        method: request.method,
+        url: request.url,
+        headers: request.headers,
+        data: request.data
+      }, null, 2));
+      return request;
+    });
+    
+    const response = await axios.post(searchApiUrl, requestBody, { 
+      headers: requestHeaders,
+      httpsAgent: new require('https').Agent({ rejectUnauthorized: false }) 
+    });
+
+    console.log('Search response status:', response.status);
+    console.log('Search response data:', JSON.stringify(response.data, null, 2));
+
+    if (response.data.statusCode !== 0) {
+      return res.status(400).json({ 
+        isValid: false, 
+        error: `Search API error: ${response.data.statusMessage}` 
+      });
+    }
+
+    // Return the user data if found
+    return res.status(200).json({
+      isValid: true,
+      userData: {
+        name: response.data.data.name,
+        email: response.data.data.email,
+        title: response.data.data.title
+      }
+    });
+  } catch (err) {
+    console.error('F-number verification error details:', err.message);
+    
+    // If there's a response in the error, log it
+    if (err.response) {
+      console.error('Error response status:', err.response.status);
+      console.error('Error response data:', JSON.stringify(err.response.data, null, 2));
+      console.error('Error response headers:', JSON.stringify(err.response.headers, null, 2));
+    }
+    
+    return res.status(500).json({ 
+      isValid: false, 
+      error: `Server error during F-number verification: ${err.message}` 
+    });
+  }
+};
+
+// 3
