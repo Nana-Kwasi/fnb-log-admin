@@ -513,25 +513,38 @@ const verifyFnumber = async (req, res) => {
       });
     }
 
-    const authToken = tokenResponse.data.data.token;
+    const rawToken = tokenResponse.data.data.token;
+    // Format as Bearer token
+    const authToken = `Bearer ${rawToken}`;
     console.log('Successfully obtained token');
+    console.log('Using authorization header:', authToken);
 
     // Step 2: Use the token to search for the user
     const searchApiUrl = 'https://172.29.18.126/adproxyservice/prod/ldap/search';
     console.log('Searching for user at:', searchApiUrl);
     
-    // Based on the API documentation, try the correct approach
-    console.log('Attempting API call with token in Authorization header');
+    console.log('Attempting API call with Bearer token in Authorization header');
     try {
-      const response = await axios.post(searchApiUrl, {
-        fnumber: fnumber
-      }, { 
+      // Log the exact request configuration for debugging
+      const requestConfig = {
+        url: searchApiUrl,
+        method: 'post',
+        data: { fnumber: fnumber },
         headers: {
           'Authorization': authToken,
           'Content-Type': 'application/json'
         },
-        httpsAgent: new require('https').Agent({ rejectUnauthorized: false }) 
-      });
+        httpsAgent: new require('https').Agent({ rejectUnauthorized: false })
+      };
+      
+      console.log('Request configuration:', JSON.stringify({
+        url: requestConfig.url,
+        method: requestConfig.method,
+        headers: requestConfig.headers,
+        data: requestConfig.data
+      }, null, 2));
+      
+      const response = await axios(requestConfig);
       
       console.log('Search response status:', response.status);
       console.log('Search response data:', JSON.stringify(response.data, null, 2));
@@ -574,56 +587,7 @@ const verifyFnumber = async (req, res) => {
         console.error('Error response data:', JSON.stringify(err.response.data, null, 2));
       }
       
-      // Check if there might be an issue with HTTP vs HTTPS
-      console.log('Attempting with different protocol...');
-      try {
-        // Try with http instead of https in case that's an issue
-        const httpSearchApiUrl = searchApiUrl.replace('https://', 'http://');
-        const response = await axios.post(httpSearchApiUrl, {
-          fnumber: fnumber
-        }, { 
-          headers: {
-            'Authorization': authToken,
-            'Content-Type': 'application/json'
-          }
-        });
-        
-        // Process successful response
-        console.log('Search response status:', response.status);
-        console.log('Search response data:', JSON.stringify(response.data, null, 2));
-        
-        // Same validation logic as above
-        if (response.data.statusCode !== 0) {
-          return res.status(400).json({ 
-            isValid: false, 
-            error: `Search API error: ${response.data.statusMessage}` 
-          });
-        }
-
-        const isInWorkGroup = response.data.data.memberOf && 
-                            response.data.data.memberOf.some(group => 
-                              group.includes('APPSTEAM_DEV_IT_Works'));
-        
-        if (!isInWorkGroup) {
-          return res.status(403).json({
-            isValid: false,
-            error: 'User not found in APPSTEAM_DEV_IT_Works group'
-          });
-        }
-
-        return res.status(200).json({
-          isValid: true,
-          userData: {
-            name: response.data.data.name,
-            email: response.data.data.email,
-            title: response.data.data.title,
-            memberOf: response.data.data.memberOf
-          }
-        });
-      } catch (httpErr) {
-        console.error('HTTP attempt also failed:', httpErr.message);
-        throw new Error(`Failed to authenticate with the search API: ${err.message}`);
-      }
+      throw new Error(`Failed to authenticate with the search API: ${err.message}`);
     }
   } catch (err) {
     console.error('F-number verification error details:', err.message);
