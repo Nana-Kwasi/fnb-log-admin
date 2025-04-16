@@ -3365,4 +3365,122 @@ x-auth-token header approach failed: Request failed with status code 403
 F-number verification error details: All authentication approaches failed
 
 
-// the response
+// easu error
+2025-04-16T12:00:20.115Z - POST /users
+User creation error: error: null value in column "password" of relation "users_table" violates not-null constraint
+    at C:\Users\f8877557\file-backend\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async createUser (C:\Users\f8877557\file-backend\new-backend\controllers\Users Controller.js:251:20) {
+  length: 290,
+  severity: 'ERROR',
+  severity: 'ERROR',
+  code: '23502',
+  detail: 'Failing row contains (7, f5353203, null, AIRPORT BRANCH, user, 2025-04-16 13:00:20.296887, null, t, 330119).',
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: 'public',
+  table: 'users_table',
+  code: '23502',
+  detail: 'Failing row contains (7, f5353203, null, AIRPORT BRANCH, user, 2025-04-16 13:00:20.296887, null, t, 330119).',
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: 'public',
+  table: 'users_table',
+  column: 'password',
+  dataType: undefined,
+  detail: 'Failing row contains (7, f5353203, null, AIRPORT BRANCH, user, 2025-04-16 13:00:20.296887, null, t, 330119).',
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: 'public',
+  table: 'users_table',
+  where: undefined,
+  schema: 'public',
+  table: 'users_table',
+  schema: 'public',
+  table: 'users_table',
+  column: 'password',
+  dataType: undefined,
+  constraint: undefined,
+  file: 'execMain.c',
+  line: '1978',
+  routine: 'ExecConstraints'
+}
+
+
+
+// controller
+
+const createUser = async (req, res) => {
+  const { email, branch, branchCode, role = 'user' } = req.body;
+
+  try {
+    if (!email || !branch) {
+      return res.status(400).json({ error: 'F-number and branch are required' });
+    }
+
+    const checkUser = await pool.query('SELECT * FROM users_table WHERE email = $1', [email]);
+    if (checkUser.rows.length > 0) {
+      return res.status(400).json({ error: 'User already exists' });
+    }
+
+
+    const result = await pool.query(
+      'INSERT INTO users_table (email, branch, branch_code, role, created_at) VALUES ($1, $2, $3, $4, NOW()) RETURNING id, email, branch, role, created_at',
+      [email, branch, branchCode, role]
+    );
+
+    res.status(201).json({
+      message: 'User created successfully',
+      user: {
+        id: result.rows[0].id,
+        email: result.rows[0].email,
+        branch: result.rows[0].branch,
+        role: result.rows[0].role,
+        created_at: result.rows[0].created_at
+      }
+    });
+  } catch (err) {
+    console.error('User creation error:', err);
+    res.status(500).json({ error: 'Server error during user creation' });
+  }
+};
+
+const updateUser = async (req, res) => {
+  const { id } = req.params;
+  const { email, branch, branchCode, role, is_active } = req.body;
+
+  try {
+    const result = await pool.query(
+      'UPDATE users_table SET email = $1, branch = $2, branch_code = $3, role = $4, is_active = COALESCE($5, is_active) WHERE id = $6 RETURNING *',
+      [email, branch, branchCode, role, is_active, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({
+      message: 'User updated successfully',
+      user: {
+        id: result.rows[0].id,
+        email: result.rows[0].email,
+        branch: result.rows[0].branch,
+        role: result.rows[0].role,
+        is_active: result.rows[0].is_active
+      }
+    });
+  } catch (err) {
+    console.error('User update error:', err);
+    res.status(500).json({ error: 'Server error during user update' });
+  }
+};
+
