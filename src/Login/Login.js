@@ -329,176 +329,333 @@
 
 
 
-
 import React, { useState, useEffect } from "react";
 import { useVisitor } from "../context/VisitorContext";
 import "../login.css";
 
 const Login = ({ onLogin }) => {
-  const [email, setEmail] = useState("");
+  const [fnumber, setFnumber] = useState("");
   const [password, setPassword] = useState("");
   const [selectedBranch, setSelectedBranch] = useState("");
   const [branches, setBranches] = useState([]);
-  const [fetchingBranches, setFetchingBranches] = useState(true);
+  const [fetchingBranches, setFetchingBranches] = useState(false);
   const [localError, setLocalError] = useState("");
   const [manualLoginAttempt, setManualLoginAttempt] = useState(false);
-  const [loadingSpinner, setLoadingSpinner] = useState(false); // New state for loading spinner
+  const [loadingSpinner, setLoadingSpinner] = useState(false);
+  
+  // New states for multi-step login
+  const [showVerification, setShowVerification] = useState(false);
+  const [verificationCode, setVerificationCode] = useState("");
+  const [verificationCounter, setVerificationCounter] = useState(0);
+  const [authToken, setAuthToken] = useState("");
+  const [verificationInProgress, setVerificationInProgress] = useState(false);
+  const [showBranchSelection, setShowBranchSelection] = useState(false);
+  const [sessionToken, setSessionToken] = useState("");
 
   const { login, loading, error, setError, authenticated } = useVisitor();
 
-  
-  // const API_URL = "http://localhost:5001/visitors";
-  const BRANCHES_URL = "http://localhost:5001/visitors/index";
-  const AUTH_URL = "http://localhost:5001/auth";
+  // API URLs - backend only
+  const API_URL = "http://localhost:5001";
+  const BRANCHES_URL = `${API_URL}/visitors/index`;
 
   useEffect(() => {
-    if (authenticated && email && manualLoginAttempt) {
+    if (authenticated && fnumber && manualLoginAttempt) {
       console.log("Authentication successful after manual login attempt, navigating to dashboard");
       setTimeout(() => { 
-        onLogin(email);
+        onLogin(fnumber);
         setManualLoginAttempt(false);
-      }, 30000);
+      }, 1000); // Reduced timeout for better UX
     } else if (authenticated) {
       console.log("Already authenticated from storage, but not navigating (waiting for manual login)");
     }
-  }, [authenticated, email, onLogin, manualLoginAttempt]);
+  }, [authenticated, fnumber, onLogin, manualLoginAttempt]);
 
+  // Counter effect for 2FA verification
   useEffect(() => {
-    const fetchBranches = async () => {
-      try {
-        setFetchingBranches(true);
-        console.log("Fetching branches from:", BRANCHES_URL);
-        const response = await fetch(BRANCHES_URL);
-        
-        if (!response.ok) {
-          throw new Error(`API response error: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        console.log(`Received ${data.length} branches from API`);
-        
-        const branchOptions = data
-          .filter(branch => branch.branchName && branch.branchName.trim() !== "")
-          .sort((a, b) => a.branchName.localeCompare(b.branchName));
-        
-        console.log(`Found ${branchOptions.length} unique branches`);
-        setBranches(branchOptions);
-      } catch (err) {
-        console.error("Error fetching branches:", err);
-        setLocalError("Failed to load branches. Please try again later.");
-      } finally {
-        setFetchingBranches(false);
-      }
+    let interval;
+    if (verificationInProgress) {
+      interval = setInterval(() => {
+        setVerificationCounter(prev => {
+          const newCount = prev + 1;
+          if (newCount > 100) {
+            clearInterval(interval);
+            setVerificationInProgress(false);
+            setLocalError("Verification timed out. Please try again.");
+            return 0;
+          }
+          return newCount;
+        });
+      }, 200); // Updates every 200ms for a ~20 second total count
+    }
+    
+    return () => {
+      if (interval) clearInterval(interval);
     };
+  }, [verificationInProgress]);
 
-    fetchBranches();
-  }, [BRANCHES_URL, setError]);
-
-  const handleSubmit = async (e) => {
+  // Handle initial login with F-number and password
+  const handleInitialSubmit = async (e) => {
     e.preventDefault();
-    console.log("Login form submitted");
+    console.log("Initial login form submitted");
     setLocalError("");
+    setLoadingSpinner(true);
 
-    if (email.length > 25) {
+    if (fnumber.length > 25) {
       setLocalError("F number is incorrect");
+      setLoadingSpinner(false);
       return;
     }
 
+    try {
+      // Call backend authentication endpoint
+      const response = await fetch(`${API_URL}/users/authenticate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          fnumber,
+          password
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Authentication failed');
+      }
+      
+      // Store the token for 2FA verification
+      setAuthToken(data.token);
+      
+      // Show the 2FA verification form
+      setShowVerification(true);
+      setVerificationInProgress(true);
+      setVerificationCounter(0);
+      
+    } catch (err) {
+      console.error("Authentication error:", err);
+      setLocalError(err.message || "Authentication failed. Please check your credentials and try again.");
+    } finally {
+      setLoadingSpinner(false);
+    }
+  };
+
+  // Handle 2FA verification
+  const handleVerifySubmit = async (e) => {
+    e.preventDefault();
+    console.log("Verification form submitted");
+    setLocalError("");
+    setLoadingSpinner(true);
+    
+    try {
+      // Call backend 2FA verification endpoint
+      const response = await fetch(`${API_URL}/users/verify2fa`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          token: authToken,
+          code: verificationCode
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || '2FA verification failed');
+      }
+      
+      // Stop the verification counter
+      setVerificationInProgress(false);
+      
+      // Check if user exists in the system
+      if (!data.userExists) {
+        throw new Error('User not found in system. Please contact administrator.');
+      }
+      
+      // Store session token and branches
+      setSessionToken(data.sessionToken);
+      setBranches(data.branches || []);
+      
+      // Show branch selection or handle single branch
+      if (data.branches && data.branches.length === 1) {
+        // Only one branch, select it automatically
+        setSelectedBranch(data.branches[0].branchName);
+        // Proceed with final login
+        await handleFinalLogin(data.fnumber, data.branches[0].branchName, data.sessionToken);
+      } else if (data.branches && data.branches.length > 1) {
+        // Multiple branches, show selection screen
+        setShowVerification(false);
+        setShowBranchSelection(true);
+        setFetchingBranches(false);
+      } else {
+        throw new Error('No branches available for this user');
+      }
+      
+    } catch (err) {
+      console.error("Verification error:", err);
+      setLocalError(err.message || "Verification failed. Please try again.");
+      setVerificationInProgress(false);
+    } finally {
+      setLoadingSpinner(false);
+    }
+  };
+
+  // Handle final login with branch selection
+  const handleBranchSubmit = async (e) => {
+    e.preventDefault();
+    console.log("Branch selection form submitted");
+    
     if (!selectedBranch) {
       setLocalError("Please select a branch");
       return;
     }
     
-    const selectedBranchObj = branches.find(branch => branch.branchName === selectedBranch);
-    
-    if (!selectedBranchObj) {
-      setLocalError("Invalid branch selection");
-      return;
-    }
-    
-    const branchCode = selectedBranchObj.branchCode;
-    console.log(`Selected branch: ${selectedBranch} (code: ${branchCode})`);
+    await handleFinalLogin(fnumber, selectedBranch, sessionToken);
+  };
 
+  // Common function for final login step
+  const handleFinalLogin = async (fnumber, branch, sessionToken) => {
+    setLocalError("");
+    setLoadingSpinner(true);
+    
     try {
-      console.log("Login validation passed, setting manual login attempt flag");
-      setManualLoginAttempt(true);
-      setLoadingSpinner(true); // Show loading spinner
+      console.log(`Finalizing login with branch: ${branch}`);
       
-      console.log("Attempting login with:", { email, branch: branchCode });
-      
-      const response = await fetch(`${AUTH_URL}/login`, {
+      // Call backend to finalize login
+      const response = await fetch(`${API_URL}/users/finalize-login`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          email,
-          password,
-          branch: selectedBranch
+          fnumber,
+          branch,
+          sessionToken
         })
       });
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Login failed');
-      }
-      
       const data = await response.json();
       
-      // Extract user role from response or set a default
-      const userRole = data.user && data.user.role ? data.user.role : "user";
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Login failed');
+      }
       
+      // Store authentication data
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify({
         ...data.user,
-        branchName: selectedBranch,  // Store both branch code and name
-        branchCode: branchCode,
-        role: userRole
+        branchName: data.user.branch,
+        branchCode: data.user.branchCode
       }));
       
-      // Pass role to login function
-      const success = await login(email, branchCode, data.token, selectedBranch, userRole);
-      
-      console.log("Login result:", success);
+      // Complete login through visitor context
+      setManualLoginAttempt(true);
+      const success = await login(
+        fnumber, 
+        data.user.branchCode, 
+        data.token, 
+        data.user.branch, 
+        data.user.role
+      );
       
       if (!success) {
-        console.log("Login failed, resetting manual login attempt flag");
         setManualLoginAttempt(false);
-        setLocalError("Login failed. Please check your credentials and try again.");
-        setLoadingSpinner(false); // Hide loading spinner
+        throw new Error("Login failed. Please try again.");
       }
+      
     } catch (err) {
-      console.error("Login submission error:", err);
+      console.error("Login finalization error:", err);
       setManualLoginAttempt(false);
       setLocalError(err.message || "An unexpected error occurred. Please try again.");
-      setLoadingSpinner(false); // Hide loading spinner
+    } finally {
+      setLoadingSpinner(false);
     }
   };
   
   const displayError = error || localError;
 
+  // Initial login form
+  if (!showVerification && !showBranchSelection) {
+    return (
+      <div className="login-container">
+        <div className="login-card">
+          <img src="/FNB logo.png" alt="FNB Logo" className="login-logo" />
+          <h2>Welcome to FNB Admin</h2>
+          <form onSubmit={handleInitialSubmit}>
+            <input
+              type="text"
+              placeholder="F-Number"
+              value={fnumber}
+              onChange={(e) => setFnumber(e.target.value)}
+              maxLength={25}
+              required
+            />
+            <input
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+            
+            {displayError && <p className="error-message">{displayError}</p>}
+            <button type="submit" className="login-button" disabled={loading || loadingSpinner}>
+              {loadingSpinner ? <span className="spinner"></span> : "Login"}
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+  
+  // 2FA verification form
+  if (showVerification) {
+    return (
+      <div className="login-container">
+        <div className="login-card">
+          <img src="/FNB logo.png" alt="FNB Logo" className="login-logo" />
+          <h2>Two-Factor Authentication</h2>
+          
+          <div className="verification-counter">
+            <div className="counter-text">Verification in progress: {verificationCounter}%</div>
+            <div className="progress-bar">
+              <div 
+                className="progress-fill" 
+                style={{ width: `${verificationCounter}%` }}
+              ></div>
+            </div>
+          </div>
+          
+          <form onSubmit={handleVerifySubmit}>
+            <p>Please enter the verification code sent to your device</p>
+            <input
+              type="text"
+              placeholder="Verification Code"
+              value={verificationCode}
+              onChange={(e) => setVerificationCode(e.target.value)}
+              required
+            />
+            
+            {displayError && <p className="error-message">{displayError}</p>}
+            <button type="submit" className="login-button" disabled={loading || loadingSpinner}>
+              {loadingSpinner ? <span className="spinner"></span> : "Verify"}
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+  
+  // Branch selection form
   return (
     <div className="login-container">
       <div className="login-card">
         <img src="/FNB logo.png" alt="FNB Logo" className="login-logo" />
-        <h2>Welcome to FNB Admin</h2>
-        <form onSubmit={handleSubmit}>
-          <input
-            type="text"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            maxLength={25}
-            required
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-          
+        <h2>Select Branch</h2>
+        <form onSubmit={handleBranchSubmit}>
           <div className="select-container">
             <select
               value={selectedBranch}
@@ -520,8 +677,8 @@ const Login = ({ onLogin }) => {
           </div>
           
           {displayError && <p className="error-message">{displayError}</p>}
-          <button type="submit" className="login-button" disabled={loading || fetchingBranches}>
-            {loadingSpinner ? <span className="spinner"></span> : "Login"}
+          <button type="submit" className="login-button" disabled={loading || loadingSpinner || fetchingBranches}>
+            {loadingSpinner ? <span className="spinner"></span> : "Continue"}
           </button>
         </form>
       </div>
@@ -530,6 +687,206 @@ const Login = ({ onLogin }) => {
 };
 
 export default Login;
+// import React, { useState, useEffect } from "react";
+// import { useVisitor } from "../context/VisitorContext";
+// import "../login.css";
+
+// const Login = ({ onLogin }) => {
+//   const [email, setEmail] = useState("");
+//   const [password, setPassword] = useState("");
+//   const [selectedBranch, setSelectedBranch] = useState("");
+//   const [branches, setBranches] = useState([]);
+//   const [fetchingBranches, setFetchingBranches] = useState(true);
+//   const [localError, setLocalError] = useState("");
+//   const [manualLoginAttempt, setManualLoginAttempt] = useState(false);
+//   const [loadingSpinner, setLoadingSpinner] = useState(false); // New state for loading spinner
+
+//   const { login, loading, error, setError, authenticated } = useVisitor();
+
+  
+//   // const API_URL = "http://localhost:5001/visitors";
+//   const BRANCHES_URL = "http://localhost:5001/visitors/index";
+//   const AUTH_URL = "http://localhost:5001/auth";
+
+//   useEffect(() => {
+//     if (authenticated && email && manualLoginAttempt) {
+//       console.log("Authentication successful after manual login attempt, navigating to dashboard");
+//       setTimeout(() => { 
+//         onLogin(email);
+//         setManualLoginAttempt(false);
+//       }, 30000);
+//     } else if (authenticated) {
+//       console.log("Already authenticated from storage, but not navigating (waiting for manual login)");
+//     }
+//   }, [authenticated, email, onLogin, manualLoginAttempt]);
+
+//   useEffect(() => {
+//     const fetchBranches = async () => {
+//       try {
+//         setFetchingBranches(true);
+//         console.log("Fetching branches from:", BRANCHES_URL);
+//         const response = await fetch(BRANCHES_URL);
+        
+//         if (!response.ok) {
+//           throw new Error(`API response error: ${response.status}`);
+//         }
+        
+//         const data = await response.json();
+//         console.log(`Received ${data.length} branches from API`);
+        
+//         const branchOptions = data
+//           .filter(branch => branch.branchName && branch.branchName.trim() !== "")
+//           .sort((a, b) => a.branchName.localeCompare(b.branchName));
+        
+//         console.log(`Found ${branchOptions.length} unique branches`);
+//         setBranches(branchOptions);
+//       } catch (err) {
+//         console.error("Error fetching branches:", err);
+//         setLocalError("Failed to load branches. Please try again later.");
+//       } finally {
+//         setFetchingBranches(false);
+//       }
+//     };
+
+//     fetchBranches();
+//   }, [BRANCHES_URL, setError]);
+
+//   const handleSubmit = async (e) => {
+//     e.preventDefault();
+//     console.log("Login form submitted");
+//     setLocalError("");
+
+//     if (email.length > 25) {
+//       setLocalError("F number is incorrect");
+//       return;
+//     }
+
+//     if (!selectedBranch) {
+//       setLocalError("Please select a branch");
+//       return;
+//     }
+    
+//     const selectedBranchObj = branches.find(branch => branch.branchName === selectedBranch);
+    
+//     if (!selectedBranchObj) {
+//       setLocalError("Invalid branch selection");
+//       return;
+//     }
+    
+//     const branchCode = selectedBranchObj.branchCode;
+//     console.log(`Selected branch: ${selectedBranch} (code: ${branchCode})`);
+
+//     try {
+//       console.log("Login validation passed, setting manual login attempt flag");
+//       setManualLoginAttempt(true);
+//       setLoadingSpinner(true); // Show loading spinner
+      
+//       console.log("Attempting login with:", { email, branch: branchCode });
+      
+//       const response = await fetch(`${AUTH_URL}/login`, {
+//         method: 'POST',
+//         headers: {
+//           'Content-Type': 'application/json',
+//         },
+//         body: JSON.stringify({
+//           email,
+//           password,
+//           branch: selectedBranch
+//         })
+//       });
+      
+//       if (!response.ok) {
+//         const errorData = await response.json();
+//         throw new Error(errorData.error || 'Login failed');
+//       }
+      
+//       const data = await response.json();
+      
+//       // Extract user role from response or set a default
+//       const userRole = data.user && data.user.role ? data.user.role : "user";
+      
+//       localStorage.setItem('token', data.token);
+//       localStorage.setItem('user', JSON.stringify({
+//         ...data.user,
+//         branchName: selectedBranch,  // Store both branch code and name
+//         branchCode: branchCode,
+//         role: userRole
+//       }));
+      
+//       // Pass role to login function
+//       const success = await login(email, branchCode, data.token, selectedBranch, userRole);
+      
+//       console.log("Login result:", success);
+      
+//       if (!success) {
+//         console.log("Login failed, resetting manual login attempt flag");
+//         setManualLoginAttempt(false);
+//         setLocalError("Login failed. Please check your credentials and try again.");
+//         setLoadingSpinner(false); // Hide loading spinner
+//       }
+//     } catch (err) {
+//       console.error("Login submission error:", err);
+//       setManualLoginAttempt(false);
+//       setLocalError(err.message || "An unexpected error occurred. Please try again.");
+//       setLoadingSpinner(false); // Hide loading spinner
+//     }
+//   };
+  
+//   const displayError = error || localError;
+
+//   return (
+//     <div className="login-container">
+//       <div className="login-card">
+//         <img src="/FNB logo.png" alt="FNB Logo" className="login-logo" />
+//         <h2>Welcome to FNB Admin</h2>
+//         <form onSubmit={handleSubmit}>
+//           <input
+//             type="text"
+//             placeholder="Email"
+//             value={email}
+//             onChange={(e) => setEmail(e.target.value)}
+//             maxLength={25}
+//             required
+//           />
+//           <input
+//             type="password"
+//             placeholder="Password"
+//             value={password}
+//             onChange={(e) => setPassword(e.target.value)}
+//             required
+//           />
+          
+//           <div className="select-container">
+//             <select
+//               value={selectedBranch}
+//               onChange={(e) => setSelectedBranch(e.target.value)}
+//               required
+//               disabled={fetchingBranches}
+//               className="branch-select"
+//             >
+//               <option value="">Select Branch</option>
+//               {branches.map((branch) => (
+//                 <option key={branch.branchCode} value={branch.branchName}>
+//                   {branch.branchName}
+//                 </option>
+//               ))}
+//             </select>
+//             {fetchingBranches && (
+//               <span className="select-spinner"></span>
+//             )}
+//           </div>
+          
+//           {displayError && <p className="error-message">{displayError}</p>}
+//           <button type="submit" className="login-button" disabled={loading || fetchingBranches}>
+//             {loadingSpinner ? <span className="spinner"></span> : "Login"}
+//           </button>
+//         </form>
+//       </div>
+//     </div>
+//   );
+// };
+
+// export default Login;
 
 //original code
 // import React, { useState, useEffect } from "react";
