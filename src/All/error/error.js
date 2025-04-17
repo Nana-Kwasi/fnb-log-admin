@@ -3867,6 +3867,8 @@ module.exports = {
   verifyFnumber  
 };
 
+
+
 //new user controller
 
 const pool = require('../db');
@@ -4358,4 +4360,44 @@ router.post('/finalize-login', userController.finalizeLogin);
 router.post('/branches', userController.getUserBranches);
 
 module.exports = router;
+
+//new error
+PS C:\Users\f8877557\file-backend> cd new-backend
+PS C:\Users\f8877557\file-backend\new-backend> node server.js
+Server is running on port 5001
+Health check available at: http://localhost:5001/health
+Auth endpoints available at: http://localhost:5001/auth/login
+Connected to the database
+2025-04-17T14:41:40.163Z - GET /auth/verify
+Server is running on port 5001
+Health check available at: http://localhost:5001/health
+Auth endpoints available at: http://localhost:5001/auth/login
+Connected to the database
+2025-04-17T14:41:40.163Z - GET /auth/verify
+Health check available at: http://localhost:5001/health
+Auth endpoints available at: http://localhost:5001/auth/login
+Connected to the database
+2025-04-17T14:41:40.163Z - GET /auth/verify
+Auth endpoints available at: http://localhost:5001/auth/login
+Connected to the database
+2025-04-17T14:41:40.163Z - GET /auth/verify
+Connected to the database
+2025-04-17T14:41:40.163Z - GET /auth/verify
+2025-04-17T14:41:40.163Z - GET /auth/verify
+Route not found: GET /auth/verify
+Route not found: GET /auth/verify
+2025-04-17T14:41:40.169Z - GET /auth/verify
+Route not found: GET /auth/verify
+2025-04-17T14:42:35.325Z - POST /users/authenticate
+Calling LDAP authentication API
+Authentication error: Request failed with status code 403
+Error response status: 403
+Error response data: {
+  "statusCode": 1,
+  "statusMessage": "Required header param Authorization was not passed",
+  "serverTimestamp": null,
+  "data": null
+}
+
+
 
