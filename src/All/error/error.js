@@ -3366,6 +3366,7 @@ F-number verification error details: All authentication approaches failed
 
 
 // easu error
+
 2025-04-16T12:00:20.115Z - POST /users
 User creation error: error: null value in column "password" of relation "users_table" violates not-null constraint
     at C:\Users\f8877557\file-backend\node_modules\pg-pool\index.js:45:11
