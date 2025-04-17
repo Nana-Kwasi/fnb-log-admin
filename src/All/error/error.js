@@ -3636,3 +3636,7 @@ module.exports = {
   
 };
 
+//apis
+http://172.29.18.126/adproxyservice/prod/ldap/authenticate
+
+http://172.29.18.126/adproxyservice/prod/ldap/search
