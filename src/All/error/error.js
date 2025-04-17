@@ -3921,6 +3921,7 @@ const getAuthToken = async () => {
 };
 
 // Step 1: Initial authentication with LDAP
+// Step 1: Initial authentication with LDAP
 const authenticateUser = async (req, res) => {
   const { fnumber, password } = req.body;
 
@@ -3949,12 +3950,15 @@ const authenticateUser = async (req, res) => {
     
     console.log('Auth response status:', authResponse.status);
     
-    // Check for successful response
-    if (!authResponse.data || authResponse.data.statusCode !== 0) {
+    // Check for successful response - based on the screenshots, '000' or '0' is success
+    if (!authResponse.data || 
+        (authResponse.data.status_code !== '000' && 
+         authResponse.data.status_code !== '0' && 
+         authResponse.data.status_code !== 0)) {
       console.error('Authentication failed:', authResponse.data);
       return res.status(401).json({ 
         success: false, 
-        error: authResponse.data?.statusMessage || 'Authentication failed' 
+        error: authResponse.data?.status_message || 'Authentication failed' 
       });
     }
     
@@ -3962,7 +3966,7 @@ const authenticateUser = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: 'Authentication successful, proceed with 2FA verification',
-      token: authResponse.data.data.token
+      token: authResponse.data.token // This is the token to use for 2FA
     });
     
   } catch (err) {
@@ -3979,7 +3983,6 @@ const authenticateUser = async (req, res) => {
     });
   }
 };
-
 // Step 2: Verify 2FA code
 const verify2FA = async (req, res) => {
   const { token, code } = req.body;
@@ -4008,25 +4011,22 @@ const verify2FA = async (req, res) => {
     });
     
     console.log('Verify response status:', verifyResponse.status);
+    console.log('Verify response data:', JSON.stringify(verifyResponse.data, null, 2));
     
     // Check for successful response
-    if (!verifyResponse.data || verifyResponse.data.statusCode !== 0) {
+    if (!verifyResponse.data || 
+        (verifyResponse.data.status_code !== '000' && 
+         verifyResponse.data.status_code !== '0' && 
+         verifyResponse.data.status_code !== 0)) {
       console.error('2FA verification failed:', verifyResponse.data);
       return res.status(401).json({ 
         success: false, 
-        error: verifyResponse.data?.statusMessage || '2FA verification failed' 
+        error: verifyResponse.data?.status_message || '2FA verification failed' 
       });
     }
     
-    // Extract the fnumber/email from the response
-    const fnumber = verifyResponse.data.data.fnumber;
-    
-    if (!fnumber) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid response: Missing F-number'
-      });
-    }
+    // Extract the fnumber/email from the response - check where it actually is
+    const fnumber = verifyResponse.data.fnumber || req.body.fnumber;
     
     // Check if user exists in database
     const userQuery = await pool.query('SELECT * FROM users_table WHERE email = $1', [fnumber]);
@@ -4394,24 +4394,7 @@ module.exports = {
 };
 
 // new error
-PS C:\Users\f8877557\file-backend> cd new-backend
-PS C:\Users\f8877557\file-backend\new-backend> node server.js
-Server is running on port 5001
-Health check available at: http://localhost:5001/health
-Auth endpoints available at: http://localhost:5001/auth/login
-Connected to the database
-2025-04-17T16:31:10.893Z - POST /users/authenticate
-Calling LDAP authentication API
-Requesting token from: https://172.29.18.126/adproxyservice/prod/client/renew-token
-Token response status: 200
-Successfully obtained token for authentication
-Auth response status: 200
-Authentication failed: {
-  status_code: '000',
-  status_message: 'Login request sent',
-  server_timestamp: '2025-04-17T16:30:32.863478369',
-  token: '386acce0-fc84-4501-ab33-4859f29fb50b'
-}
+
 
 
 

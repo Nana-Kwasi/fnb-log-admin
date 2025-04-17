@@ -327,8 +327,6 @@
 
 
 
-
-
 import React, { useState, useEffect } from "react";
 import { useVisitor } from "../context/VisitorContext";
 import "../login.css";
@@ -343,7 +341,7 @@ const Login = ({ onLogin }) => {
   const [manualLoginAttempt, setManualLoginAttempt] = useState(false);
   const [loadingSpinner, setLoadingSpinner] = useState(false);
   
-  // New states for multi-step login
+  // Multi-step login states
   const [showVerification, setShowVerification] = useState(false);
   const [verificationCode, setVerificationCode] = useState("");
   const [verificationCounter, setVerificationCounter] = useState(0);
@@ -351,12 +349,12 @@ const Login = ({ onLogin }) => {
   const [verificationInProgress, setVerificationInProgress] = useState(false);
   const [showBranchSelection, setShowBranchSelection] = useState(false);
   const [sessionToken, setSessionToken] = useState("");
+  const [savedfnumber, setSavedFnumber] = useState(""); // Save fnumber for later steps
 
   const { login, loading, error, setError, authenticated } = useVisitor();
 
   // API URLs - backend only
   const API_URL = "http://localhost:5001";
-  const BRANCHES_URL = `${API_URL}/visitors/index`;
 
   useEffect(() => {
     if (authenticated && fnumber && manualLoginAttempt) {
@@ -374,10 +372,11 @@ const Login = ({ onLogin }) => {
   useEffect(() => {
     let interval;
     if (verificationInProgress) {
+      setVerificationCounter(0); // Reset counter when starting
       interval = setInterval(() => {
         setVerificationCounter(prev => {
           const newCount = prev + 1;
-          if (newCount > 100) {
+          if (newCount >= 100) {
             clearInterval(interval);
             setVerificationInProgress(false);
             setLocalError("Verification timed out. Please try again.");
@@ -425,13 +424,15 @@ const Login = ({ onLogin }) => {
         throw new Error(data.error || 'Authentication failed');
       }
       
+      console.log("Authentication response:", data);
+      
       // Store the token for 2FA verification
       setAuthToken(data.token);
+      setSavedFnumber(fnumber);
       
       // Show the 2FA verification form
       setShowVerification(true);
       setVerificationInProgress(true);
-      setVerificationCounter(0);
       
     } catch (err) {
       console.error("Authentication error:", err);
@@ -457,11 +458,13 @@ const Login = ({ onLogin }) => {
         },
         body: JSON.stringify({
           token: authToken,
-          code: verificationCode
+          code: verificationCode,
+          fnumber: savedfnumber // In case we need it
         })
       });
       
       const data = await response.json();
+      console.log("2FA verification response:", data);
       
       if (!response.ok || !data.success) {
         throw new Error(data.error || '2FA verification failed');
@@ -484,7 +487,7 @@ const Login = ({ onLogin }) => {
         // Only one branch, select it automatically
         setSelectedBranch(data.branches[0].branchName);
         // Proceed with final login
-        await handleFinalLogin(data.fnumber, data.branches[0].branchName, data.sessionToken);
+        await handleFinalLogin(data.fnumber || savedfnumber, data.branches[0].branchName, data.sessionToken);
       } else if (data.branches && data.branches.length > 1) {
         // Multiple branches, show selection screen
         setShowVerification(false);
@@ -513,7 +516,7 @@ const Login = ({ onLogin }) => {
       return;
     }
     
-    await handleFinalLogin(fnumber, selectedBranch, sessionToken);
+    await handleFinalLogin(savedfnumber, selectedBranch, sessionToken);
   };
 
   // Common function for final login step
@@ -687,6 +690,7 @@ const Login = ({ onLogin }) => {
 };
 
 export default Login;
+
 // import React, { useState, useEffect } from "react";
 // import { useVisitor } from "../context/VisitorContext";
 // import "../login.css";
