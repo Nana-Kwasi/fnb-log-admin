@@ -67,6 +67,152 @@ form .error-message {
     animation: spin 1s linear infinite;
     display: inline-block;
 }
+/* Existing styles... */
+
+/* Verification card styles */
+.verification-counter {
+    width: 100%;
+    margin: 15px 0;
+  }
+  
+  .counter-text {
+    font-size: 14px;
+    color: #555;
+    margin-bottom: 5px;
+    text-align: center;
+  }
+  
+  .progress-bar {
+    width: 100%;
+    height: 8px;
+    background-color: #e0e0e0;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  
+  .progress-fill {
+    height: 100%;
+    background-color: #1e549f; /* FNB blue color */
+    transition: width 0.3s ease;
+  }
+  
+  /* Spinner styles */
+  .spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: #fff;
+    animation: spin 1s ease-in-out infinite;
+  }
+  
+  .select-spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(30, 84, 159, 0.3);
+    border-radius: 50%;
+    border-top-color: #1e549f;
+    animation: spin 1s ease-in-out infinite;
+    margin-left: 10px;
+  }
+  
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+  
+  /* Enhanced login card styles */
+  .login-card {
+    background-color: #fff;
+    padding: 30px;
+    border-radius: 8px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    max-width: 400px;
+    text-align: center;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+  
+  .login-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+  }
+  
+  .login-logo {
+    height: 60px;
+    margin-bottom: 20px;
+  }
+  
+  h2 {
+    color: #1e549f;
+    margin-bottom: 25px;
+    font-weight: 600;
+  }
+  
+  /* Form input styles */
+  input[type="text"],
+  input[type="password"],
+  select {
+    width: 100%;
+    padding: 12px 15px;
+    margin-bottom: 15px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 16px;
+    transition: border-color 0.3s;
+  }
+  
+  input[type="text"]:focus,
+  input[type="password"]:focus,
+  select:focus {
+    border-color: #1e549f;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(30, 84, 159, 0.1);
+  }
+  
+  .login-button {
+    width: 100%;
+    padding: 12px;
+    background-color: #1e549f;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.3s;
+  }
+  
+  .login-button:hover {
+    background-color: #164178;
+  }
+  
+  .login-button:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+  }
+  
+  .error-message {
+    color: #e74c3c;
+    margin: 10px 0;
+    font-size: 14px;
+  }
+  
+  /* Branch selection styles */
+  .select-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  
+  .branch-select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='6' fill='%23555'%3E%3Cpath d='M0 0l6 6 6-6z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 15px center;
+    padding-right: 35px;
+  }
 
 @keyframes spin {
     0% {
