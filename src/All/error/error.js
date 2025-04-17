@@ -3640,3 +3640,227 @@ module.exports = {
 http://172.29.18.126/adproxyservice/prod/ldap/authenticate
 
 http://172.29.18.126/adproxyservice/prod/ldap/search
+
+
+// controller
+
+
+const pool = require('../db');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+const axios = require('axios'); 
+
+const JWT_SECRET = 'your-secret-key-should-be-in-env-file';
+
+
+const verifyFnumber = async (req, res) => {
+  const { fnumber } = req.body;
+
+  if (!fnumber) {
+    return res.status(400).json({ error: 'F-number is required' });
+  }
+
+  try {
+    const createTokenUrl = 'https://172.29.18.126/adproxyservice/prod/client/renew-token';
+    console.log('Requesting token from:', createTokenUrl);
+    
+    const tokenResponse = await axios.post(createTokenUrl, {
+      clientId: "8CA09F75-720F-4641-9B70-5344850DF34E",
+      duration: 300
+    }, { 
+      httpsAgent: new require('https').Agent({ rejectUnauthorized: false }) 
+    });
+
+    console.log('Token response status:', tokenResponse.status);
+    console.log('Token response data:', JSON.stringify(tokenResponse.data, null, 2));
+
+    // Check if token exists in the response
+    if (!tokenResponse.data || tokenResponse.data.statusCode !== 0 || !tokenResponse.data.data || !tokenResponse.data.data.token) {
+      console.error('Invalid token response:', tokenResponse.data);
+      return res.status(400).json({ 
+        isValid: false, 
+        error: `Failed to obtain authorization token: ${
+          tokenResponse.data && tokenResponse.data.statusMessage 
+            ? tokenResponse.data.statusMessage 
+            : 'Unknown error'
+        }` 
+      });
+    }
+
+    const rawToken = tokenResponse.data.data.token;
+    const authToken = `Bearer ${rawToken}`;
+    console.log('Successfully obtained token');
+    console.log('Using authorization header:', authToken);
+
+    const searchApiUrl = 'https://172.29.18.126/adproxyservice/prod/ldap/search';
+    console.log('Searching for user at:', searchApiUrl);
+    
+    console.log('Attempting API call with Bearer token in Authorization header');
+    try {
+      const requestConfig = {
+        url: searchApiUrl,
+        method: 'post',
+        data: { fnumber: fnumber },
+        headers: {
+          'Authorization': authToken,
+          'Content-Type': 'application/json'
+        },
+        httpsAgent: new require('https').Agent({ rejectUnauthorized: false })
+      };
+      
+      console.log('Request configuration:', JSON.stringify({
+        url: requestConfig.url,
+        method: requestConfig.method,
+        headers: requestConfig.headers,
+        data: requestConfig.data
+      }, null, 2));
+      
+      const response = await axios(requestConfig);
+      
+      console.log('Search response status:', response.status);
+      console.log('Search response data:', JSON.stringify(response.data, null, 2));
+
+      if (response.data.statusCode !== 0) {
+        return res.status(400).json({ 
+          isValid: false, 
+          error: `Search API error: ${response.data.statusMessage}` 
+        });
+      }
+
+      
+      return res.status(200).json({
+        isValid: true,
+        userData: {
+          name: response.data.data.name,
+          email: response.data.data.email,
+          title: response.data.data.title,
+          memberOf: response.data.data.memberOf
+        }
+      });
+    } catch (err) {
+      console.error('Search API call failed:', err.message);
+      
+      // If there's a response in the error, log it
+      if (err.response) {
+        console.error('Error response status:', err.response.status);
+        console.error('Error response data:', JSON.stringify(err.response.data, null, 2));
+      }
+      
+      throw new Error(`Failed to authenticate with the search API: ${err.message}`);
+    }
+  } catch (err) {
+    console.error('F-number verification error details:', err.message);
+    
+    if (err.response) {
+      console.error('Error response status:', err.response.status);
+      console.error('Error response data:', JSON.stringify(err.response.data, null, 2));
+    }
+    
+    return res.status(500).json({ 
+      isValid: false, 
+      error: `Server error during F-number verification: ${err.message}` 
+    });
+  }
+};
+
+
+
+const createUser = async (req, res) => {
+  const { email, branch, branchCode, role = 'user' } = req.body;
+
+  try {
+    if (!email || !branch) {
+      return res.status(400).json({ error: 'F-number and branch are required' });
+    }
+
+    const checkUser = await pool.query('SELECT * FROM users_table WHERE email = $1', [email]);
+    if (checkUser.rows.length > 0) {
+      return res.status(400).json({ error: 'User already exists' });
+    }
+
+
+    const result = await pool.query(
+      'INSERT INTO users_table (email, branch, branch_code, role, created_at) VALUES ($1, $2, $3, $4, NOW()) RETURNING id, email, branch, role, created_at',
+      [email, branch, branchCode, role]
+    );
+
+    res.status(201).json({
+      message: 'User created successfully',
+      user: {
+        id: result.rows[0].id,
+        email: result.rows[0].email,
+        branch: result.rows[0].branch,
+        role: result.rows[0].role,
+        created_at: result.rows[0].created_at
+      }
+    });
+  } catch (err) {
+    console.error('User creation error:', err);
+    res.status(500).json({ error: 'Server error during user creation' });
+  }
+};
+
+const updateUser = async (req, res) => {
+  const { id } = req.params;
+  const { email, branch, branchCode, role, is_active } = req.body;
+
+  try {
+    const result = await pool.query(
+      'UPDATE users_table SET email = $1, branch = $2, branch_code = $3, role = $4, is_active = COALESCE($5, is_active) WHERE id = $6 RETURNING *',
+      [email, branch, branchCode, role, is_active, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({
+      message: 'User updated successfully',
+      user: {
+        id: result.rows[0].id,
+        email: result.rows[0].email,
+        branch: result.rows[0].branch,
+        role: result.rows[0].role,
+        is_active: result.rows[0].is_active
+      }
+    });
+  } catch (err) {
+    console.error('User update error:', err);
+    res.status(500).json({ error: 'Server error during user update' });
+  }
+};
+
+const getAllUsers = async (req, res) => {
+  try {
+    const result = await pool.query('SELECT id, email, branch, role, created_at, is_active FROM users_table');
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching users:', err);
+    res.status(500).json({ error: 'Server error while fetching users' });
+  }
+};
+
+const deleteUser = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await pool.query('DELETE FROM users_table WHERE id = $1', [id]);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({ message: 'User deleted successfully' });
+  } catch (err) {
+    console.error('User deletion error:', err);
+    res.status(500).json({ error: 'Server error during user deletion' });
+  }
+};
+
+module.exports = {
+  createUser,
+  getAllUsers,
+  updateUser,
+  deleteUser,
+  verifyFnumber  
+};
