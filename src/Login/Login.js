@@ -736,16 +736,16 @@ const Login = ({ onLogin }) => {
   }, [authenticated, fnumber, onLogin, manualLoginAttempt]);
 
   // Effect for the counter animation during 2FA verification
-  // Adjusted to count up very slowly over 50 minutes
+  // Changed to count up over 10 minutes (not 50 minutes as in the original)
   useEffect(() => {
     let interval;
     if (verificationInProgress) {
       setVerificationCounter(0); 
       
-      // For a 50-minute wait time:
-      // 50 minutes = 3000 seconds
-      // We want to count from 0 to 100 in 3000 seconds
-      // So we increment approximately every 30 seconds
+      // For a 10-minute wait time:
+      // 10 minutes = 600 seconds
+      // We want to count from 0 to 100 in 600 seconds
+      // So we increment approximately every 6 seconds
       interval = setInterval(() => {
         setVerificationCounter(prev => {
           const newCount = prev + 1;
@@ -755,7 +755,7 @@ const Login = ({ onLogin }) => {
           }
           return newCount;
         });
-      }, 30000); // 30 seconds per 1% increment
+      }, 6000); // 6 seconds per 1% increment for a total of 10 minutes
     }
     
     return () => {
@@ -791,6 +791,7 @@ const Login = ({ onLogin }) => {
         if (response.ok && data.success) {
           // Verification successful
           setVerificationInProgress(false);
+          setShowWaitingFor2FA(false); // Hide the waiting screen
           clearInterval(pollInterval);
           
           if (!data.userExists) {
@@ -807,7 +808,6 @@ const Login = ({ onLogin }) => {
             await handleFinalLogin(data.fnumber || savedfnumber, data.branches[0].branchName, data.sessionToken);
           } else if (data.branches && data.branches.length > 1) {
             // Show branch selection screen
-            setShowWaitingFor2FA(false);
             setShowBranchSelection(true);
             setFetchingBranches(false);
           } else {
@@ -832,9 +832,9 @@ const Login = ({ onLogin }) => {
       // Initial poll immediately
       pollForVerification();
       
-      // Then poll every 15 seconds - more frequent than the counter updates
+      // Then poll every 5 seconds - more frequent than the counter updates
       // so we don't miss when the user accepts on their phone
-      pollInterval = setInterval(pollForVerification, 15000);
+      pollInterval = setInterval(pollForVerification, 5000);
     }
     
     return () => {
@@ -961,7 +961,7 @@ const Login = ({ onLogin }) => {
   // Time display for the counter (showing estimated time remaining)
   const getTimeRemainingDisplay = () => {
     const percentRemaining = 100 - verificationCounter;
-    const minutesRemaining = Math.floor((percentRemaining * 50) / 100);
+    const minutesRemaining = Math.floor((percentRemaining * 10) / 100); // Changed to 10 minutes total
     return `Approx. ${minutesRemaining} minutes remaining`;
   };
 
@@ -1080,7 +1080,6 @@ const Login = ({ onLogin }) => {
 };
 
 export default Login;
-
 
 // import React, { useState, useEffect } from "react";
 // import { useVisitor } from "../context/VisitorContext";
