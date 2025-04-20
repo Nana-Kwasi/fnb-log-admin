@@ -213,7 +213,149 @@ form .error-message {
     background-position: right 15px center;
     padding-right: 35px;
   }
+/* Add these styles to your login.css file */
 
+.verification-info {
+    text-align: center;
+    margin-bottom: 1.5rem;
+  }
+  
+  .verification-info p {
+    margin: 0.5rem 0;
+    font-size: 1rem;
+    color: #333;
+  }
+  
+  .verification-counter {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 1.5rem 0;
+  }
+  
+  .counter-display {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1rem;
+  }
+  
+  .counter-number {
+    font-size: 3.5rem;
+    font-weight: bold;
+    color: #e17055;
+  }
+  
+  .counter-percent {
+    font-size: 1.5rem;
+    color: #636e72;
+    margin-left: 0.25rem;
+  }
+  
+  .counter-text {
+    font-size: 1rem;
+    color: #636e72;
+    margin-bottom: 0.5rem;
+  }
+  
+  .progress-bar {
+    width: 100%;
+    height: 0.75rem;
+    background-color: #dfe6e9;
+    border-radius: 1rem;
+    overflow: hidden;
+  }
+  
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #fdcb6e 0%, #e17055 100%);
+    transition: width 0.3s ease;
+  }
+  
+  .cancel-button {
+    background-color: #dfe6e9;
+    color: #636e72;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    margin-top: 1rem;
+  }
+  
+  .cancel-button:hover {
+    background-color: #b2bec3;
+    color: #2d3436;
+  }
+  
+  /* Enhance existing styles */
+  .login-logo {
+    width: 150px;
+    margin-bottom: 1rem;
+  }
+  
+  .login-card {
+    background-color: white;
+    padding: 2rem;
+    border-radius: 1rem;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    max-width: 400px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .login-button {
+    width: 100%;
+    padding: 0.75rem;
+    background-color: #e17055;
+    color: white;
+    border: none;
+    border-radius: 0.5rem;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    margin-top: 1rem;
+  }
+  
+  .login-button:hover {
+    background-color: #d35400;
+  }
+  
+  .error-message {
+    color: #e74c3c;
+    margin: 0.5rem 0;
+    font-size: 0.9rem;
+  }
+  
+  .spinner {
+    display: inline-block;
+    width: 1.25rem;
+    height: 1.25rem;
+    border: 0.25rem solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: white;
+    animation: spin 1s ease-in-out infinite;
+  }
+  
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  
+  /* Responsive adjustments */
+  @media (max-width: 480px) {
+    .login-card {
+      padding: 1.5rem;
+    }
+    
+    .counter-number {
+      font-size: 2.5rem;
+    }
+  }
 @keyframes spin {
     0% {
         transform: rotate(0deg);
