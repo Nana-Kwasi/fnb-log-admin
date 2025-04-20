@@ -324,7 +324,6 @@
 
 
 
-
 import React, { useState, useEffect } from "react";
 import { useVisitor } from "../context/VisitorContext";
 import "../login.css";
@@ -340,9 +339,7 @@ const Login = ({ onLogin }) => {
   const [loadingSpinner, setLoadingSpinner] = useState(false);
   
   const [showVerification, setShowVerification] = useState(false);
-  const [verificationInProgress, setVerificationInProgress] = useState(false);
-  const [verificationStatus, setVerificationStatus] = useState("pending");
-  const [verificationTimer, setVerificationTimer] = useState(0);
+  const [verificationCode, setVerificationCode] = useState("");
   const [showBranchSelection, setShowBranchSelection] = useState(false);
   const [sessionToken, setSessionToken] = useState("");
   const [savedfnumber, setSavedFnumber] = useState(""); 
@@ -363,85 +360,6 @@ const Login = ({ onLogin }) => {
       console.log("Already authenticated from storage, but not navigating (waiting for manual login)");
     }
   }, [authenticated, fnumber, onLogin, manualLoginAttempt]);
-
-  // Monitor verification status
-  useEffect(() => {
-    let interval;
-    if (verificationInProgress) {
-      setVerificationTimer(0);
-      
-      interval = setInterval(async () => {
-        // Increment timer for timeout tracking
-        setVerificationTimer(prev => {
-          const newTimer = prev + 1;
-          // Timeout after 60 seconds (300 * 200ms = 60000ms = 60s)
-          if (newTimer >= 300) {
-            clearInterval(interval);
-            setVerificationInProgress(false);
-            setLocalError("Verification timed out. Please try again.");
-            return 0;
-          }
-          return newTimer;
-        });
-        
-        // Check verification status
-        try {
-          const response = await fetch(`${API_URL}/users/check-verification-status`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              token: authToken,
-              fnumber: savedfnumber
-            })
-          });
-          
-          const data = await response.json();
-          
-          if (!response.ok) {
-            throw new Error(data.error || 'Failed to check verification status');
-          }
-          
-          const status = data.status; // Could be "pending", "accepted", "declined"
-          setVerificationStatus(status);
-          
-          if (status === "accepted") {
-            clearInterval(interval);
-            setVerificationInProgress(false);
-            
-            // Process success
-            setSessionToken(data.sessionToken);
-            setBranches(data.branches || []);
-            
-            if (data.branches && data.branches.length === 1) {
-              setSelectedBranch(data.branches[0].branchName);
-              await handleFinalLogin(data.fnumber || savedfnumber, data.branches[0].branchName, data.sessionToken);
-            } else if (data.branches && data.branches.length > 1) {
-              setShowVerification(false);
-              setShowBranchSelection(true);
-              setFetchingBranches(false);
-            } else {
-              throw new Error('No branches available for this user');
-            }
-          } else if (status === "declined") {
-            clearInterval(interval);
-            setVerificationInProgress(false);
-            setLocalError("Authentication was declined on your device");
-          }
-          // If still pending, continue polling
-          
-        } catch (err) {
-          console.error("Verification status check error:", err);
-          // Don't stop polling just because of a single error
-        }
-      }, 2000); // Check every 2 seconds
-    }
-    
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [verificationInProgress, authToken, savedfnumber, API_URL]);
 
   const handleInitialSubmit = async (e) => {
     e.preventDefault();
@@ -478,14 +396,62 @@ const Login = ({ onLogin }) => {
       setAuthToken(data.token);
       setSavedFnumber(fnumber);
       
-      // Now show verification screen and start polling for status
+      // Now show verification screen
       setShowVerification(true);
-      setVerificationInProgress(true);
-      setVerificationStatus("pending");
       
     } catch (err) {
       console.error("Authentication error:", err);
       setLocalError(err.message || "Authentication failed. Please check your credentials and try again.");
+    } finally {
+      setLoadingSpinner(false);
+    }
+  };
+
+  const handleVerify2FA = async (e) => {
+    e.preventDefault();
+    setLocalError("");
+    setLoadingSpinner(true);
+    
+    try {
+      // Call the verify2FA endpoint directly - no polling needed
+      const response = await fetch(`${API_URL}/users/verify2fa`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          token: authToken,
+          code: verificationCode
+        })
+      });
+      
+      const data = await response.json();
+      console.log("2FA verification response:", data);
+      
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Verification failed');
+      }
+      
+      // If we got success, process the response
+      setSessionToken(data.sessionToken);
+      setBranches(data.branches || []);
+      
+      if (data.branches && data.branches.length === 1) {
+        // If only one branch, auto-select it and proceed to final login
+        setSelectedBranch(data.branches[0].branchName);
+        await handleFinalLogin(data.fnumber || savedfnumber, data.branches[0].branchName, data.sessionToken);
+      } else if (data.branches && data.branches.length > 1) {
+        // If multiple branches, show branch selection screen
+        setShowVerification(false);
+        setShowBranchSelection(true);
+        setFetchingBranches(false);
+      } else {
+        throw new Error('No branches available for this user');
+      }
+      
+    } catch (err) {
+      console.error("2FA verification error:", err);
+      setLocalError(err.message || "Verification failed. Please try again.");
     } finally {
       setLoadingSpinner(false);
     }
@@ -594,11 +560,8 @@ const Login = ({ onLogin }) => {
     );
   }
   
-  // 2FA verification screen (waiting for approval on phone)
+  // 2FA verification screen
   if (showVerification) {
-    // Calculate percentage for progress bar (60 seconds timeout)
-    const progressPercentage = Math.min((verificationTimer / 300) * 100, 100);
-    
     return (
       <div className="login-container">
         <div className="login-card">
@@ -610,38 +573,34 @@ const Login = ({ onLogin }) => {
             <p>Please check your phone for an authentication request and approve it to continue.</p>
             
             <div className="status-indicator">
-              {verificationStatus === "pending" && (
-                <div className="pending-status">Waiting for approval...</div>
-              )}
-              {verificationStatus === "declined" && (
-                <div className="declined-status">Authentication declined on your device</div>
-              )}
-            </div>
-            
-            <div className="verification-counter">
-              <div className="counter-text">Verification will expire in: {Math.floor((300 - verificationTimer) / 5)} seconds</div>
-              <div className="progress-bar">
-                <div 
-                  className="progress-fill" 
-                  style={{ width: `${100 - progressPercentage}%` }}
-                ></div>
-              </div>
+              <div className="pending-status">Waiting for approval on your phone...</div>
             </div>
           </div>
           
-          {displayError && <p className="error-message">{displayError}</p>}
-          
-          {verificationStatus === "declined" && (
-            <button 
-              className="retry-button" 
-              onClick={() => {
-                setShowVerification(false);
-                setVerificationInProgress(false);
-              }}
-            >
-              Back to Login
+          <form onSubmit={handleVerify2FA}>
+            <input
+              type="text"
+              placeholder="Enter verification code (optional)"
+              value={verificationCode}
+              onChange={(e) => setVerificationCode(e.target.value)}
+            />
+            
+            {displayError && <p className="error-message">{displayError}</p>}
+            
+            <button type="submit" className="login-button" disabled={loading || loadingSpinner}>
+              {loadingSpinner ? <span className="spinner"></span> : "Verify"}
             </button>
-          )}
+          </form>
+          
+          <button 
+            className="back-button" 
+            onClick={() => {
+              setShowVerification(false);
+            }}
+            disabled={loadingSpinner}
+          >
+            Back to Login
+          </button>
         </div>
       </div>
     );
@@ -685,8 +644,6 @@ const Login = ({ onLogin }) => {
 };
 
 export default Login;
-
-
 
 
 
