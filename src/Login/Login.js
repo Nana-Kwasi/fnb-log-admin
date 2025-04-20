@@ -341,7 +341,6 @@ const Login = ({ onLogin }) => {
   const [manualLoginAttempt, setManualLoginAttempt] = useState(false);
   const [loadingSpinner, setLoadingSpinner] = useState(false);
   
-  // Multi-step login states
   const [showVerification, setShowVerification] = useState(false);
   const [verificationCode, setVerificationCode] = useState("");
   const [verificationCounter, setVerificationCounter] = useState(0);
@@ -349,11 +348,11 @@ const Login = ({ onLogin }) => {
   const [verificationInProgress, setVerificationInProgress] = useState(false);
   const [showBranchSelection, setShowBranchSelection] = useState(false);
   const [sessionToken, setSessionToken] = useState("");
-  const [savedfnumber, setSavedFnumber] = useState(""); // Save fnumber for later steps
+  const [savedfnumber, setSavedFnumber] = useState(""); 
 
   const { login, loading, error, setError, authenticated } = useVisitor();
 
-  // API URLs - backend only
+  
   const API_URL = "http://localhost:5001";
 
   useEffect(() => {
@@ -362,17 +361,16 @@ const Login = ({ onLogin }) => {
       setTimeout(() => { 
         onLogin(fnumber);
         setManualLoginAttempt(false);
-      }, 1000); // Reduced timeout for better UX
+      }, 1000); 
     } else if (authenticated) {
       console.log("Already authenticated from storage, but not navigating (waiting for manual login)");
     }
   }, [authenticated, fnumber, onLogin, manualLoginAttempt]);
 
-  // Counter effect for 2FA verification
   useEffect(() => {
     let interval;
     if (verificationInProgress) {
-      setVerificationCounter(0); // Reset counter when starting
+      setVerificationCounter(0); 
       interval = setInterval(() => {
         setVerificationCounter(prev => {
           const newCount = prev + 1;
@@ -384,7 +382,7 @@ const Login = ({ onLogin }) => {
           }
           return newCount;
         });
-      }, 200); // Updates every 200ms for a ~20 second total count
+      }, 200); 
     }
     
     return () => {
@@ -392,7 +390,6 @@ const Login = ({ onLogin }) => {
     };
   }, [verificationInProgress]);
 
-  // Handle initial login with F-number and password
   const handleInitialSubmit = async (e) => {
     e.preventDefault();
     console.log("Initial login form submitted");
@@ -406,7 +403,6 @@ const Login = ({ onLogin }) => {
     }
 
     try {
-      // Call backend authentication endpoint
       const response = await fetch(`${API_URL}/users/authenticate`, {
         method: 'POST',
         headers: {
@@ -426,11 +422,9 @@ const Login = ({ onLogin }) => {
       
       console.log("Authentication response:", data);
       
-      // Store the token for 2FA verification
       setAuthToken(data.token);
       setSavedFnumber(fnumber);
       
-      // Show the 2FA verification form
       setShowVerification(true);
       setVerificationInProgress(true);
       
@@ -442,7 +436,6 @@ const Login = ({ onLogin }) => {
     }
   };
 
-  // Handle 2FA verification
   const handleVerifySubmit = async (e) => {
     e.preventDefault();
     console.log("Verification form submitted");
@@ -450,7 +443,6 @@ const Login = ({ onLogin }) => {
     setLoadingSpinner(true);
     
     try {
-      // Call backend 2FA verification endpoint
       const response = await fetch(`${API_URL}/users/verify2fa`, {
         method: 'POST',
         headers: {
@@ -459,7 +451,7 @@ const Login = ({ onLogin }) => {
         body: JSON.stringify({
           token: authToken,
           code: verificationCode,
-          fnumber: savedfnumber // In case we need it
+          fnumber: savedfnumber 
         })
       });
       
@@ -470,26 +462,19 @@ const Login = ({ onLogin }) => {
         throw new Error(data.error || '2FA verification failed');
       }
       
-      // Stop the verification counter
       setVerificationInProgress(false);
       
-      // Check if user exists in the system
       if (!data.userExists) {
         throw new Error('User not found in system. Please contact administrator.');
       }
       
-      // Store session token and branches
       setSessionToken(data.sessionToken);
       setBranches(data.branches || []);
       
-      // Show branch selection or handle single branch
       if (data.branches && data.branches.length === 1) {
-        // Only one branch, select it automatically
         setSelectedBranch(data.branches[0].branchName);
-        // Proceed with final login
         await handleFinalLogin(data.fnumber || savedfnumber, data.branches[0].branchName, data.sessionToken);
       } else if (data.branches && data.branches.length > 1) {
-        // Multiple branches, show selection screen
         setShowVerification(false);
         setShowBranchSelection(true);
         setFetchingBranches(false);
@@ -506,7 +491,6 @@ const Login = ({ onLogin }) => {
     }
   };
 
-  // Handle final login with branch selection
   const handleBranchSubmit = async (e) => {
     e.preventDefault();
     console.log("Branch selection form submitted");
@@ -519,7 +503,6 @@ const Login = ({ onLogin }) => {
     await handleFinalLogin(savedfnumber, selectedBranch, sessionToken);
   };
 
-  // Common function for final login step
   const handleFinalLogin = async (fnumber, branch, sessionToken) => {
     setLocalError("");
     setLoadingSpinner(true);
@@ -527,7 +510,6 @@ const Login = ({ onLogin }) => {
     try {
       console.log(`Finalizing login with branch: ${branch}`);
       
-      // Call backend to finalize login
       const response = await fetch(`${API_URL}/users/finalize-login`, {
         method: 'POST',
         headers: {
@@ -546,7 +528,6 @@ const Login = ({ onLogin }) => {
         throw new Error(data.error || 'Login failed');
       }
       
-      // Store authentication data
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify({
         ...data.user,
@@ -554,7 +535,6 @@ const Login = ({ onLogin }) => {
         branchCode: data.user.branchCode
       }));
       
-      // Complete login through visitor context
       setManualLoginAttempt(true);
       const success = await login(
         fnumber, 
@@ -580,7 +560,6 @@ const Login = ({ onLogin }) => {
   
   const displayError = error || localError;
 
-  // Initial login form
   if (!showVerification && !showBranchSelection) {
     return (
       <div className="login-container">
@@ -690,6 +669,11 @@ const Login = ({ onLogin }) => {
 };
 
 export default Login;
+
+
+
+
+
 
 // import React, { useState, useEffect } from "react";
 // import { useVisitor } from "../context/VisitorContext";
