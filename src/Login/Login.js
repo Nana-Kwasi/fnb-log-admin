@@ -382,145 +382,119 @@ const Login = ({ onLogin }) => {
     }
     
     return () => {
-      if (counterIntervalRef.current) {
-        console.log("Cleaning up counter interval");
-        clearInterval(counterIntervalRef.current);
-        counterIntervalRef.current = null;
-      }
+      if (interval) clearInterval(interval);
     };
-  }, [showWaitingFor2FA, verificationInProgress]);
+  }, [verificationInProgress]);
 
-  // POLLING EFFECT - Poll the API for 2FA verification status
-  useEffect(() => {
-    // Only set up polling if:
-    // 1. We have an auth token
-    // 2. We're showing the waiting screen
-    // 3. No polling is already running
-    if (authToken && showWaitingFor2FA && !pollIntervalRef.current) {
-      console.log("STARTING API POLLING");
+  // Effect to poll the verify2FA endpoint after initial authentication
+  // Adjust the useEffect for the counter animation
+useEffect(() => {
+  let interval;
+  if (verificationInProgress) {
+    setVerificationCounter(0); 
+    interval = setInterval(() => {
+      setVerificationCounter(prev => {
+        const newCount = prev + 1;
+        // Don't stop at 100, let it keep going
+        return newCount;
+      });
+    }, 300);
+  }
+  
+  return () => {
+    if (interval) clearInterval(interval);
+  };
+}, [verificationInProgress]);
+
+// Modify the 2FA polling effect
+useEffect(() => {
+  let pollInterval;
+  let timeoutTimer;
+  
+  const pollForVerification = async () => {
+    if (!authToken || !showWaitingFor2FA) return;
+    
+    try {
+      const response = await fetch(`${API_URL}/users/verify2fa`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          token: authToken,
+          code: "AUTO_VERIFY",
+          fnumber: savedfnumber
+        })
+      });
       
-      const pollForVerification = async () => {
-        if (!authToken || !showWaitingFor2FA) {
-          console.log("Conditions no longer met, skipping poll");
+      const data = await response.json();
+      console.log("2FA verification poll response:", data);
+      
+      // Check if verification was successful
+      if (response.ok && data.success) {
+        // Verification successful - clear intervals and proceed
+        clearInterval(pollInterval);
+        clearTimeout(timeoutTimer);
+        setVerificationInProgress(false);
+        
+        if (!data.userExists) {
+          setLocalError('User not found in system. Please contact administrator.');
+          setShowWaitingFor2FA(false);
           return;
         }
         
-        console.log("Polling 2FA API...");
-        try {
-          const response = await fetch(`${API_URL}/users/verify2fa`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              token: authToken,
-              code: "AUTO_VERIFY",
-              fnumber: savedfnumber
-            })
-          });
-          
-          const data = await response.json();
-          console.log("2FA API response:", data);
-          
-          // Handle successful verification (status code 200/success flag)
-          if (response.ok && data.success) {
-            console.log("2FA VERIFICATION SUCCESSFUL!");
-            
-            // Clear both intervals
-            if (counterIntervalRef.current) {
-              clearInterval(counterIntervalRef.current);
-              counterIntervalRef.current = null;
-            }
-            
-            if (pollIntervalRef.current) {
-              clearInterval(pollIntervalRef.current);
-              pollIntervalRef.current = null;
-            }
-            
-            // Update verification states
-            setVerificationInProgress(false);
-            setShowWaitingFor2FA(false);
-            
-            // Handle user data
-            if (!data.userExists) {
-              setLocalError('User not found in system. Please contact administrator.');
-              return;
-            }
-            
-            // Process branch data
-            setSessionToken(data.sessionToken);
-            setBranches(data.branches || []);
-            
-            if (data.branches && data.branches.length === 1) {
-              // If only one branch, proceed directly to final login
-              console.log("Only one branch, proceeding to final login");
-              setSelectedBranch(data.branches[0].branchName);
-              await handleFinalLogin(data.fnumber || savedfnumber, data.branches[0].branchName, data.sessionToken);
-            } else if (data.branches && data.branches.length > 1) {
-              // Show branch selection screen
-              console.log("Multiple branches, showing selection screen");
-              setShowBranchSelection(true);
-              setFetchingBranches(false);
-            } else {
-              setLocalError('No branches available for this user');
-            }
-          } 
-          // Handle pending status (explicit check for pending status)
-          else if (data && 
-                  ((data.status_code === "002") || 
-                   (data.data && data.data.status === "Pending"))) {
-            console.log("2FA still pending, continuing to poll");
-            // Do nothing, continue polling
-          }
-          // Handle rejection
-          else if (response.status === 401 || 
-                  (data && data.error && data.error.includes("rejected")) ||
-                  (data && data.status_message && data.status_message.includes("rejected"))) {
-            console.log("2FA REJECTED");
-            
-            // Clear both intervals
-            if (counterIntervalRef.current) {
-              clearInterval(counterIntervalRef.current);
-              counterIntervalRef.current = null;
-            }
-            
-            if (pollIntervalRef.current) {
-              clearInterval(pollIntervalRef.current);
-              pollIntervalRef.current = null;
-            }
-            
-            // Update verification states
-            setVerificationInProgress(false);
-            setShowWaitingFor2FA(false);
-            setLocalError("2FA verification was rejected. Please try again.");
-          }
-          // Any other error
-          else {
-            console.log("Unknown response from 2FA API");
-            // Continue polling, but log the issue
-          }
-        } catch (err) {
-          console.error("Error polling for 2FA verification:", err);
-          // Continue polling despite network errors
-        }
-      };
-      
-      // Poll immediately on first run
-      pollForVerification();
-      
-      // Then set up interval for polling
-      pollIntervalRef.current = setInterval(pollForVerification, 5000); // Poll every 5 seconds
-    }
-    
-    // Clean up interval on unmount or when dependencies change
-    return () => {
-      if (pollIntervalRef.current) {
-        console.log("Cleaning up polling interval");
-        clearInterval(pollIntervalRef.current);
-        pollIntervalRef.current = null;
+        setSessionToken(data.sessionToken);
+        setBranches(data.branches || []);
+        
+        // Always proceed to branch selection regardless
+        setShowWaitingFor2FA(false);
+        setShowBranchSelection(true);
+        setFetchingBranches(false);
+      } 
+      // Check if verification was rejected
+      else if (response.status === 401 || (data && data.error && data.error.includes("rejected"))) {
+        clearInterval(pollInterval);
+        clearTimeout(timeoutTimer);
+        setVerificationInProgress(false);
+        setShowWaitingFor2FA(false);
+        setLocalError("2FA verification was rejected. Please try again.");
       }
-    };
-  }, [authToken, showWaitingFor2FA, savedfnumber, API_URL]);
+      // Handle "Pending" status - keep polling
+      else if (data && data.status_code === "002") {
+        console.log("Verification still pending, continuing to poll...");
+        // Continue polling, do nothing else here
+      }
+    } catch (err) {
+      console.error("Error polling for 2FA verification:", err);
+      // Don't stop polling on network errors, continue trying
+    }
+  };
+  
+  if (showWaitingFor2FA && authToken) {
+    // Initial poll immediately
+    pollForVerification();
+    
+    // Then poll every 3 seconds
+    pollInterval = setInterval(pollForVerification, 3000);
+    
+    // Set a timeout of 60 seconds
+    timeoutTimer = setTimeout(() => {
+      clearInterval(pollInterval);
+      setVerificationInProgress(false);
+      
+      // After timeout, simply proceed to branch selection
+      setShowWaitingFor2FA(false);
+      setShowBranchSelection(true);
+      setFetchingBranches(false);
+      console.log("2FA verification timed out - proceeding to branch selection");
+    }, 60000); // 60 seconds timeout
+  }
+  
+  return () => {
+    if (pollInterval) clearInterval(pollInterval);
+    if (timeoutTimer) clearTimeout(timeoutTimer);
+  };
+}, [showWaitingFor2FA, authToken, savedfnumber, API_URL]);
 
   const handleInitialSubmit = async (e) => {
     e.preventDefault();
@@ -673,59 +647,58 @@ const Login = ({ onLogin }) => {
   }
   
   // 2FA waiting screen
-  if (showWaitingFor2FA) {
-    return (
-      <div className="login-container">
-        <div className="login-card">
-          <img src="/FNB logo.png" alt="FNB Logo" className="login-logo" />
-          <h2>Two-Factor Authentication</h2>
-          
-          <div className="verification-info">
-            <p>Please check your phone for a verification prompt</p>
-            <p>Accept the prompt on your device to continue</p>
-            <p className="time-remaining">{getTimeRemainingDisplay()}</p>
-          </div>
-          
-          <div className="verification-counter">
-            <div className="counter-display">
-              <span className="counter-number">{verificationCounter}</span>
-              <span className="counter-percent">%</span>
-            </div>
-            <div className="progress-bar">
-              <div 
-                className="progress-fill" 
-                style={{ width: `${verificationCounter}%` }}
-              ></div>
-            </div>
-          </div>
-          
-          {displayError && <p className="error-message">{displayError}</p>}
-          
-          <button 
-            className="cancel-button" 
-            onClick={() => {
-              // Clear intervals first
-              if (counterIntervalRef.current) {
-                clearInterval(counterIntervalRef.current);
-                counterIntervalRef.current = null;
-              }
-              
-              if (pollIntervalRef.current) {
-                clearInterval(pollIntervalRef.current);
-                pollIntervalRef.current = null;
-              }
-              
-              // Then update state
-              setVerificationInProgress(false);
-              setShowWaitingFor2FA(false);
-            }}
-          >
-            Cancel
-          </button>
+  // 2FA waiting screen
+if (showWaitingFor2FA) {
+  return (
+    <div className="login-container">
+      <div className="login-card">
+        <img src="/FNB logo.png" alt="FNB Logo" className="login-logo" />
+        <h2>Two-Factor Authentication</h2>
+        
+        <div className="verification-info">
+          <p>Please check your phone for a verification prompt</p>
+          <p>Accept the prompt on your device to continue</p>
         </div>
+        
+        <div className="verification-counter">
+          <div className="counter-display">
+            <span className="counter-number">{Math.min(verificationCounter, 100)}</span>
+            <span className="counter-percent">%</span>
+          </div>
+          <div className="progress-bar">
+            <div 
+              className="progress-fill" 
+              style={{ width: `${Math.min(verificationCounter, 100)}%` }}
+            ></div>
+          </div>
+        </div>
+        
+        {displayError && <p className="error-message">{displayError}</p>}
+        
+        <button 
+          className="cancel-button" 
+          onClick={() => {
+            setShowWaitingFor2FA(false);
+            setVerificationInProgress(false);
+          }}
+        >
+          Cancel
+        </button>
+        
+        {/* Add a skip button for development/testing */}
+        <button 
+          className="skip-button"
+          onClick={() => {
+            setShowWaitingFor2FA(false);
+            setShowBranchSelection(true);
+          }}
+        >
+          Skip 2FA (Testing only)
+        </button>
       </div>
-    );
-  }
+    </div>
+  );
+}
   
   // Branch selection form
   return (
@@ -765,6 +738,10 @@ const Login = ({ onLogin }) => {
 };
 
 export default Login;
+
+
+
+
 
 // import React, { useState, useEffect } from "react";
 // import { useVisitor } from "../context/VisitorContext";
