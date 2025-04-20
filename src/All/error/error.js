@@ -4394,6 +4394,54 @@ module.exports = {
 };
 
 // new error
+PS C:\Users\f8877557\file-backend> cd new-backend                                                                                           
+PS C:\Users\f8877557\file-backend\new-backend> node server.js                                                                               
+Server is running on port 5001
+Health check available at: http://localhost:5001/health
+Auth endpoints available at: http://localhost:5001/auth/login
+Connected to the database
+2025-04-20T16:47:28.831Z - POST /users/authenticate
+Calling LDAP authentication API
+Requesting token from: https://172.29.18.126/adproxyservice/prod/client/renew-token
+Token response status: 200
+Successfully obtained token for authentication
+Auth response status: 200
+2025-04-20T16:47:31.758Z - POST /users/verify2fa
+Verifying 2FA code
+Requesting token from: https://172.29.18.126/adproxyservice/prod/client/renew-token
+Token response status: 200
+Successfully obtained token for 2FA verification
+Verify response status: 200
+Verify response data: {
+  "status_code": "002",
+  "status_message": "Pending authentication",
+  "server_timestamp": "2025-04-20T16:46:57.791710452",
+  "data": {
+    "authId": "25cb6474-1ae0-42ff-a7bc-10a4e8ff331e",
+    "clientId": "8ca09f75-720f-4641-9b70-5344850df34e",
+    "status": "Pending",
+    "statusMessage": null,
+    "payload": null,
+    "dateCreated": "2025-04-20T16:46:55.081552",
+    "lastUpdated": "2025-04-20T16:46:55.081568",
+    "fnumber": "F8877557"
+  }
+}
+2FA verification failed: {
+  status_code: '002',
+  status_message: 'Pending authentication',
+  server_timestamp: '2025-04-20T16:46:57.791710452',
+  data: {
+    authId: '25cb6474-1ae0-42ff-a7bc-10a4e8ff331e',
+    clientId: '8ca09f75-720f-4641-9b70-5344850df34e',
+    status: 'Pending',
+    statusMessage: null,
+    payload: null,
+    dateCreated: '2025-04-20T16:46:55.081552',
+    lastUpdated: '2025-04-20T16:46:55.081568',
+    fnumber: 'F8877557'
+  }
+}
 
 
 
