@@ -697,7 +697,7 @@
 
 
 // new
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useVisitor } from "../context/VisitorContext";
 import "../login.css";
 
@@ -719,6 +719,10 @@ const Login = ({ onLogin }) => {
   const [sessionToken, setSessionToken] = useState("");
   const [savedfnumber, setSavedFnumber] = useState(""); 
 
+  // Add a ref to track if verification is in progress
+  const counterIntervalRef = useRef(null);
+  const pollIntervalRef = useRef(null);
+
   const { login, loading, error, setError, authenticated } = useVisitor();
   
   const API_URL = "http://localhost:5001";
@@ -735,42 +739,53 @@ const Login = ({ onLogin }) => {
     }
   }, [authenticated, fnumber, onLogin, manualLoginAttempt]);
 
-  // Effect for the counter animation during 2FA verification
-  // Changed to count up over 10 minutes (not 50 minutes as in the original)
+  // Simplified counter effect - completely separate from API polling
   useEffect(() => {
-    let interval;
-    if (verificationInProgress) {
-      setVerificationCounter(0); 
+    // Clean up any existing interval
+    if (counterIntervalRef.current) {
+      clearInterval(counterIntervalRef.current);
+      counterIntervalRef.current = null;
+    }
+    
+    // Start new counter if waiting for 2FA
+    if (showWaitingFor2FA && verificationInProgress) {
+      console.log("Starting verification counter");
+      setVerificationCounter(0);
       
-      // For a 10-minute wait time:
-      // 10 minutes = 600 seconds
-      // We want to count from 0 to 100 in 600 seconds
-      // So we increment approximately every 6 seconds
-      interval = setInterval(() => {
+      counterIntervalRef.current = setInterval(() => {
         setVerificationCounter(prev => {
           const newCount = prev + 1;
           if (newCount >= 100) {
-            clearInterval(interval);
+            clearInterval(counterIntervalRef.current);
             return 100;
           }
           return newCount;
         });
-      }, 6000); // 6 seconds per 1% increment for a total of 10 minutes
+      }, 6000); // 6 seconds per increment for 10 minutes total
     }
     
+    // Cleanup on unmount or when dependencies change
     return () => {
-      if (interval) clearInterval(interval);
+      if (counterIntervalRef.current) {
+        clearInterval(counterIntervalRef.current);
+        counterIntervalRef.current = null;
+      }
     };
-  }, [verificationInProgress]);
+  }, [showWaitingFor2FA, verificationInProgress]);
 
-  // Effect to poll the verify2FA endpoint after initial authentication
+  // Separate effect to poll the verify2FA endpoint
   useEffect(() => {
-    let pollInterval;
+    // Clean up any existing interval
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    }
     
     const pollForVerification = async () => {
       if (!authToken || !showWaitingFor2FA) return;
       
       try {
+        console.log("Polling for 2FA verification...");
         const response = await fetch(`${API_URL}/users/verify2fa`, {
           method: 'POST',
           headers: {
@@ -778,21 +793,32 @@ const Login = ({ onLogin }) => {
           },
           body: JSON.stringify({
             token: authToken,
-            code: "AUTO_VERIFY", // We're not using a manual code anymore
+            code: "AUTO_VERIFY",
             fnumber: savedfnumber
           })
         });
         
         const data = await response.json();
-        
-        // Log the response data
         console.log("2FA verification poll response:", data);
         
         if (response.ok && data.success) {
           // Verification successful
+          console.log("2FA verification successful!");
+          
+          // Clear intervals first
+          if (counterIntervalRef.current) {
+            clearInterval(counterIntervalRef.current);
+            counterIntervalRef.current = null;
+          }
+          
+          if (pollIntervalRef.current) {
+            clearInterval(pollIntervalRef.current);
+            pollIntervalRef.current = null;
+          }
+          
+          // Then update state
           setVerificationInProgress(false);
-          setShowWaitingFor2FA(false); // Hide the waiting screen
-          clearInterval(pollInterval);
+          setShowWaitingFor2FA(false);
           
           if (!data.userExists) {
             setLocalError('User not found in system. Please contact administrator.');
@@ -815,7 +841,14 @@ const Login = ({ onLogin }) => {
           }
         } else if (response.status === 401 || (data && data.error && data.error.includes("rejected"))) {
           // User rejected the 2FA on their phone
-          clearInterval(pollInterval);
+          clearInterval(pollIntervalRef.current);
+          pollIntervalRef.current = null;
+          
+          if (counterIntervalRef.current) {
+            clearInterval(counterIntervalRef.current);
+            counterIntervalRef.current = null;
+          }
+          
           setVerificationInProgress(false);
           setShowWaitingFor2FA(false);
           setLocalError("2FA verification was rejected. Please try again.");
@@ -829,16 +862,20 @@ const Login = ({ onLogin }) => {
     };
     
     if (showWaitingFor2FA && authToken) {
+      console.log("Starting 2FA verification polling");
       // Initial poll immediately
       pollForVerification();
       
-      // Then poll every 5 seconds - more frequent than the counter updates
-      // so we don't miss when the user accepts on their phone
-      pollInterval = setInterval(pollForVerification, 5000);
+      // Then poll every 5 seconds
+      pollIntervalRef.current = setInterval(pollForVerification, 5000);
     }
     
+    // Cleanup function
     return () => {
-      if (pollInterval) clearInterval(pollInterval);
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
     };
   }, [showWaitingFor2FA, authToken, savedfnumber, API_URL]);
 
@@ -874,12 +911,18 @@ const Login = ({ onLogin }) => {
       
       console.log("Authentication response:", data);
       
+      // First set the token and saved f-number
       setAuthToken(data.token);
       setSavedFnumber(fnumber);
       
-      // Show the waiting for 2FA screen instead of verification input
-      setShowWaitingFor2FA(true);
+      // Then set verification in progress to true before showing the waiting screen
       setVerificationInProgress(true);
+      
+      // Finally show the 2FA waiting screen
+      // Important: This should be the last state change to prevent race conditions
+      setTimeout(() => {
+        setShowWaitingFor2FA(true);
+      }, 100);
       
     } catch (err) {
       console.error("Authentication error:", err);
@@ -961,7 +1004,7 @@ const Login = ({ onLogin }) => {
   // Time display for the counter (showing estimated time remaining)
   const getTimeRemainingDisplay = () => {
     const percentRemaining = 100 - verificationCounter;
-    const minutesRemaining = Math.floor((percentRemaining * 10) / 100); // Changed to 10 minutes total
+    const minutesRemaining = Math.floor((percentRemaining * 10) / 100);
     return `Approx. ${minutesRemaining} minutes remaining`;
   };
 
@@ -1031,8 +1074,19 @@ const Login = ({ onLogin }) => {
           <button 
             className="cancel-button" 
             onClick={() => {
-              setShowWaitingFor2FA(false);
+              // Clear intervals first
+              if (counterIntervalRef.current) {
+                clearInterval(counterIntervalRef.current);
+                counterIntervalRef.current = null;
+              }
+              
+              if (pollIntervalRef.current) {
+                clearInterval(pollIntervalRef.current);
+                pollIntervalRef.current = null;
+              }
+              
               setVerificationInProgress(false);
+              setShowWaitingFor2FA(false);
             }}
           >
             Cancel
