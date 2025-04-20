@@ -4447,347 +4447,598 @@ Verify response data: {
 
 
 //new login
-import React, { useState, useEffect } from "react";
-import { useVisitor } from "../context/VisitorContext";
-import "../login.css";
 
-const Login = ({ onLogin }) => {
-  const [fnumber, setFnumber] = useState("");
-  const [password, setPassword] = useState("");
-  const [selectedBranch, setSelectedBranch] = useState("");
-  const [branches, setBranches] = useState([]);
-  const [fetchingBranches, setFetchingBranches] = useState(false);
-  const [localError, setLocalError] = useState("");
-  const [manualLoginAttempt, setManualLoginAttempt] = useState(false);
-  const [loadingSpinner, setLoadingSpinner] = useState(false);
-  
-  const [showVerification, setShowVerification] = useState(false);
-  const [verificationCode, setVerificationCode] = useState("");
-  const [verificationCounter, setVerificationCounter] = useState(0);
-  const [authToken, setAuthToken] = useState("");
-  const [verificationInProgress, setVerificationInProgress] = useState(false);
-  const [showBranchSelection, setShowBranchSelection] = useState(false);
-  const [sessionToken, setSessionToken] = useState("");
-  const [savedfnumber, setSavedFnumber] = useState(""); 
+PS C:\Users\f8877557\file-backend> cd new-backend         
+PS C:\Users\f8877557\file-backend\new-backend> node server.js         
+Server is running on port 5001
+Health check available at: http://localhost:5001/health
+Auth endpoints available at: http://localhost:5001/auth/login
+Connected to the database
+2025-04-20T17:47:59.647Z - POST /users/authenticate
+Calling LDAP authentication API
+Requesting token from: https://172.29.18.126/adproxyservice/prod/client/renew-token
+Token response status: 200
+Successfully obtained token for authentication
+Auth response status: 200
+2025-04-20T17:57:53.308Z - POST /users/authenticate
+Calling LDAP authentication API
+Requesting token from: https://172.29.18.126/adproxyservice/prod/client/renew-token
+Token response status: 200
+Successfully obtained token for authentication
+Auth response status: 200
+2025-04-20T17:57:57.986Z - POST /users/check-verification-status
+Route not found: POST /users/check-verification-status
+2025-04-20T17:57:59.947Z - POST /users/check-verification-status
+Route not found: POST /users/check-verification-status
+2025-04-20T17:58:01.939Z - POST /users/check-verification-status
+Route not found: POST /users/check-verification-status
+2025-04-20T17:58:03.969Z - POST /users/check-verification-status
+Route not found: POST /users/check-verification-status
+2025-04-20T17:58:05.944Z - POST /users/check-verification-status
+Route not found: POST /users/check-verification-status
+2025-04-20T17:58:07.945Z - POST /users/check-verification-status
+Route not found: POST /users/check-verification-status
+2025-04-20T17:58:09.944Z - POST /users/check-verification-status
+Route not found: POST /users/check-verification-status
+2025-04-20T17:58:11.952Z - POST /users/check-verification-status
+Route not found: POST /users/check-verification-status
+2025-04-20T17:58:13.932Z - POST /users/check-verification-status
+Route not found: POST /users/check-verification-status
+2025-04-20T17:58:15.954Z - POST /users/check-verification-status
+Route not found: POST /users/check-verification-status
+2025-04-20T17:58:17.935Z - POST /users/check-verification-status
+Route not found: POST /users/check-verification-status
+2025-04-20T17:58:19.935Z - POST /users/check-verification-status
+Route not found: POST /users/check-verification-status
+2025-04-20T17:58:21.959Z - POST /users/check-verification-status
+Route not found: POST /users/check-verification-status
+2025-04-20T17:58:23.960Z - POST /users/check-verification-status
+Route not found: POST /users/check-verification-status
+2025-04-20T17:58:25.953Z - POST /users/check-verification-status
+Route not found: POST /users/check-verification-status
+2025-04-20T17:58:27.951Z - POST /users/check-verification-status
+Route not found: POST /users/check-verification-status
+2025-04-20T17:58:29.973Z - POST /users/check-verification-status
+Route not found: POST /users/check-verification-status
+2025-04-20T17:58:31.948Z - POST /users/check-verification-status
+Route not found: POST /users/check-verification-status
+2025-04-20T17:58:33.950Z - POST /users/check-verification-status
+Route not found: POST /users/check-verification-status
+2025-04-20T17:58:35.945Z - POST /users/check-verification-status
+Route not found: POST /users/check-verification-status
+2025-04-20T17:58:37.959Z - POST /users/check-verification-status
+Route not found: POST /users/check-verification-status
+2025-04-20T17:58:39.956Z - POST /users/check-verification-status
+Route not found: POST /users/check-verification-status
+2025-04-20T17:58:41.957Z - POST /users/check-verification-status
+Route not found: POST /users/check-verification-status
+2025-04-20T17:58:43.936Z - POST /users/check-verification-status
+Route not found: POST /users/check-verification-status
+2025-04-20T17:58:45.947Z - POST /users/check-verification-status
+Route not found: POST /users/check-verification-status
+2025-04-20T17:58:47.945Z - POST /users/check-verification-status
+Route not found: POST /users/check-verification-status
 
-  const { login, loading, error, setError, authenticated } = useVisitor();
+// user
 
-  
-  const API_URL = "http://localhost:5001";
+const pool = require('../db');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+const axios = require('axios');
 
-  useEffect(() => {
-    if (authenticated && fnumber && manualLoginAttempt) {
-      console.log("Authentication successful after manual login attempt, navigating to dashboard");
-      setTimeout(() => { 
-        onLogin(fnumber);
-        setManualLoginAttempt(false);
-      }, 1000); 
-    } else if (authenticated) {
-      console.log("Already authenticated from storage, but not navigating (waiting for manual login)");
-    }
-  }, [authenticated, fnumber, onLogin, manualLoginAttempt]);
+const JWT_SECRET = 'your-secret-key-should-be-in-env-file';
 
-  useEffect(() => {
-    let interval;
-    if (verificationInProgress) {
-      setVerificationCounter(0); 
-      interval = setInterval(() => {
-        setVerificationCounter(prev => {
-          const newCount = prev + 1;
-          if (newCount >= 100) {
-            clearInterval(interval);
-            setVerificationInProgress(false);
-            setLocalError("Verification timed out. Please try again.");
-            return 0;
-          }
-          return newCount;
-        });
-      }, 200); 
-    }
+// LDAP authentication endpoints
+const LDAP_AUTH_URL = "https://172.29.18.126/adproxyservice/prod/ldap/authenticate";
+const LDAP_VERIFY_2FA_URL = "https://172.29.18.126/adproxyservice/prod/ldap/verify2fa";
+const TOKEN_URL = 'https://172.29.18.126/adproxyservice/prod/client/renew-token';
+const CLIENT_ID = "8CA09F75-720F-4641-9B70-5344850DF34E";
+
+// Helper function to get authorization token
+const getAuthToken = async () => {
+  try {
+    console.log('Requesting token from:', TOKEN_URL);
     
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [verificationInProgress]);
+    const tokenResponse = await axios.post(TOKEN_URL, {
+      clientId: CLIENT_ID,
+      duration: 300
+    }, { 
+      httpsAgent: new require('https').Agent({ rejectUnauthorized: false }) 
+    });
 
-  const handleInitialSubmit = async (e) => {
-    e.preventDefault();
-    console.log("Initial login form submitted");
-    setLocalError("");
-    setLoadingSpinner(true);
-
-    if (fnumber.length > 25) {
-      setLocalError("F number is incorrect");
-      setLoadingSpinner(false);
-      return;
-    }
-
-    try {
-      const response = await fetch(`${API_URL}/users/authenticate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          fnumber,
-          password
-        })
-      });
-      
-      const data = await response.json();
-      
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || 'Authentication failed');
-      }
-      
-      console.log("Authentication response:", data);
-      
-      setAuthToken(data.token);
-      setSavedFnumber(fnumber);
-      
-      setShowVerification(true);
-      setVerificationInProgress(true);
-      
-    } catch (err) {
-      console.error("Authentication error:", err);
-      setLocalError(err.message || "Authentication failed. Please check your credentials and try again.");
-    } finally {
-      setLoadingSpinner(false);
-    }
-  };
-
-  const handleVerifySubmit = async (e) => {
-    e.preventDefault();
-    console.log("Verification form submitted");
-    setLocalError("");
-    setLoadingSpinner(true);
+    console.log('Token response status:', tokenResponse.status);
     
-    try {
-      const response = await fetch(`${API_URL}/users/verify2fa`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          token: authToken,
-          code: verificationCode,
-          fnumber: savedfnumber 
-        })
-      });
-      
-      const data = await response.json();
-      console.log("2FA verification response:", data);
-      
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || '2FA verification failed');
-      }
-      
-      setVerificationInProgress(false);
-      
-      if (!data.userExists) {
-        throw new Error('User not found in system. Please contact administrator.');
-      }
-      
-      setSessionToken(data.sessionToken);
-      setBranches(data.branches || []);
-      
-      if (data.branches && data.branches.length === 1) {
-        setSelectedBranch(data.branches[0].branchName);
-        await handleFinalLogin(data.fnumber || savedfnumber, data.branches[0].branchName, data.sessionToken);
-      } else if (data.branches && data.branches.length > 1) {
-        setShowVerification(false);
-        setShowBranchSelection(true);
-        setFetchingBranches(false);
-      } else {
-        throw new Error('No branches available for this user');
-      }
-      
-    } catch (err) {
-      console.error("Verification error:", err);
-      setLocalError(err.message || "Verification failed. Please try again.");
-      setVerificationInProgress(false);
-    } finally {
-      setLoadingSpinner(false);
+    // Check if token exists in the response
+    if (!tokenResponse.data || tokenResponse.data.statusCode !== 0 || !tokenResponse.data.data || !tokenResponse.data.data.token) {
+      console.error('Invalid token response:', tokenResponse.data);
+      throw new Error(`Failed to obtain authorization token: ${
+        tokenResponse.data && tokenResponse.data.statusMessage 
+          ? tokenResponse.data.statusMessage 
+          : 'Unknown error'
+      }`);
     }
-  };
 
-  const handleBranchSubmit = async (e) => {
-    e.preventDefault();
-    console.log("Branch selection form submitted");
-    
-    if (!selectedBranch) {
-      setLocalError("Please select a branch");
-      return;
+    const rawToken = tokenResponse.data.data.token;
+    return `Bearer ${rawToken}`;
+  } catch (err) {
+    console.error('Error getting auth token:', err.message);
+    if (err.response) {
+      console.error('Error response status:', err.response.status);
+      console.error('Error response data:', JSON.stringify(err.response.data, null, 2));
     }
-    
-    await handleFinalLogin(savedfnumber, selectedBranch, sessionToken);
-  };
-
-  const handleFinalLogin = async (fnumber, branch, sessionToken) => {
-    setLocalError("");
-    setLoadingSpinner(true);
-    
-    try {
-      console.log(`Finalizing login with branch: ${branch}`);
-      
-      const response = await fetch(`${API_URL}/users/finalize-login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          fnumber,
-          branch,
-          sessionToken
-        })
-      });
-      
-      const data = await response.json();
-      
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || 'Login failed');
-      }
-      
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify({
-        ...data.user,
-        branchName: data.user.branch,
-        branchCode: data.user.branchCode
-      }));
-      
-      setManualLoginAttempt(true);
-      const success = await login(
-        fnumber, 
-        data.user.branchCode, 
-        data.token, 
-        data.user.branch, 
-        data.user.role
-      );
-      
-      if (!success) {
-        setManualLoginAttempt(false);
-        throw new Error("Login failed. Please try again.");
-      }
-      
-    } catch (err) {
-      console.error("Login finalization error:", err);
-      setManualLoginAttempt(false);
-      setLocalError(err.message || "An unexpected error occurred. Please try again.");
-    } finally {
-      setLoadingSpinner(false);
-    }
-  };
-  
-  const displayError = error || localError;
-
-  if (!showVerification && !showBranchSelection) {
-    return (
-      <div className="login-container">
-        <div className="login-card">
-          <img src="/FNB logo.png" alt="FNB Logo" className="login-logo" />
-          <h2>Welcome to FNB Admin</h2>
-          <form onSubmit={handleInitialSubmit}>
-            <input
-              type="text"
-              placeholder="F-Number"
-              value={fnumber}
-              onChange={(e) => setFnumber(e.target.value)}
-              maxLength={25}
-              required
-            />
-            <input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-            
-            {displayError && <p className="error-message">{displayError}</p>}
-            <button type="submit" className="login-button" disabled={loading || loadingSpinner}>
-              {loadingSpinner ? <span className="spinner"></span> : "Login"}
-            </button>
-          </form>
-        </div>
-      </div>
-    );
+    throw err;
   }
-  
-  // 2FA verification form
-  if (showVerification) {
-    return (
-      <div className="login-container">
-        <div className="login-card">
-          <img src="/FNB logo.png" alt="FNB Logo" className="login-logo" />
-          <h2>Two-Factor Authentication</h2>
-          
-          <div className="verification-counter">
-            <div className="counter-text">Verification in progress: {verificationCounter}%</div>
-            <div className="progress-bar">
-              <div 
-                className="progress-fill" 
-                style={{ width: `${verificationCounter}%` }}
-              ></div>
-            </div>
-          </div>
-          
-          <form onSubmit={handleVerifySubmit}>
-            <p>Please enter the verification code sent to your device</p>
-            <input
-              type="text"
-              placeholder="Verification Code"
-              value={verificationCode}
-              onChange={(e) => setVerificationCode(e.target.value)}
-              required
-            />
-            
-            {displayError && <p className="error-message">{displayError}</p>}
-            <button type="submit" className="login-button" disabled={loading || loadingSpinner}>
-              {loadingSpinner ? <span className="spinner"></span> : "Verify"}
-            </button>
-          </form>
-        </div>
-      </div>
-    );
-  }
-  
-  // Branch selection form
-  return (
-    <div className="login-container">
-      <div className="login-card">
-        <img src="/FNB logo.png" alt="FNB Logo" className="login-logo" />
-        <h2>Select Branch</h2>
-        <form onSubmit={handleBranchSubmit}>
-          <div className="select-container">
-            <select
-              value={selectedBranch}
-              onChange={(e) => setSelectedBranch(e.target.value)}
-              required
-              disabled={fetchingBranches}
-              className="branch-select"
-            >
-              <option value="">Select Branch</option>
-              {branches.map((branch) => (
-                <option key={branch.branchCode} value={branch.branchName}>
-                  {branch.branchName}
-                </option>
-              ))}
-            </select>
-            {fetchingBranches && (
-              <span className="select-spinner"></span>
-            )}
-          </div>
-          
-          {displayError && <p className="error-message">{displayError}</p>}
-          <button type="submit" className="login-button" disabled={loading || loadingSpinner || fetchingBranches}>
-            {loadingSpinner ? <span className="spinner"></span> : "Continue"}
-          </button>
-        </form>
-      </div>
-    </div>
-  );
 };
 
-export default Login;
+// Step 1: Initial authentication with LDAP
+// Step 1: Initial authentication with LDAP
+const authenticateUser = async (req, res) => {
+  const { fnumber, password } = req.body;
+
+  if (!fnumber || !password) {
+    return res.status(400).json({ error: 'F-number and password are required' });
+  }
+
+  try {
+    console.log("Calling LDAP authentication API");
+    
+    // Get authorization token first
+    const authToken = await getAuthToken();
+    console.log('Successfully obtained token for authentication');
+    
+    // Make the authentication request to LDAP service with the token
+    const authResponse = await axios.post(LDAP_AUTH_URL, {
+      fnumber,
+      password
+    }, { 
+      headers: {
+        'Authorization': authToken,
+        'Content-Type': 'application/json'
+      },
+      httpsAgent: new require('https').Agent({ rejectUnauthorized: false }) 
+    });
+    
+    console.log('Auth response status:', authResponse.status);
+    
+    // Check for successful response - based on the screenshots, '000' or '0' is success
+    if (!authResponse.data || 
+        (authResponse.data.status_code !== '000' && 
+         authResponse.data.status_code !== '0' && 
+         authResponse.data.status_code !== 0)) {
+      console.error('Authentication failed:', authResponse.data);
+      return res.status(401).json({ 
+        success: false, 
+        error: authResponse.data?.status_message || 'Authentication failed' 
+      });
+    }
+    
+    // Return token for 2FA verification
+    return res.status(200).json({
+      success: true,
+      message: 'Authentication successful, proceed with 2FA verification',
+      token: authResponse.data.token // This is the token to use for 2FA
+    });
+    
+  } catch (err) {
+    console.error('Authentication error:', err.message);
+    
+    if (err.response) {
+      console.error('Error response status:', err.response.status);
+      console.error('Error response data:', JSON.stringify(err.response.data, null, 2));
+    }
+    
+    return res.status(500).json({ 
+      success: false, 
+      error: `Server error during authentication: ${err.message}` 
+    });
+  }
+};
+// Step 2: Verify 2FA code
+const verify2FA = async (req, res) => {
+  const { token, code } = req.body;
+
+  if (!token || !code) {
+    return res.status(400).json({ error: 'Token and verification code are required' });
+  }
+
+  try {
+    console.log("Verifying 2FA code");
+    
+    // Get authorization token first
+    const authToken = await getAuthToken();
+    console.log('Successfully obtained token for 2FA verification');
+    
+    // Make the verification request to LDAP service with the token
+    const verifyResponse = await axios.post(LDAP_VERIFY_2FA_URL, {
+      token,
+      code
+    }, { 
+      headers: {
+        'Authorization': authToken,
+        'Content-Type': 'application/json'
+      },
+      httpsAgent: new require('https').Agent({ rejectUnauthorized: false }) 
+    });
+    
+    console.log('Verify response status:', verifyResponse.status);
+    console.log('Verify response data:', JSON.stringify(verifyResponse.data, null, 2));
+    
+    // Check for successful response
+    if (!verifyResponse.data || 
+        (verifyResponse.data.status_code !== '000' && 
+         verifyResponse.data.status_code !== '0' && 
+         verifyResponse.data.status_code !== 0)) {
+      console.error('2FA verification failed:', verifyResponse.data);
+      return res.status(401).json({ 
+        success: false, 
+        error: verifyResponse.data?.status_message || '2FA verification failed' 
+      });
+    }
+    
+    // Extract the fnumber/email from the response - check where it actually is
+    const fnumber = verifyResponse.data.fnumber || req.body.fnumber;
+    
+    // Check if user exists in database
+    const userQuery = await pool.query('SELECT * FROM users_table WHERE email = $1', [fnumber]);
+    
+    if (userQuery.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found in system. Please contact administrator.',
+        userExists: false,
+        fnumber
+      });
+    }
+    
+    // User exists, check which branches they have access to
+    const user = userQuery.rows[0];
+    const branchQuery = await pool.query('SELECT * FROM users_table WHERE email = $1', [fnumber]);
+    
+    // Format the branches for the response
+    const branches = branchQuery.rows.map(row => ({
+      branchName: row.branch,
+      branchCode: row.branch_code
+    }));
+    
+    // Generate a session token
+    const sessionToken = jwt.sign(
+      { 
+        id: user.id, 
+        email: user.email, 
+        role: user.role 
+      }, 
+      JWT_SECRET, 
+      { expiresIn: '8h' }
+    );
+    
+    return res.status(200).json({
+      success: true,
+      message: '2FA verification successful',
+      userExists: true,
+      fnumber,
+      branches,
+      sessionToken
+    });
+    
+  } catch (err) {
+    console.error('2FA verification error:', err.message);
+    
+    if (err.response) {
+      console.error('Error response status:', err.response.status);
+      console.error('Error response data:', JSON.stringify(err.response.data, null, 2));
+    }
+    
+    return res.status(500).json({ 
+      success: false, 
+      error: `Server error during 2FA verification: ${err.message}` 
+    });
+  }
+};
+
+// Step 3: Final login after branch selection
+const finalizeLogin = async (req, res) => {
+  const { fnumber, branch, sessionToken } = req.body;
+
+  if (!fnumber || !branch || !sessionToken) {
+    return res.status(400).json({ error: 'F-number, branch, and session token are required' });
+  }
+  
+  try {
+    // Verify the session token
+    let decodedToken;
+    try {
+      decodedToken = jwt.verify(sessionToken, JWT_SECRET);
+    } catch (e) {
+      return res.status(401).json({ error: 'Invalid session token' });
+    }
+    
+    // Ensure the user exists and has access to the selected branch
+    const result = await pool.query(
+      'SELECT * FROM users_table WHERE email = $1 AND branch = $2',
+      [fnumber, branch]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(403).json({ error: 'You do not have access to the selected branch' });
+    }
+    
+    const user = result.rows[0];
+    
+    // Create a new JWT token for the authenticated session
+    const token = jwt.sign(
+      { 
+        id: user.id, 
+        email: user.email, 
+        branch: user.branch, 
+        branchCode: user.branch_code, 
+        role: user.role 
+      }, 
+      JWT_SECRET, 
+      { expiresIn: '8h' }
+    );
+    
+    return res.status(200).json({
+      success: true,
+      message: 'Login successful',
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        branch: user.branch,
+        branchCode: user.branch_code,
+        role: user.role
+      }
+    });
+    
+  } catch (err) {
+    console.error('Login finalization error:', err);
+    return res.status(500).json({ error: 'Server error during login finalization' });
+  }
+};
+
+// Get user's branches
+const getUserBranches = async (req, res) => {
+  const { fnumber } = req.body;
+
+  if (!fnumber) {
+    return res.status(400).json({ error: 'F-number is required' });
+  }
+
+  try {
+    // Query database for branches this user has access to
+    const result = await pool.query('SELECT id, email, branch, branch_code FROM users_table WHERE email = $1', [fnumber]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    // Format the branches for the response
+    const branches = result.rows.map(row => ({
+      branchName: row.branch,
+      branchCode: row.branch_code
+    }));
+    
+    res.json({
+      userId: result.rows[0].id,
+      email: result.rows[0].email,
+      branches
+    });
+  } catch (err) {
+    console.error('Error fetching user branches:', err);
+    res.status(500).json({ error: 'Server error while fetching user branches' });
+  }
+};
+
+const verifyFnumber = async (req, res) => {
+  const { fnumber } = req.body;
+
+  if (!fnumber) {
+    return res.status(400).json({ error: 'F-number is required' });
+  }
+
+  try {
+    const createTokenUrl = 'https://172.29.18.126/adproxyservice/prod/client/renew-token';
+    console.log('Requesting token from:', createTokenUrl);
+    
+    const tokenResponse = await axios.post(createTokenUrl, {
+      clientId: "8CA09F75-720F-4641-9B70-5344850DF34E",
+      duration: 300
+    }, { 
+      httpsAgent: new require('https').Agent({ rejectUnauthorized: false }) 
+    });
+
+    console.log('Token response status:', tokenResponse.status);
+    console.log('Token response data:', JSON.stringify(tokenResponse.data, null, 2));
+
+    // Check if token exists in the response
+    if (!tokenResponse.data || tokenResponse.data.statusCode !== 0 || !tokenResponse.data.data || !tokenResponse.data.data.token) {
+      console.error('Invalid token response:', tokenResponse.data);
+      return res.status(400).json({ 
+        isValid: false, 
+        error: `Failed to obtain authorization token: ${
+          tokenResponse.data && tokenResponse.data.statusMessage 
+            ? tokenResponse.data.statusMessage 
+            : 'Unknown error'
+        }` 
+      });
+    }
+
+    const rawToken = tokenResponse.data.data.token;
+    const authToken = `Bearer ${rawToken}`;
+    console.log('Successfully obtained token');
+    console.log('Using authorization header:', authToken);
+
+    const searchApiUrl = 'https://172.29.18.126/adproxyservice/prod/ldap/search';
+    console.log('Searching for user at:', searchApiUrl);
+    
+    console.log('Attempting API call with Bearer token in Authorization header');
+    try {
+      const requestConfig = {
+        url: searchApiUrl,
+        method: 'post',
+        data: { fnumber: fnumber },
+        headers: {
+          'Authorization': authToken,
+          'Content-Type': 'application/json'
+        },
+        httpsAgent: new require('https').Agent({ rejectUnauthorized: false })
+      };
+      
+      console.log('Request configuration:', JSON.stringify({
+        url: requestConfig.url,
+        method: requestConfig.method,
+        headers: requestConfig.headers,
+        data: requestConfig.data
+      }, null, 2));
+      
+      const response = await axios(requestConfig);
+      
+      console.log('Search response status:', response.status);
+      console.log('Search response data:', JSON.stringify(response.data, null, 2));
+
+      if (response.data.statusCode !== 0) {
+        return res.status(400).json({ 
+          isValid: false, 
+          error: `Search API error: ${response.data.statusMessage}` 
+        });
+      }
+
+      
+      return res.status(200).json({
+        isValid: true,
+        userData: {
+          name: response.data.data.name,
+          email: response.data.data.email,
+          title: response.data.data.title,
+          memberOf: response.data.data.memberOf
+        }
+      });
+    } catch (err) {
+      console.error('Search API call failed:', err.message);
+      
+      // If there's a response in the error, log it
+      if (err.response) {
+        console.error('Error response status:', err.response.status);
+        console.error('Error response data:', JSON.stringify(err.response.data, null, 2));
+      }
+      
+      throw new Error(`Failed to authenticate with the search API: ${err.message}`);
+    }
+  } catch (err) {
+    console.error('F-number verification error details:', err.message);
+    
+    if (err.response) {
+      console.error('Error response status:', err.response.status);
+      console.error('Error response data:', JSON.stringify(err.response.data, null, 2));
+    }
+    
+    return res.status(500).json({ 
+      isValid: false, 
+      error: `Server error during F-number verification: ${err.message}` 
+    });
+  }
+};
+
+const createUser = async (req, res) => {
+  const { email, branch, branchCode, role = 'user' } = req.body;
+
+  try {
+    if (!email || !branch) {
+      return res.status(400).json({ error: 'F-number and branch are required' });
+    }
+
+    const checkUser = await pool.query('SELECT * FROM users_table WHERE email = $1', [email]);
+    if (checkUser.rows.length > 0) {
+      return res.status(400).json({ error: 'User already exists' });
+    }
 
 
+    const result = await pool.query(
+      'INSERT INTO users_table (email, branch, branch_code, role, created_at) VALUES ($1, $2, $3, $4, NOW()) RETURNING id, email, branch, role, created_at',
+      [email, branch, branchCode, role]
+    );
+
+    res.status(201).json({
+      message: 'User created successfully',
+      user: {
+        id: result.rows[0].id,
+        email: result.rows[0].email,
+        branch: result.rows[0].branch,
+        role: result.rows[0].role,
+        created_at: result.rows[0].created_at
+      }
+    });
+  } catch (err) {
+    console.error('User creation error:', err);
+    res.status(500).json({ error: 'Server error during user creation' });
+  }
+};
+
+const updateUser = async (req, res) => {
+  const { id } = req.params;
+  const { email, branch, branchCode, role, is_active } = req.body;
+
+  try {
+    const result = await pool.query(
+      'UPDATE users_table SET email = $1, branch = $2, branch_code = $3, role = $4, is_active = COALESCE($5, is_active) WHERE id = $6 RETURNING *',
+      [email, branch, branchCode, role, is_active, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({
+      message: 'User updated successfully',
+      user: {
+        id: result.rows[0].id,
+        email: result.rows[0].email,
+        branch: result.rows[0].branch,
+        role: result.rows[0].role,
+        is_active: result.rows[0].is_active
+      }
+    });
+  } catch (err) {
+    console.error('User update error:', err);
+    res.status(500).json({ error: 'Server error during user update' });
+  }
+};
+
+const getAllUsers = async (req, res) => {
+  try {
+    const result = await pool.query('SELECT id, email, branch, role, created_at, is_active FROM users_table');
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching users:', err);
+    res.status(500).json({ error: 'Server error while fetching users' });
+  }
+};
+
+const deleteUser = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await pool.query('DELETE FROM users_table WHERE id = $1', [id]);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({ message: 'User deleted successfully' });
+  } catch (err) {
+    console.error('User deletion error:', err);
+    res.status(500).json({ error: 'Server error during user deletion' });
+  }
+};
+
+module.exports = {
+  createUser,
+  getAllUsers,
+  updateUser,
+  deleteUser,
+  verifyFnumber,
+  authenticateUser,
+  verify2FA,
+  finalizeLogin,
+  getUserBranches  
+};
