@@ -9761,6 +9761,8 @@ Route not found: POST /users/check-verification-status
 // user
 
 
+
+
 const pool = require('../db');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
