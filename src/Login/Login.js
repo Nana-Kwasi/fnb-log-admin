@@ -18,10 +18,12 @@ const Login = ({ onLogin }) => {
   const [sessionToken, setSessionToken] = useState("");
   const [savedfnumber, setSavedFnumber] = useState(""); 
   const [authToken, setAuthToken] = useState("");
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const { login, loading, error, setError, authenticated } = useVisitor();
 
   const API_URL = "http://localhost:5001";
+  const AUTH_URL = "http://localhost:5001/auth";
 
   useEffect(() => {
     if (authenticated && fnumber && manualLoginAttempt) {
@@ -35,6 +37,12 @@ const Login = ({ onLogin }) => {
     }
   }, [authenticated, fnumber, onLogin, manualLoginAttempt]);
 
+  // Function to check if user is an admin
+  const checkIfAdmin = (email) => {
+    // Simple check - you might want to implement a more robust check
+    return email.toLowerCase() === "admin";
+  };
+
   const handleInitialSubmit = async (e) => {
     e.preventDefault();
     console.log("Initial login form submitted");
@@ -47,37 +55,99 @@ const Login = ({ onLogin }) => {
       return;
     }
 
-    try {
-      const response = await fetch(`${API_URL}/users/authenticate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          fnumber,
-          password
-        })
-      });
-      
-      const data = await response.json();
-      
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || 'Authentication failed');
+    // Check if the user is an admin
+    const adminCheck = checkIfAdmin(fnumber);
+    setIsAdmin(adminCheck);
+
+    if (adminCheck) {
+      // Admin authentication path (direct login without 2FA)
+      try {
+        console.log("Admin login detected, using direct authentication");
+        
+        const response = await fetch(`${AUTH_URL}/login`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: fnumber,
+            password,
+            branch: "" // Will be selected later
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(data.error || 'Admin authentication failed');
+        }
+        
+        console.log("Admin authentication successful, fetching branches");
+        
+        // Fetch available branches for admin
+        const branchesResponse = await fetch(`${API_URL}/visitors/index`);
+        
+        if (!branchesResponse.ok) {
+          throw new Error('Failed to fetch branches');
+        }
+        
+        const branchesData = await branchesResponse.json();
+        
+        console.log(`Received ${branchesData.length} branches from API`);
+        
+        const branchOptions = branchesData
+          .filter(branch => branch.branchName && branch.branchName.trim() !== "")
+          .sort((a, b) => a.branchName.localeCompare(b.branchName));
+        
+        console.log(`Found ${branchOptions.length} unique branches`);
+        setBranches(branchOptions);
+        
+        // Show branch selection for admin
+        setSavedFnumber(fnumber);
+        setSessionToken(data.token); // Store token for later use
+        setShowBranchSelection(true);
+        setFetchingBranches(false);
+        
+      } catch (err) {
+        console.error("Admin authentication error:", err);
+        setLocalError(err.message || "Admin authentication failed. Please check your credentials.");
+      } finally {
+        setLoadingSpinner(false);
       }
-      
-      console.log("Authentication response:", data);
-      
-      setAuthToken(data.token);
-      setSavedFnumber(fnumber);
-      
-      // Now show verification screen
-      setShowVerification(true);
-      
-    } catch (err) {
-      console.error("Authentication error:", err);
-      setLocalError(err.message || "Authentication failed. Please check your credentials and try again.");
-    } finally {
-      setLoadingSpinner(false);
+    } else {
+      // Regular user authentication path (with 2FA)
+      try {
+        const response = await fetch(`${API_URL}/users/authenticate`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            fnumber,
+            password
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok || !data.success) {
+          throw new Error(data.error || 'Authentication failed');
+        }
+        
+        console.log("Authentication response:", data);
+        
+        setAuthToken(data.token);
+        setSavedFnumber(fnumber);
+        
+        // Now show verification screen
+        setShowVerification(true);
+        
+      } catch (err) {
+        console.error("Authentication error:", err);
+        setLocalError(err.message || "Authentication failed. Please check your credentials and try again.");
+      } finally {
+        setLoadingSpinner(false);
+      }
     }
   };
 
@@ -140,7 +210,77 @@ const Login = ({ onLogin }) => {
       return;
     }
     
-    await handleFinalLogin(savedfnumber, selectedBranch, sessionToken);
+    if (isAdmin) {
+      await handleAdminBranchLogin(savedfnumber, selectedBranch, sessionToken);
+    } else {
+      await handleFinalLogin(savedfnumber, selectedBranch, sessionToken);
+    }
+  };
+
+  const handleAdminBranchLogin = async (fnumber, branch, token) => {
+    setLocalError("");
+    setLoadingSpinner(true);
+    
+    try {
+      console.log(`Finalizing admin login with branch: ${branch}`);
+      
+      const selectedBranchObj = branches.find(b => b.branchName === branch);
+      
+      if (!selectedBranchObj) {
+        throw new Error('Invalid branch selection');
+      }
+      
+      const branchCode = selectedBranchObj.branchCode;
+      
+      const response = await fetch(`${AUTH_URL}/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: fnumber,
+          password, // This is not ideal but we're reusing the login endpoint
+          branch: branch
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Login failed');
+      }
+      
+      const userRole = data.user && data.user.role ? data.user.role : "admin";
+      
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify({
+        ...data.user,
+        branchName: branch,
+        branchCode: branchCode,
+        role: userRole
+      }));
+      
+      setManualLoginAttempt(true);
+      const success = await login(
+        fnumber, 
+        branchCode, 
+        data.token, 
+        branch, 
+        userRole
+      );
+      
+      if (!success) {
+        setManualLoginAttempt(false);
+        throw new Error("Login failed. Please try again.");
+      }
+      
+    } catch (err) {
+      console.error("Admin branch login error:", err);
+      setManualLoginAttempt(false);
+      setLocalError(err.message || "An unexpected error occurred. Please try again.");
+    } finally {
+      setLoadingSpinner(false);
+    }
   };
 
   const handleFinalLogin = async (fnumber, branch, sessionToken) => {
@@ -316,7 +456,5 @@ const Login = ({ onLogin }) => {
     </div>
   );
 };
-
+ 
 export default Login;
-
-
