@@ -4520,21 +4520,17 @@ Route not found: POST /users/check-verification-status
 Route not found: POST /users/check-verification-status
 
 // user
-
 const pool = require('../db');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
 
 const JWT_SECRET = 'your-secret-key-should-be-in-env-file';
-
-// LDAP authentication endpoints
 const LDAP_AUTH_URL = "https://172.29.18.126/adproxyservice/prod/ldap/authenticate";
 const LDAP_VERIFY_2FA_URL = "https://172.29.18.126/adproxyservice/prod/ldap/verify2fa";
 const TOKEN_URL = 'https://172.29.18.126/adproxyservice/prod/client/renew-token';
 const CLIENT_ID = "8CA09F75-720F-4641-9B70-5344850DF34E";
 
-// Helper function to get authorization token
 const getAuthToken = async () => {
   try {
     console.log('Requesting token from:', TOKEN_URL);
@@ -4548,7 +4544,6 @@ const getAuthToken = async () => {
 
     console.log('Token response status:', tokenResponse.status);
     
-    // Check if token exists in the response
     if (!tokenResponse.data || tokenResponse.data.statusCode !== 0 || !tokenResponse.data.data || !tokenResponse.data.data.token) {
       console.error('Invalid token response:', tokenResponse.data);
       throw new Error(`Failed to obtain authorization token: ${
@@ -4570,10 +4565,6 @@ const getAuthToken = async () => {
   }
 };
 
-// Step 1: Initial authentication with LDAP
-// Step 1: Initial authentication with LDAP
-
-// In your backend file, enhance the authenticateUser function:
 const authenticateUser = async (req, res) => {
   const { fnumber, password } = req.body;
 
@@ -4584,11 +4575,9 @@ const authenticateUser = async (req, res) => {
   try {
     console.log(`[AUTH] Authentication attempt for user: ${fnumber}`);
     
-    // Get authorization token first
     const authToken = await getAuthToken();
     console.log('[AUTH] Successfully obtained token for authentication');
     
-    // Make the authentication request to LDAP service with the token
     console.log('[AUTH] Sending authentication request to LDAP service');
     const authResponse = await axios.post(LDAP_AUTH_URL, {
       fnumber,
@@ -4604,7 +4593,6 @@ const authenticateUser = async (req, res) => {
     console.log('[AUTH] Auth response status:', authResponse.status);
     console.log('[AUTH] Auth response data:', JSON.stringify(authResponse.data, null, 2));
     
-    // Check for successful response - based on the screenshots, '000' or '0' is success
     if (!authResponse.data || 
         (authResponse.data.status_code !== '000' && 
          authResponse.data.status_code !== '0' && 
@@ -4619,12 +4607,14 @@ const authenticateUser = async (req, res) => {
     console.log('[AUTH] Authentication successful for user:', fnumber);
     console.log('[AUTH] Returning token for 2FA verification');
     
-    // Return token for 2FA verification
+    // Log all data when authentication is successful
+    console.log('[AUTH] Full auth response data:', JSON.stringify(authResponse.data, null, 2));
+    
     return res.status(200).json({
       success: true,
       message: 'Authentication successful, proceed with 2FA verification',
-      token: authResponse.data.token, // This is the token to use for 2FA
-      data: authResponse.data // Include full response data for debugging
+      token: authResponse.data.token, 
+      data: authResponse.data 
     });
     
   } catch (err) {
@@ -4642,7 +4632,6 @@ const authenticateUser = async (req, res) => {
   }
 };
 
-// Now enhance the verify2FA function with detailed logging:
 const verify2FA = async (req, res) => {
   const { token, code } = req.body;
 
@@ -4654,11 +4643,9 @@ const verify2FA = async (req, res) => {
     console.log("[2FA] Starting 2FA verification with code:", code);
     console.log("[2FA] Using token:", token.substring(0, 10) + "..." + token.substring(token.length - 10));
     
-    // Get authorization token first
     const authToken = await getAuthToken();
     console.log('[2FA] Successfully obtained token for 2FA verification');
     
-    // Make the verification request to LDAP service with the token
     console.log('[2FA] Sending verification request to LDAP service');
     const verifyResponse = await axios.post(LDAP_VERIFY_2FA_URL, {
       token,
@@ -4674,7 +4661,6 @@ const verify2FA = async (req, res) => {
     console.log('[2FA] Verify response status:', verifyResponse.status);
     console.log('[2FA] Verify response data:', JSON.stringify(verifyResponse.data, null, 2));
     
-    // Check for successful response
     if (!verifyResponse.data || 
         (verifyResponse.data.status_code !== '000' && 
          verifyResponse.data.status_code !== '0' && 
@@ -4683,17 +4669,15 @@ const verify2FA = async (req, res) => {
       return res.status(401).json({ 
         success: false, 
         error: verifyResponse.data?.status_message || '2FA verification failed',
-        data: verifyResponse.data // Include full response data for debugging
+        data: verifyResponse.data 
       });
     }
     
     console.log('[2FA] 2FA verification successful');
     
-    // Extract the fnumber/email from the response
     const fnumber = verifyResponse.data.fnumber || req.body.fnumber;
     console.log(`[2FA] User identified as: ${fnumber}`);
     
-    // Check if user exists in database
     console.log(`[2FA] Checking if user ${fnumber} exists in database`);
     const userQuery = await pool.query('SELECT * FROM users_table WHERE email = $1', [fnumber]);
     
@@ -4707,12 +4691,10 @@ const verify2FA = async (req, res) => {
       });
     }
     
-    // User exists, check which branches they have access to
     console.log(`[2FA] User ${fnumber} found, fetching branch information`);
     const user = userQuery.rows[0];
     const branchQuery = await pool.query('SELECT * FROM users_table WHERE email = $1', [fnumber]);
     
-    // Format the branches for the response
     const branches = branchQuery.rows.map(row => ({
       branchName: row.branch,
       branchCode: row.branch_code
@@ -4721,7 +4703,6 @@ const verify2FA = async (req, res) => {
     console.log(`[2FA] User ${fnumber} has access to ${branches.length} branches:`, 
       JSON.stringify(branches, null, 2));
     
-    // Generate a session token
     const sessionToken = jwt.sign(
       { 
         id: user.id, 
@@ -4735,6 +4716,9 @@ const verify2FA = async (req, res) => {
     console.log(`[2FA] Session token generated for user: ${fnumber}`);
     console.log('[2FA] 2FA verification process complete, returning success response');
     
+    // Log all data when 2FA verification is successful
+    console.log('[2FA] Full verify response data:', JSON.stringify(verifyResponse.data, null, 2));
+    
     return res.status(200).json({
       success: true,
       message: '2FA verification successful',
@@ -4742,7 +4726,7 @@ const verify2FA = async (req, res) => {
       fnumber,
       branches,
       sessionToken,
-      verifyResponseData: verifyResponse.data // Include full response data for debugging
+      verifyResponseData: verifyResponse.data 
     });
     
   } catch (err) {
@@ -4760,7 +4744,6 @@ const verify2FA = async (req, res) => {
   }
 };
 
-// Step 3: Final login after branch selection
 const finalizeLogin = async (req, res) => {
   const { fnumber, branch, sessionToken } = req.body;
 
@@ -4769,7 +4752,6 @@ const finalizeLogin = async (req, res) => {
   }
   
   try {
-    // Verify the session token
     let decodedToken;
     try {
       decodedToken = jwt.verify(sessionToken, JWT_SECRET);
@@ -5067,3 +5049,59 @@ module.exports = {
   finalizeLogin,
   getUserBranches  
 };
+
+// log
+PS C:\Users\f8877557\file-backend> cd new-backend
+PS C:\Users\f8877557\file-backend\new-backend> node server.js
+Server is running on port 5001
+Health check available at: http://localhost:5001/health
+Auth endpoints available at: http://localhost:5001/auth/login
+Connected to the database
+2025-04-22T09:35:54.669Z - POST /users/authenticate
+[AUTH] Authentication attempt for user: F8877557
+Requesting token from: https://172.29.18.126/adproxyservice/prod/client/renew-token
+Token response status: 200
+[AUTH] Successfully obtained token for authentication
+[AUTH] Sending authentication request to LDAP service
+[AUTH] Auth response status: 200
+[AUTH] Auth response data: {
+  "status_code": "000",
+  "status_message": "Login request sent",
+  "server_timestamp": "2025-04-22T09:35:21.467599509",
+  "token": "ff2338c3-62e3-4fcc-a130-a01f22d143ef"
+}
+[AUTH] Authentication successful for user: F8877557
+[AUTH] Returning token for 2FA verification
+[AUTH] Full auth response data: {
+  "status_code": "000",
+  "status_message": "Login request sent",
+  "server_timestamp": "2025-04-22T09:35:21.467599509",
+  "token": "ff2338c3-62e3-4fcc-a130-a01f22d143ef"
+}
+2025-04-22T09:39:12.817Z - POST /users/verify2fa
+[2FA] Starting 2FA verification with code: 43567
+[2FA] Using token: ff2338c3-6...1f22d143ef
+Requesting token from: https://172.29.18.126/adproxyservice/prod/client/renew-token
+Token response status: 200
+[2FA] Successfully obtained token for 2FA verification
+[2FA] Sending verification request to LDAP service
+[2FA] Verify response status: 200
+[2FA] Verify response data: {
+  "status_code": "000",
+  "status_message": "Successful authentication",
+  "server_timestamp": "2025-04-22T09:38:39.131714591",
+  "data": {
+    "authId": "ff2338c3-62e3-4fcc-a130-a01f22d143ef",
+    "clientId": "8ca09f75-720f-4641-9b70-5344850df34e",
+    "status": "Success",
+    "statusMessage": null,
+    "payload": "{\"userId\":\"F8877557\",\"mobile\":\"+233592486117\",\"email\":\"Francis.Kontoh@firstnationalbank.com.gh\",\"userPrincipalName\":\"F8877557@fnb.co.za\",\"title\":\"Internship\",\"name\":\"Kontoh, Francis\",\"manager\":\"CN=Eshun\\\\, Kwesi,OU=DomainUsers,DC=fnb,DC=co,DC=za\",\"memberOf\":[\"CN=AppsDevelopmentTeam_PROD_IT_FNBGhana,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za\",\"CN=W365_VDI_2vCPU8GB256GB_FNB,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za\",\"CN=CLOUD_VDI_FULLACCESS_FNB,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za\",\"CN=GlobalWorkDay_CloudApps_All_Users,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za\",\"CN=GlobalERP_CloudApps_All_Employees,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za\",\"CN=Myappstore_Prod_AllUsers_FNB,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za\",\"CN=GlobalERP_CloudApps_All_Users,OU=Office365,OU=DomainUsers,DC=fnb,DC=co,DC=za\",\"CN=2V_production_FNB_Staff,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za\",\"CN=DLP_Level-1-FullLockdown_prod_FNB,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za\",\"CN=Users for 2FA testing,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za\",\"CN=One Drive Test,OU=DomainGroups,DC=fnb,DC=co,DC=za\",\"CN=InternetUsers - All,OU=InterNet Access,OU=Security,OU=Groups,OU=FNBUsers,DC=fnb,DC=co,DC=za\"]}",
+    "dateCreated": "2025-04-22T09:35:21.463746",
+    "lastUpdated": "2025-04-22T09:35:41.171848",
+    "fnumber": "F8877557"
+  }
+}
+[2FA] 2FA verification successful
+[2FA] User identified as: undefined
+[2FA] Checking if user undefined exists in database
+[2FA] User undefined not found in system
