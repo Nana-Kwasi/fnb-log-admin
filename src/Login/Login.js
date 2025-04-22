@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from "react";
+
+
+import React, { useState, useEffect, useRef } from "react";
 import { useVisitor } from "../context/VisitorContext";
 import "../login.css";
 
@@ -18,13 +20,24 @@ const Login = ({ onLogin }) => {
   const [sessionToken, setSessionToken] = useState("");
   const [savedfnumber, setSavedFnumber] = useState(""); 
   const [authToken, setAuthToken] = useState("");
-  const [isAdminFlow, setIsAdminFlow] = useState(false);
+  const [pollingStatus, setPollingStatus] = useState("pending"); // pending, success, failed
+
+  const pollingIntervalRef = useRef(null);
+  const maxPollingTime = 120000; // 2 minutes
+  const pollingStartTimeRef = useRef(null);
 
   const { login, loading, error, setError, authenticated } = useVisitor();
 
   const API_URL = "http://localhost:5001";
-  const BRANCHES_URL = "http://localhost:5001/visitors/index";
-  const AUTH_URL = "http://localhost:5001/auth";
+
+  useEffect(() => {
+    // Cleanup polling on unmount
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (authenticated && fnumber && manualLoginAttempt) {
@@ -37,6 +50,117 @@ const Login = ({ onLogin }) => {
       console.log("Already authenticated from storage, but not navigating (waiting for manual login)");
     }
   }, [authenticated, fnumber, onLogin, manualLoginAttempt]);
+// In your Login component, modify the startPollingFor2FA function:
+
+const startPollingFor2FA = (token) => {
+  console.log("Starting to poll for 2FA status with token:", token);
+  setPollingStatus("pending");
+  pollingStartTimeRef.current = Date.now();
+  
+  // Clear any existing interval
+  if (pollingIntervalRef.current) {
+    clearInterval(pollingIntervalRef.current);
+  }
+  
+  pollingIntervalRef.current = setInterval(async () => {
+    try {
+      // Check if we've exceeded the max polling time
+      if (Date.now() - pollingStartTimeRef.current > maxPollingTime) {
+        clearInterval(pollingIntervalRef.current);
+        setPollingStatus("failed");
+        setLocalError("2FA verification timed out. Please try again.");
+        return;
+      }
+      
+      console.log("Polling for 2FA status...");
+      const response = await fetch(`${API_URL}/users/verify2fa`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          token: token,
+          fnumber: savedfnumber, // Add this line to include the fnumber in each poll request
+          code: "" // Empty code to just check status
+        })
+      });
+      
+      const data = await response.json();
+      console.log("2FA status check response:", data);
+      
+      // Check if the 2FA has been approved by looking at the status code in the response data
+      if (response.ok && data.success) {
+        clearInterval(pollingIntervalRef.current);
+        setPollingStatus("success");
+        
+        // Process the successful verification
+        setSessionToken(data.sessionToken);
+        setBranches(data.branches || []);
+        
+        // Give a short delay to show the success state to the user
+        setTimeout(() => {
+          if (data.branches && data.branches.length === 1) {
+            // If only one branch, auto-select it and proceed to final login
+            setSelectedBranch(data.branches[0].branchName);
+            handleFinalLogin(data.fnumber || savedfnumber, data.branches[0].branchName, data.sessionToken);
+          } else if (data.branches && data.branches.length > 1) {
+            // If multiple branches, show branch selection screen
+            setShowVerification(false);
+            setShowBranchSelection(true);
+            setFetchingBranches(false);
+          } else {
+            setLocalError('No branches available for this user');
+            setPollingStatus("failed");
+          }
+        }, 1000);
+      }
+      // Check for a specific status in the verify response data that indicates approval
+      else if (response.ok && 
+               data.verifyResponseData && 
+               (data.verifyResponseData.status_code === '000' || 
+                data.verifyResponseData.status_code === '0' || 
+                data.verifyResponseData.status === 'APPROVED')) {
+        clearInterval(pollingIntervalRef.current);
+        setPollingStatus("success");
+        
+        // Process the successful verification 
+        setSessionToken(data.sessionToken);
+        setBranches(data.branches || []);
+        
+        // Give a short delay to show the success state to the user
+        setTimeout(() => {
+          if (data.branches && data.branches.length === 1) {
+            // If only one branch, auto-select it and proceed to final login
+            setSelectedBranch(data.branches[0].branchName);
+            handleFinalLogin(data.fnumber || savedfnumber, data.branches[0].branchName, data.sessionToken);
+          } else if (data.branches && data.branches.length > 1) {
+            // If multiple branches, show branch selection screen
+            setShowVerification(false);
+            setShowBranchSelection(true);
+            setFetchingBranches(false);
+          } else {
+            setLocalError('No branches available for this user');
+            setPollingStatus("failed");
+          }
+        }, 1000);
+      }
+      // If it's still pending, continue polling
+      
+    } catch (err) {
+      console.error("Error polling for 2FA status:", err);
+      // Don't stop polling on error - let the timeout handle it
+    }
+  }, 3000); // Check every 3 seconds
+};
+  const handleInitialSubmit = async (e) => {
+    e.preventDefault();
+    console.log("Initial login form submitted");
+    setLocalError("");
+    setLoadingSpinner(true);
+
+    if (fnumber.length > 25) {
+      setLocalError("F number is incorrect");
+      setLoadingSpinner(false);
 
   const handleInitialSubmit = async (e) => {
     e.preventDefault();
@@ -83,9 +207,7 @@ const Login = ({ onLogin }) => {
       return;
     }
 
-    // REGULAR USER PATH: Normal 2FA flow
     try {
-      setIsAdminFlow(false);
       const response = await fetch(`${API_URL}/users/authenticate`, {
         method: 'POST',
         headers: {
@@ -108,8 +230,9 @@ const Login = ({ onLogin }) => {
       setAuthToken(data.token);
       setSavedFnumber(fnumber);
       
-      // Now show verification screen
+      // Now show verification screen and start polling
       setShowVerification(true);
+      startPollingFor2FA(data.token);
       
     } catch (err) {
       console.error("Authentication error:", err);
@@ -125,7 +248,13 @@ const Login = ({ onLogin }) => {
     setLoadingSpinner(true);
     
     try {
-      // Call the verify2FA endpoint directly - no polling needed
+      // Manual code verification if user entered a code
+      if (!verificationCode.trim()) {
+        setLocalError("Please enter a verification code");
+        setLoadingSpinner(false);
+        return;
+      }
+      
       const response = await fetch(`${API_URL}/users/verify2fa`, {
         method: 'POST',
         headers: {
@@ -134,18 +263,23 @@ const Login = ({ onLogin }) => {
         body: JSON.stringify({
           token: authToken,
           code: verificationCode,
-          fnumber: savedfnumber
+          fnumber: savedfnumber // Make sure to send the fnumber
         })
       });
       
       const data = await response.json();
-      console.log("2FA verification response:", data);
+      console.log("Manual 2FA verification response:", data);
       
       if (!response.ok || !data.success) {
         throw new Error(data.error || 'Verification failed');
       }
       
-      // If we got success, process the response
+      // Stop polling if it's still going
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+      }
+      
+      // Process the successful verification
       setSessionToken(data.sessionToken);
       setBranches(data.branches || []);
       
@@ -179,82 +313,7 @@ const Login = ({ onLogin }) => {
       return;
     }
     
-    if (isAdminFlow) {
-      // Admin flow - use AUTH_URL endpoints
-      handleAdminLogin();
-    } else {
-      // Regular flow - use original endpoints
-      await handleFinalLogin(savedfnumber, selectedBranch, sessionToken);
-    }
-  };
-
-  // Admin login using the endpoints from the third file
-  const handleAdminLogin = async () => {
-    setLocalError("");
-    setLoadingSpinner(true);
-    
-    try {
-      console.log(`Admin login with branch: ${selectedBranch}`);
-      
-      const selectedBranchObj = branches.find(b => b.branchName === selectedBranch);
-      if (!selectedBranchObj) {
-        throw new Error("Invalid branch selection");
-      }
-      
-      const branchCode = selectedBranchObj.branchCode;
-      
-      // Call the login endpoint from the third file
-      const response = await fetch(`${AUTH_URL}/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: fnumber,
-          password: password,
-          branch: selectedBranch
-        })
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Login failed');
-      }
-      
-      const data = await response.json();
-      
-      // Extract user role from response or set a default
-      const userRole = data.user && data.user.role ? data.user.role : "admin";
-      
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify({
-        ...data.user,
-        branchName: selectedBranch,
-        branchCode: branchCode,
-        role: userRole
-      }));
-      
-      setManualLoginAttempt(true);
-      const success = await login(
-        fnumber, 
-        branchCode, 
-        data.token, 
-        selectedBranch, 
-        userRole
-      );
-      
-      if (!success) {
-        setManualLoginAttempt(false);
-        throw new Error("Login failed. Please try again.");
-      }
-      
-    } catch (err) {
-      console.error("Admin login error:", err);
-      setManualLoginAttempt(false);
-      setLocalError(err.message || "An unexpected error occurred. Please try again.");
-    } finally {
-      setLoadingSpinner(false);
-    }
+    await handleFinalLogin(savedfnumber, selectedBranch, sessionToken);
   };
 
   const handleFinalLogin = async (fnumber, branch, sessionToken) => {
@@ -311,6 +370,17 @@ const Login = ({ onLogin }) => {
       setLoadingSpinner(false);
     }
   };
+
+  const cancelAuth = () => {
+    // Stop the polling
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+    }
+    
+    setShowVerification(false);
+    setPollingStatus("pending");
+    setLoadingSpinner(false);
+  };
   
   const displayError = error || localError;
 
@@ -348,7 +418,7 @@ const Login = ({ onLogin }) => {
     );
   }
   
-  // 2FA verification screen (only for non-admin users)
+  // 2FA verification screen
   if (showVerification) {
     return (
       <div className="login-container">
@@ -361,30 +431,46 @@ const Login = ({ onLogin }) => {
             <p>Please check your phone for an authentication request and approve it to continue.</p>
             
             <div className="status-indicator">
-              <div className="pending-status">Waiting for approval on your phone...</div>
+              {pollingStatus === "pending" && (
+                <div className="pending-status">
+                  <span className="spinner"></span>
+                  Waiting for approval on your phone...
+                </div>
+              )}
+              {pollingStatus === "success" && (
+                <div className="success-status">
+                  <span className="success-icon">✓</span>
+                  Verification successful! Proceeding...
+                </div>
+              )}
+              {pollingStatus === "failed" && (
+                <div className="failed-status">
+                  <span className="failed-icon">✗</span>
+                  Verification failed. Please try again.
+                </div>
+              )}
             </div>
           </div>
           
           <form onSubmit={handleVerify2FA}>
+            <p className="option-text">Or, if you have a verification code:</p>
             <input
               type="text"
-              placeholder="Enter verification code (optional)"
+              placeholder="Enter verification code"
               value={verificationCode}
               onChange={(e) => setVerificationCode(e.target.value)}
             />
             
             {displayError && <p className="error-message">{displayError}</p>}
             
-            <button type="submit" className="login-button" disabled={loading || loadingSpinner}>
-              {loadingSpinner ? <span className="spinner"></span> : "Verify"}
+            <button type="submit" className="login-button" disabled={loading || loadingSpinner || pollingStatus === "success"}>
+              {loadingSpinner ? <span className="spinner"></span> : "Verify with Code"}
             </button>
           </form>
           
           <button 
             className="back-button" 
-            onClick={() => {
-              setShowVerification(false);
-            }}
+            onClick={cancelAuth}
             disabled={loadingSpinner}
           >
             Back to Login
@@ -394,7 +480,7 @@ const Login = ({ onLogin }) => {
     );
   }
   
-  // Branch selection form (used by both admin and regular users)
+  // Branch selection form
   return (
     <div className="login-container">
       <div className="login-card">
@@ -411,7 +497,7 @@ const Login = ({ onLogin }) => {
             >
               <option value="">Select Branch</option>
               {branches.map((branch) => (
-                <option key={branch.branchCode || branch.branchName} value={branch.branchName}>
+                <option key={branch.branchCode} value={branch.branchName}>
                   {branch.branchName}
                 </option>
               ))}
