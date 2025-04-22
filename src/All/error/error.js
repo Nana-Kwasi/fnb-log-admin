@@ -9759,10 +9759,6 @@ Route not found: POST /users/check-verification-status
 Route not found: POST /users/check-verification-status
 
 // user
-
-
-
-
 const pool = require('../db');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
@@ -9876,19 +9872,14 @@ const authenticateUser = async (req, res) => {
 };
 
 const verify2FA = async (req, res) => {
-  const { token, code, fnumber: requestFnumber } = req.body;
+  const { token, code } = req.body;
 
-  if (!token) {
-    return res.status(400).json({ error: 'Token is required' });
+  if (!token || !code) {
+    return res.status(400).json({ error: 'Token and verification code are required' });
   }
 
   try {
-    console.log("[2FA] Starting 2FA verification process");
-    if (code) {
-      console.log("[2FA] Verifying with code:", code);
-    } else {
-      console.log("[2FA] Checking 2FA status without code");
-    }
+    console.log("[2FA] Starting 2FA verification with code:", code);
     console.log("[2FA] Using token:", token.substring(0, 10) + "..." + token.substring(token.length - 10));
     
     const authToken = await getAuthToken();
@@ -9897,7 +9888,7 @@ const verify2FA = async (req, res) => {
     console.log('[2FA] Sending verification request to LDAP service');
     const verifyResponse = await axios.post(LDAP_VERIFY_2FA_URL, {
       token,
-      code: code || "" // Send empty string if no code provided
+      code
     }, { 
       headers: {
         'Authorization': authToken,
@@ -9923,18 +9914,7 @@ const verify2FA = async (req, res) => {
     
     console.log('[2FA] 2FA verification successful');
     
-    const fnumber = verifyResponse.data.fnumber || 
-                   (verifyResponse.data.data && verifyResponse.data.data.fnumber) ||
-                   requestFnumber;
-                   
-    if (!fnumber) {
-      console.error('[2FA] No fnumber found in response or request');
-      return res.status(400).json({
-        success: false,
-        error: 'Unable to identify user. Missing F-number in response.',
-      });
-    }
-    
+    const fnumber = verifyResponse.data.fnumber || req.body.fnumber;
     console.log(`[2FA] User identified as: ${fnumber}`);
     
     console.log(`[2FA] Checking if user ${fnumber} exists in database`);
