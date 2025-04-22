@@ -10540,3 +10540,130 @@ const authenticateUser = async (req, res) => {
     });
   }
 };
+
+
+
+const authenticateUser = async (req, res) => {
+  const { fnumber, password } = req.body;
+
+  if (!fnumber || !password) {
+    return res.status(400).json({ 
+      success: false, 
+      error: 'F-number and password are required' 
+    });
+  }
+
+  try {
+    console.log(`[AUTH] Authentication attempt for user: ${fnumber}`);
+    
+    const authToken = await getAuthToken();
+    console.log('[AUTH] Successfully obtained token for authentication');
+    
+    console.log('[AUTH] Sending authentication request to LDAP service');
+    const authResponse = await axios.post(LDAP_AUTH_URL, {
+      fnumber,
+      password
+    }, { 
+      headers: {
+        'Authorization': authToken,
+        'Content-Type': 'application/json'
+      },
+      httpsAgent: new require('https').Agent({ rejectUnauthorized: false }) 
+    });
+    
+    console.log('[AUTH] Auth response status:', authResponse.status);
+    
+    // Check for specific error codes related to invalid credentials
+    if (authResponse.data && 
+        (authResponse.data.status_code === '401' || 
+         authResponse.data.status_code === 401 ||
+         (authResponse.data.status_message && 
+          authResponse.data.status_message.toLowerCase().includes('invalid credentials')))) {
+      console.log('[AUTH] Invalid credentials for user:', fnumber);
+      return res.status(401).json({ 
+        success: false, 
+        error: 'Invalid credentials. Please check your F-number and password.' 
+      });
+    }
+    
+    if (!authResponse.data || 
+        (authResponse.data.status_code !== '000' && 
+         authResponse.data.status_code !== '0' && 
+         authResponse.data.status_code !== 0)) {
+      console.error('[AUTH] Authentication failed:', JSON.stringify(authResponse.data, null, 2));
+      return res.status(401).json({ 
+        success: false, 
+        error: authResponse.data?.status_message || 'Authentication failed. Please try again.' 
+      });
+    }
+    
+    console.log('[AUTH] Authentication successful for user:', fnumber);
+    console.log('[AUTH] Returning token for 2FA verification');
+    
+    // Log all data when authentication is successful
+    console.log('[AUTH] Full auth response data:', JSON.stringify(authResponse.data, null, 2));
+    
+    return res.status(200).json({
+      success: true,
+      message: 'Authentication successful, proceed with 2FA verification',
+      token: authResponse.data.token, 
+      data: authResponse.data 
+    });
+    
+  } catch (err) {
+    console.error('[AUTH] Authentication error:', err.message);
+    
+    // If there's a specific error related to credentials in the response
+    if (err.response && err.response.data) {
+      const errorData = err.response.data;
+      
+      // Check for common error patterns that indicate invalid credentials
+      if (errorData.status_code === 401 || 
+          (errorData.status_message && 
+           errorData.status_message.toLowerCase().includes('invalid')) ||
+          (errorData.error && 
+           errorData.error.toLowerCase().includes('credentials'))) {
+        
+        console.log('[AUTH] Server reported invalid credentials');
+        return res.status(401).json({ 
+          success: false, 
+          error: 'Invalid credentials. Please check your F-number and password.' 
+        });
+      }
+      
+      console.error('[AUTH] Error response status:', err.response.status);
+      console.error('[AUTH] Error response data:', JSON.stringify(err.response.data, null, 2));
+    }
+    
+    return res.status(500).json({ 
+      success: false, 
+      error: `Authentication failed. Please try again later.` 
+    });
+  }
+};
+
+
+// why
+PS C:\Users\f8877557\file-backend> cd new-backend
+PS C:\Users\f8877557\file-backend\new-backend> node server.js
+Server is running on port 5001
+Health check available at: http://localhost:5001/health
+Auth endpoints available at: http://localhost:5001/auth/login
+Connected to the database
+2025-04-22T16:54:50.764Z - POST /users/authenticate
+[AUTH] Authentication attempt for user: F8877557
+Requesting token from: https://172.29.18.126/adproxyservice/prod/client/renew-token
+Token response status: 200
+[AUTH] Successfully obtained token for authentication
+[AUTH] Sending authentication request to LDAP service
+[AUTH] Auth response status: 200
+[AUTH] Authentication successful for user: F8877557
+[AUTH] Returning token for 2FA verification
+[AUTH] Full auth response data: {
+  "status_code": "000",
+  "status_message": "Login request sent",
+  "server_timestamp": "2025-04-22T16:54:16.146875561",
+  "token": "ddf7d551-98e3-4c92-95a8-0b9682a5872e"
+}
+
+// 
