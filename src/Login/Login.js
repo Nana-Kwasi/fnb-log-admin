@@ -371,55 +371,59 @@ const Login = ({ onLogin }) => {
       console.log("Already authenticated from storage, but not navigating (waiting for manual login)");
     }
   }, [authenticated, fnumber, onLogin, manualLoginAttempt]);
+// In your Login component, modify the startPollingFor2FA function:
 
-  const startPollingFor2FA = (token) => {
-    console.log("Starting to poll for 2FA status with token:", token);
-    setPollingStatus("pending");
-    pollingStartTimeRef.current = Date.now();
-    
-    // Clear any existing interval
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current);
-    }
-    
-    pollingIntervalRef.current = setInterval(async () => {
-      try {
-        // Check if we've exceeded the max polling time
-        if (Date.now() - pollingStartTimeRef.current > maxPollingTime) {
-          clearInterval(pollingIntervalRef.current);
-          setPollingStatus("failed");
-          setLocalError("2FA verification timed out. Please try again.");
-          return;
-        }
+const startPollingFor2FA = (token) => {
+  console.log("Starting to poll for 2FA status with token:", token);
+  setPollingStatus("pending");
+  pollingStartTimeRef.current = Date.now();
+  
+  // Clear any existing interval
+  if (pollingIntervalRef.current) {
+    clearInterval(pollingIntervalRef.current);
+  }
+  
+  pollingIntervalRef.current = setInterval(async () => {
+    try {
+      // Check if we've exceeded the max polling time
+      if (Date.now() - pollingStartTimeRef.current > maxPollingTime) {
+        clearInterval(pollingIntervalRef.current);
+        setPollingStatus("failed");
+        setLocalError("2FA verification timed out. Please try again.");
+        return;
+      }
+      
+      console.log("Polling for 2FA status...");
+      const response = await fetch(`${API_URL}/users/verify2fa`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          token: token,
+          fnumber: savedfnumber, // Add this line to include the fnumber in each poll request
+          code: "" // Empty code to just check status
+        })
+      });
+      
+      const data = await response.json();
+      console.log("2FA status check response:", data);
+      
+      // Check if the 2FA has been approved by looking at the status code in the response data
+      if (response.ok && data.success) {
+        clearInterval(pollingIntervalRef.current);
+        setPollingStatus("success");
         
-        console.log("Polling for 2FA status...");
-        const response = await fetch(`${API_URL}/users/verify2fa`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            token: token,
-            code: "" // Empty code to just check status
-          })
-        });
+        // Process the successful verification
+        setSessionToken(data.sessionToken);
+        setBranches(data.branches || []);
         
-        const data = await response.json();
-        console.log("2FA status check response:", data);
-        
-        // If verification was successful
-        if (response.ok && data.success) {
-          clearInterval(pollingIntervalRef.current);
-          setPollingStatus("success");
-          
-          // Process the successful verification
-          setSessionToken(data.sessionToken);
-          setBranches(data.branches || []);
-          
+        // Give a short delay to show the success state to the user
+        setTimeout(() => {
           if (data.branches && data.branches.length === 1) {
             // If only one branch, auto-select it and proceed to final login
             setSelectedBranch(data.branches[0].branchName);
-            await handleFinalLogin(data.fnumber || savedfnumber, data.branches[0].branchName, data.sessionToken);
+            handleFinalLogin(data.fnumber || savedfnumber, data.branches[0].branchName, data.sessionToken);
           } else if (data.branches && data.branches.length > 1) {
             // If multiple branches, show branch selection screen
             setShowVerification(false);
@@ -429,17 +433,46 @@ const Login = ({ onLogin }) => {
             setLocalError('No branches available for this user');
             setPollingStatus("failed");
           }
-        }
-        // If it's still pending, continue polling
-        // If we got an error, don't stop polling - let the timeout handle it
-        
-      } catch (err) {
-        console.error("Error polling for 2FA status:", err);
-        // Don't stop polling on error - let the timeout handle it
+        }, 1000);
       }
-    }, 3000); // Check every 3 seconds
-  };
-
+      // Check for a specific status in the verify response data that indicates approval
+      else if (response.ok && 
+               data.verifyResponseData && 
+               (data.verifyResponseData.status_code === '000' || 
+                data.verifyResponseData.status_code === '0' || 
+                data.verifyResponseData.status === 'APPROVED')) {
+        clearInterval(pollingIntervalRef.current);
+        setPollingStatus("success");
+        
+        // Process the successful verification  
+        setSessionToken(data.sessionToken);
+        setBranches(data.branches || []);
+        
+        // Give a short delay to show the success state to the user
+        setTimeout(() => {
+          if (data.branches && data.branches.length === 1) {
+            // If only one branch, auto-select it and proceed to final login
+            setSelectedBranch(data.branches[0].branchName);
+            handleFinalLogin(data.fnumber || savedfnumber, data.branches[0].branchName, data.sessionToken);
+          } else if (data.branches && data.branches.length > 1) {
+            // If multiple branches, show branch selection screen
+            setShowVerification(false);
+            setShowBranchSelection(true);
+            setFetchingBranches(false);
+          } else {
+            setLocalError('No branches available for this user');
+            setPollingStatus("failed");
+          }
+        }, 1000);
+      }
+      // If it's still pending, continue polling
+      
+    } catch (err) {
+      console.error("Error polling for 2FA status:", err);
+      // Don't stop polling on error - let the timeout handle it
+    }
+  }, 3000); // Check every 3 seconds
+};
   const handleInitialSubmit = async (e) => {
     e.preventDefault();
     console.log("Initial login form submitted");
