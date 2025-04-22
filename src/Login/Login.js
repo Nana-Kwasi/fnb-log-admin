@@ -51,7 +51,7 @@ const Login = ({ onLogin }) => {
     }
 
     // ADMIN PATH: Special case for admin credentials
-    if (fnumber === "admin" && password === "admin") {
+    if (fnumber === "admin@fnb.com" && password === "password12345") {
       try {
         setIsAdminFlow(true);
         // Fetch branches for admin
