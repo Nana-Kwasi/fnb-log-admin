@@ -18,6 +18,7 @@ const Login = ({ onLogin }) => {
   const [sessionToken, setSessionToken] = useState("");
   const [savedfnumber, setSavedFnumber] = useState(""); 
   const [authToken, setAuthToken] = useState("");
+  const [isAdminFlow, setIsAdminFlow] = useState(false);
 
   const { login, loading, error, setError, authenticated } = useVisitor();
 
@@ -37,41 +38,6 @@ const Login = ({ onLogin }) => {
     }
   }, [authenticated, fnumber, onLogin, manualLoginAttempt]);
 
-  // Fetch branches for admin login path
-  useEffect(() => {
-    // Only fetch branches if we need them for the admin flow
-    if (fnumber === "admin" && password === "admin") {
-      const fetchBranches = async () => {
-        try {
-          setFetchingBranches(true);
-          console.log("Fetching branches from:", BRANCHES_URL);
-          const response = await fetch(BRANCHES_URL);
-          
-          if (!response.ok) {
-            throw new Error(`API response error: ${response.status}`);
-          }
-          
-          const data = await response.json();
-          console.log(`Received ${data.length} branches from API`);
-          
-          const branchOptions = data
-            .filter(branch => branch.branchName && branch.branchName.trim() !== "")
-            .sort((a, b) => a.branchName.localeCompare(b.branchName));
-          
-          console.log(`Found ${branchOptions.length} unique branches`);
-          setBranches(branchOptions);
-        } catch (err) {
-          console.error("Error fetching branches:", err);
-          setLocalError("Failed to load branches. Please try again later.");
-        } finally {
-          setFetchingBranches(false);
-        }
-      };
-
-      fetchBranches();
-    }
-  }, [fnumber, password, BRANCHES_URL]);
-
   const handleInitialSubmit = async (e) => {
     e.preventDefault();
     console.log("Initial login form submitted");
@@ -87,31 +53,30 @@ const Login = ({ onLogin }) => {
     // ADMIN PATH: Special case for admin credentials
     if (fnumber === "admin" && password === "admin") {
       try {
-        // Fetch branches if we haven't already
-        if (branches.length === 0) {
-          setFetchingBranches(true);
-          const response = await fetch(BRANCHES_URL);
-          
-          if (!response.ok) {
-            throw new Error(`API response error: ${response.status}`);
-          }
-          
-          const data = await response.json();
-          
-          const branchOptions = data
-            .filter(branch => branch.branchName && branch.branchName.trim() !== "")
-            .sort((a, b) => a.branchName.localeCompare(b.branchName));
-          
-          setBranches(branchOptions);
-          setFetchingBranches(false);
+        setIsAdminFlow(true);
+        // Fetch branches for admin
+        console.log("Fetching branches for admin login");
+        const branchResponse = await fetch(BRANCHES_URL);
+        
+        if (!branchResponse.ok) {
+          throw new Error(`Branch API response error: ${branchResponse.status}`);
         }
         
-        // Show branch selection directly without 2FA
+        const branchData = await branchResponse.json();
+        console.log(`Received ${branchData.length} branches from API`);
+        
+        const branchOptions = branchData
+          .filter(branch => branch.branchName && branch.branchName.trim() !== "")
+          .sort((a, b) => a.branchName.localeCompare(b.branchName));
+        
+        setBranches(branchOptions);
+        
+        // Show branch selection screen directly (skip 2FA)
         setShowBranchSelection(true);
         
       } catch (err) {
-        console.error("Error fetching branches for admin:", err);
-        setLocalError("Failed to load branches. Please try again later.");
+        console.error("Admin authentication error:", err);
+        setLocalError(err.message || "Failed to load branches. Please try again later.");
       } finally {
         setLoadingSpinner(false);
       }
@@ -120,6 +85,7 @@ const Login = ({ onLogin }) => {
 
     // REGULAR USER PATH: Normal 2FA flow
     try {
+      setIsAdminFlow(false);
       const response = await fetch(`${API_URL}/users/authenticate`, {
         method: 'POST',
         headers: {
@@ -167,7 +133,8 @@ const Login = ({ onLogin }) => {
         },
         body: JSON.stringify({
           token: authToken,
-          code: verificationCode
+          code: verificationCode,
+          fnumber: savedfnumber
         })
       });
       
@@ -212,32 +179,31 @@ const Login = ({ onLogin }) => {
       return;
     }
     
-    // For admin path
-    if (fnumber === "admin") {
-      await handleAdminLogin(selectedBranch);
-      return;
+    if (isAdminFlow) {
+      // Admin flow - use AUTH_URL endpoints
+      handleAdminLogin();
+    } else {
+      // Regular flow - use original endpoints
+      await handleFinalLogin(savedfnumber, selectedBranch, sessionToken);
     }
-    
-    // For regular user path
-    await handleFinalLogin(savedfnumber, selectedBranch, sessionToken);
   };
 
-  // New function for admin login path
-  const handleAdminLogin = async (branch) => {
+  // Admin login using the endpoints from the third file
+  const handleAdminLogin = async () => {
     setLocalError("");
     setLoadingSpinner(true);
     
     try {
-      console.log(`Admin login with branch: ${branch}`);
-      const selectedBranchObj = branches.find(b => b.branchName === branch);
+      console.log(`Admin login with branch: ${selectedBranch}`);
       
+      const selectedBranchObj = branches.find(b => b.branchName === selectedBranch);
       if (!selectedBranchObj) {
         throw new Error("Invalid branch selection");
       }
       
       const branchCode = selectedBranchObj.branchCode;
       
-      // Call the admin login endpoint from the third file
+      // Call the login endpoint from the third file
       const response = await fetch(`${AUTH_URL}/login`, {
         method: 'POST',
         headers: {
@@ -246,7 +212,7 @@ const Login = ({ onLogin }) => {
         body: JSON.stringify({
           email: fnumber,
           password: password,
-          branch: branch
+          branch: selectedBranch
         })
       });
       
@@ -263,7 +229,7 @@ const Login = ({ onLogin }) => {
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify({
         ...data.user,
-        branchName: branch,
+        branchName: selectedBranch,
         branchCode: branchCode,
         role: userRole
       }));
@@ -273,7 +239,7 @@ const Login = ({ onLogin }) => {
         fnumber, 
         branchCode, 
         data.token, 
-        branch, 
+        selectedBranch, 
         userRole
       );
       
@@ -382,7 +348,7 @@ const Login = ({ onLogin }) => {
     );
   }
   
-  // 2FA verification screen
+  // 2FA verification screen (only for non-admin users)
   if (showVerification) {
     return (
       <div className="login-container">
@@ -428,7 +394,7 @@ const Login = ({ onLogin }) => {
     );
   }
   
-  // Branch selection form
+  // Branch selection form (used by both admin and regular users)
   return (
     <div className="login-container">
       <div className="login-card">
@@ -445,7 +411,7 @@ const Login = ({ onLogin }) => {
             >
               <option value="">Select Branch</option>
               {branches.map((branch) => (
-                <option key={branch.branchCode} value={branch.branchName}>
+                <option key={branch.branchCode || branch.branchName} value={branch.branchName}>
                   {branch.branchName}
                 </option>
               ))}
