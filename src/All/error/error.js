@@ -4519,6 +4519,7 @@ Route not found: POST /users/check-verification-status
 2025-04-20T17:58:47.945Z - POST /users/check-verification-status
 Route not found: POST /users/check-verification-status
 // new verify2fa
+
 const verify2FA = async (req, res) => {
   const { token, code, fnumber: requestFnumber } = req.body;
 
@@ -9756,20 +9757,19 @@ Route not found: POST /users/check-verification-status
 Route not found: POST /users/check-verification-status
 
 // user
+
+
 const pool = require('../db');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
 
 const JWT_SECRET = 'your-secret-key-should-be-in-env-file';
-
-// LDAP authentication endpoints
 const LDAP_AUTH_URL = "https://172.29.18.126/adproxyservice/prod/ldap/authenticate";
 const LDAP_VERIFY_2FA_URL = "https://172.29.18.126/adproxyservice/prod/ldap/verify2fa";
 const TOKEN_URL = 'https://172.29.18.126/adproxyservice/prod/client/renew-token';
 const CLIENT_ID = "8CA09F75-720F-4641-9B70-5344850DF34E";
 
-// Helper function to get authorization token
 const getAuthToken = async () => {
   try {
     console.log('Requesting token from:', TOKEN_URL);
@@ -9783,7 +9783,6 @@ const getAuthToken = async () => {
 
     console.log('Token response status:', tokenResponse.status);
     
-    // Check if token exists in the response
     if (!tokenResponse.data || tokenResponse.data.statusCode !== 0 || !tokenResponse.data.data || !tokenResponse.data.data.token) {
       console.error('Invalid token response:', tokenResponse.data);
       throw new Error(`Failed to obtain authorization token: ${
@@ -9805,8 +9804,6 @@ const getAuthToken = async () => {
   }
 };
 
-// Step 1: Initial authentication with LDAP
-// Step 1: Initial authentication with LDAP
 const authenticateUser = async (req, res) => {
   const { fnumber, password } = req.body;
 
@@ -9815,13 +9812,12 @@ const authenticateUser = async (req, res) => {
   }
 
   try {
-    console.log("Calling LDAP authentication API");
+    console.log(`[AUTH] Authentication attempt for user: ${fnumber}`);
     
-    // Get authorization token first
     const authToken = await getAuthToken();
-    console.log('Successfully obtained token for authentication');
+    console.log('[AUTH] Successfully obtained token for authentication');
     
-    // Make the authentication request to LDAP service with the token
+    console.log('[AUTH] Sending authentication request to LDAP service');
     const authResponse = await axios.post(LDAP_AUTH_URL, {
       fnumber,
       password
@@ -9833,33 +9829,39 @@ const authenticateUser = async (req, res) => {
       httpsAgent: new require('https').Agent({ rejectUnauthorized: false }) 
     });
     
-    console.log('Auth response status:', authResponse.status);
+    console.log('[AUTH] Auth response status:', authResponse.status);
+    console.log('[AUTH] Auth response data:', JSON.stringify(authResponse.data, null, 2));
     
-    // Check for successful response - based on the screenshots, '000' or '0' is success
     if (!authResponse.data || 
         (authResponse.data.status_code !== '000' && 
          authResponse.data.status_code !== '0' && 
          authResponse.data.status_code !== 0)) {
-      console.error('Authentication failed:', authResponse.data);
+      console.error('[AUTH] Authentication failed:', JSON.stringify(authResponse.data, null, 2));
       return res.status(401).json({ 
         success: false, 
         error: authResponse.data?.status_message || 'Authentication failed' 
       });
     }
     
-    // Return token for 2FA verification
+    console.log('[AUTH] Authentication successful for user:', fnumber);
+    console.log('[AUTH] Returning token for 2FA verification');
+    
+    // Log all data when authentication is successful
+    console.log('[AUTH] Full auth response data:', JSON.stringify(authResponse.data, null, 2));
+    
     return res.status(200).json({
       success: true,
       message: 'Authentication successful, proceed with 2FA verification',
-      token: authResponse.data.token // This is the token to use for 2FA
+      token: authResponse.data.token, 
+      data: authResponse.data 
     });
     
   } catch (err) {
-    console.error('Authentication error:', err.message);
+    console.error('[AUTH] Authentication error:', err.message);
     
     if (err.response) {
-      console.error('Error response status:', err.response.status);
-      console.error('Error response data:', JSON.stringify(err.response.data, null, 2));
+      console.error('[AUTH] Error response status:', err.response.status);
+      console.error('[AUTH] Error response data:', JSON.stringify(err.response.data, null, 2));
     }
     
     return res.status(500).json({ 
@@ -9868,25 +9870,30 @@ const authenticateUser = async (req, res) => {
     });
   }
 };
-// Step 2: Verify 2FA code
-const verify2FA = async (req, res) => {
-  const { token, code } = req.body;
 
-  if (!token || !code) {
-    return res.status(400).json({ error: 'Token and verification code are required' });
+const verify2FA = async (req, res) => {
+  const { token, code, fnumber: requestFnumber } = req.body;
+
+  if (!token) {
+    return res.status(400).json({ error: 'Token is required' });
   }
 
   try {
-    console.log("Verifying 2FA code");
+    console.log("[2FA] Starting 2FA verification process");
+    if (code) {
+      console.log("[2FA] Verifying with code:", code);
+    } else {
+      console.log("[2FA] Checking 2FA status without code");
+    }
+    console.log("[2FA] Using token:", token.substring(0, 10) + "..." + token.substring(token.length - 10));
     
-    // Get authorization token first
     const authToken = await getAuthToken();
-    console.log('Successfully obtained token for 2FA verification');
+    console.log('[2FA] Successfully obtained token for 2FA verification');
     
-    // Make the verification request to LDAP service with the token
+    console.log('[2FA] Sending verification request to LDAP service');
     const verifyResponse = await axios.post(LDAP_VERIFY_2FA_URL, {
       token,
-      code
+      code: code || "" // Send empty string if no code provided
     }, { 
       headers: {
         'Authorization': authToken,
@@ -9895,28 +9902,42 @@ const verify2FA = async (req, res) => {
       httpsAgent: new require('https').Agent({ rejectUnauthorized: false }) 
     });
     
-    console.log('Verify response status:', verifyResponse.status);
-    console.log('Verify response data:', JSON.stringify(verifyResponse.data, null, 2));
+    console.log('[2FA] Verify response status:', verifyResponse.status);
+    console.log('[2FA] Verify response data:', JSON.stringify(verifyResponse.data, null, 2));
     
-    // Check for successful response
     if (!verifyResponse.data || 
         (verifyResponse.data.status_code !== '000' && 
          verifyResponse.data.status_code !== '0' && 
          verifyResponse.data.status_code !== 0)) {
-      console.error('2FA verification failed:', verifyResponse.data);
+      console.error('[2FA] 2FA verification failed:', JSON.stringify(verifyResponse.data, null, 2));
       return res.status(401).json({ 
         success: false, 
-        error: verifyResponse.data?.status_message || '2FA verification failed' 
+        error: verifyResponse.data?.status_message || '2FA verification failed',
+        data: verifyResponse.data 
       });
     }
     
-    // Extract the fnumber/email from the response - check where it actually is
-    const fnumber = verifyResponse.data.fnumber || req.body.fnumber;
+    console.log('[2FA] 2FA verification successful');
     
-    // Check if user exists in database
+    const fnumber = verifyResponse.data.fnumber || 
+                   (verifyResponse.data.data && verifyResponse.data.data.fnumber) ||
+                   requestFnumber;
+                   
+    if (!fnumber) {
+      console.error('[2FA] No fnumber found in response or request');
+      return res.status(400).json({
+        success: false,
+        error: 'Unable to identify user. Missing F-number in response.',
+      });
+    }
+    
+    console.log(`[2FA] User identified as: ${fnumber}`);
+    
+    console.log(`[2FA] Checking if user ${fnumber} exists in database`);
     const userQuery = await pool.query('SELECT * FROM users_table WHERE email = $1', [fnumber]);
     
     if (userQuery.rows.length === 0) {
+      console.log(`[2FA] User ${fnumber} not found in system`);
       return res.status(404).json({
         success: false,
         error: 'User not found in system. Please contact administrator.',
@@ -9925,17 +9946,18 @@ const verify2FA = async (req, res) => {
       });
     }
     
-    // User exists, check which branches they have access to
+    console.log(`[2FA] User ${fnumber} found, fetching branch information`);
     const user = userQuery.rows[0];
     const branchQuery = await pool.query('SELECT * FROM users_table WHERE email = $1', [fnumber]);
     
-    // Format the branches for the response
     const branches = branchQuery.rows.map(row => ({
       branchName: row.branch,
       branchCode: row.branch_code
     }));
     
-    // Generate a session token
+    console.log(`[2FA] User ${fnumber} has access to ${branches.length} branches:`, 
+      JSON.stringify(branches, null, 2));
+    
     const sessionToken = jwt.sign(
       { 
         id: user.id, 
@@ -9946,21 +9968,28 @@ const verify2FA = async (req, res) => {
       { expiresIn: '8h' }
     );
     
+    console.log(`[2FA] Session token generated for user: ${fnumber}`);
+    console.log('[2FA] 2FA verification process complete, returning success response');
+    
+    // Log all data when 2FA verification is successful
+    console.log('[2FA] Full verify response data:', JSON.stringify(verifyResponse.data, null, 2));
+    
     return res.status(200).json({
       success: true,
       message: '2FA verification successful',
       userExists: true,
       fnumber,
       branches,
-      sessionToken
+      sessionToken,
+      verifyResponseData: verifyResponse.data 
     });
     
   } catch (err) {
-    console.error('2FA verification error:', err.message);
+    console.error('[2FA] 2FA verification error:', err.message);
     
     if (err.response) {
-      console.error('Error response status:', err.response.status);
-      console.error('Error response data:', JSON.stringify(err.response.data, null, 2));
+      console.error('[2FA] Error response status:', err.response.status);
+      console.error('[2FA] Error response data:', JSON.stringify(err.response.data, null, 2));
     }
     
     return res.status(500).json({ 
@@ -9970,7 +9999,6 @@ const verify2FA = async (req, res) => {
   }
 };
 
-// Step 3: Final login after branch selection
 const finalizeLogin = async (req, res) => {
   const { fnumber, branch, sessionToken } = req.body;
 
@@ -9979,7 +10007,6 @@ const finalizeLogin = async (req, res) => {
   }
   
   try {
-    // Verify the session token
     let decodedToken;
     try {
       decodedToken = jwt.verify(sessionToken, JWT_SECRET);
