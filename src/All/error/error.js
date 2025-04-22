@@ -9759,10 +9759,6 @@ Route not found: POST /users/check-verification-status
 Route not found: POST /users/check-verification-status
 
 // user
-
-
-
-
 const pool = require('../db');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
@@ -9876,19 +9872,14 @@ const authenticateUser = async (req, res) => {
 };
 
 const verify2FA = async (req, res) => {
-  const { token, code, fnumber: requestFnumber } = req.body;
+  const { token, code } = req.body;
 
-  if (!token) {
-    return res.status(400).json({ error: 'Token is required' });
+  if (!token || !code) {
+    return res.status(400).json({ error: 'Token and verification code are required' });
   }
 
   try {
-    console.log("[2FA] Starting 2FA verification process");
-    if (code) {
-      console.log("[2FA] Verifying with code:", code);
-    } else {
-      console.log("[2FA] Checking 2FA status without code");
-    }
+    console.log("[2FA] Starting 2FA verification with code:", code);
     console.log("[2FA] Using token:", token.substring(0, 10) + "..." + token.substring(token.length - 10));
     
     const authToken = await getAuthToken();
@@ -9897,7 +9888,7 @@ const verify2FA = async (req, res) => {
     console.log('[2FA] Sending verification request to LDAP service');
     const verifyResponse = await axios.post(LDAP_VERIFY_2FA_URL, {
       token,
-      code: code || "" // Send empty string if no code provided
+      code
     }, { 
       headers: {
         'Authorization': authToken,
@@ -9923,18 +9914,7 @@ const verify2FA = async (req, res) => {
     
     console.log('[2FA] 2FA verification successful');
     
-    const fnumber = verifyResponse.data.fnumber || 
-                   (verifyResponse.data.data && verifyResponse.data.data.fnumber) ||
-                   requestFnumber;
-                   
-    if (!fnumber) {
-      console.error('[2FA] No fnumber found in response or request');
-      return res.status(400).json({
-        success: false,
-        error: 'Unable to identify user. Missing F-number in response.',
-      });
-    }
-    
+    const fnumber = verifyResponse.data.fnumber || req.body.fnumber;
     console.log(`[2FA] User identified as: ${fnumber}`);
     
     console.log(`[2FA] Checking if user ${fnumber} exists in database`);
@@ -10307,4 +10287,154 @@ module.exports = {
   verify2FA,
   finalizeLogin,
   getUserBranches  
+};
+
+// auth function
+
+const pool = require('../db');
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcrypt');
+
+const JWT_SECRET = 'your-secret-key-should-be-in-env-file';
+
+
+const login = async (req, res) => {
+  const { email, password, branch } = req.body;
+
+  try {
+    console.log(`Login attempt: ${email} for branch ${branch}`);
+
+    if (!email || !password || !branch) {
+      return res.status(400).json({ error: 'Email, password, and branch are required' });
+    }
+
+    const adminResult = await pool.query(
+      'SELECT * FROM admin_users WHERE email = $1',
+      [email]
+    );
+
+    let user = adminResult.rows[0];
+    let userTable = 'admin_users';
+
+    if (!user) {
+      const userResult = await pool.query(
+        'SELECT * FROM users_table WHERE email = $1',
+        [email]
+      );
+      user = userResult.rows[0];
+      userTable = 'users_table';
+    }
+
+    if (!user) {
+      console.log(`User not found: ${email}`);
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    const branchesKey = userTable === 'admin_users' ? 'branches' : 'branch';
+    const userBranches = userTable === 'admin_users' ? user[branchesKey] : [user[branchesKey]];
+
+    if (!userBranches.includes(branch)) {
+      console.log(`User ${email} attempted to access unauthorized branch: ${branch}`);
+      return res.status(403).json({ error: 'You do not have access to this branch' });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+
+    if (!isMatch) {
+      console.log(`Invalid password for user: ${email}`);
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    const payload = {
+      user_id: user.id,
+      email: user.email,
+      branch: branch,
+      role: user.role || 'user',
+      user_table: userTable
+    };
+
+    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '8h' });
+
+    res.json({
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        branch: branch,
+        role: user.role || 'user',
+      }
+    });
+
+  } catch (err) {
+    console.error('Login error:', err);
+    res.status(500).json({ error: 'Server error during login' });
+  }
+};
+
+
+const registerUser = async (req, res) => {
+  const { email, password, branches, role } = req.body;
+
+  try {
+   
+    
+    
+    if (!email || !password || !branches || !Array.isArray(branches)) {
+      return res.status(400).json({ error: 'Email, password, and branches array are required' });
+    }
+
+   
+    const checkUser = await pool.query('SELECT * FROM admin_users WHERE email = $1', [email]);
+    
+    if (checkUser.rows.length > 0) {
+      return res.status(400).json({ error: 'User already exists' });
+    }
+
+    
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    
+    const result = await pool.query(
+      'INSERT INTO admin_users (email, password, branches, role, created_at) VALUES ($1, $2, $3, $4, NOW()) RETURNING id, email, role, created_at',
+      [email, hashedPassword, branches, role || 'user']
+    );
+
+    res.status(201).json({
+      message: 'User registered successfully',
+      user: {
+        id: result.rows[0].id,
+        email: result.rows[0].email,
+        role: result.rows[0].role,
+        created_at: result.rows[0].created_at
+      }
+    });
+
+  } catch (err) {
+    console.error('Registration error:', err);
+    res.status(500).json({ error: 'Server error during registration' });
+  }
+};
+
+
+const verifyToken = (req, res) => {
+  const token = req.header('x-auth-token');
+
+  if (!token) {
+    return res.status(401).json({ error: 'No token, authorization denied' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    res.json({ valid: true, user: decoded });
+  } catch (err) {
+    res.status(401).json({ error: 'Token is not valid' });
+  }
+};
+
+module.exports = {
+  login,
+  registerUser,
+  verifyToken,
+  
 };
