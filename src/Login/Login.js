@@ -94,30 +94,37 @@ const Login = ({ onLogin }) => {
         }
         
         console.log("Admin authentication successful, fetching branches");
-        
-        // Fetch available branches for admin
-        const branchesResponse = await fetch(`${API_URL}/visitors/index`);
-        
-        if (!branchesResponse.ok) {
-          throw new Error('Failed to fetch branches');
-        }
-        
-        const branchesData = await branchesResponse.json();
-        
-        console.log(`Received ${branchesData.length} branches from API`);
-        
-        const branchOptions = branchesData
-          .filter(branch => branch.branchName && branch.branchName.trim() !== "")
-          .sort((a, b) => a.branchName.localeCompare(b.branchName));
-        
-        console.log(`Found ${branchOptions.length} unique branches`);
-        setBranches(branchOptions);
-        
-        // Show branch selection for admin
         setSavedFnumber(fnumber);
         setSessionToken(data.token); // Store token for later use
-        setAuthenticationState("branchSelection");
-        setFetchingBranches(false);
+        
+        // Fetch available branches for admin
+        setFetchingBranches(true);
+        try {
+          const branchesResponse = await fetch(`${API_URL}/visitors/index`);
+          
+          if (!branchesResponse.ok) {
+            throw new Error('Failed to fetch branches');
+          }
+          
+          const branchesData = await branchesResponse.json();
+          
+          console.log(`Received ${branchesData.length} branches from API`);
+          
+          const branchOptions = branchesData
+            .filter(branch => branch.branchName && branch.branchName.trim() !== "")
+            .sort((a, b) => a.branchName.localeCompare(b.branchName));
+          
+          console.log(`Found ${branchOptions.length} unique branches`);
+          setBranches(branchOptions);
+          
+          // Show branch selection for admin
+          setAuthenticationState("branchSelection");
+        } catch (branchErr) {
+          console.error("Error fetching branches:", branchErr);
+          throw new Error('Failed to load branches. Please try again.');
+        } finally {
+          setFetchingBranches(false);
+        }
         
       } catch (err) {
         console.error("Admin authentication error:", err);
@@ -302,41 +309,23 @@ const Login = ({ onLogin }) => {
       
       const branchCode = selectedBranchObj.branchCode;
       
-      const response = await fetch(`${AUTH_URL}/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: fnumber,
-          password, // This is not ideal but we're reusing the login endpoint
-          branch: branch
-        })
-      });
-      
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || 'Login failed');
-      }
-      
-      const userRole = data.user && data.user.role ? data.user.role : "admin";
-      
-      localStorage.setItem('token', data.token);
+      // For admin users, we've already authenticated in the initial step,
+      // so we can use the token we received there
+      localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify({
-        ...data.user,
+        fnumber,
         branchName: branch,
         branchCode: branchCode,
-        role: userRole
+        role: "admin" // Explicitly set role for admin users
       }));
       
       setManualLoginAttempt(true);
       const success = await login(
         fnumber, 
         branchCode, 
-        data.token, 
+        token, 
         branch, 
-        userRole
+        "admin"
       );
       
       if (!success) {
@@ -462,7 +451,9 @@ const Login = ({ onLogin }) => {
           <div className="verification-status">
             <div className="status-indicator">
               <span className="spinner"></span>
-              <div className="pending-status">Verifying your credentials...</div>
+              <div className="pending-status">
+                {isAdmin ? "Verifying admin credentials..." : "Verifying your credentials..."}
+              </div>
             </div>
           </div>
           
@@ -480,7 +471,7 @@ const Login = ({ onLogin }) => {
     );
   }
   
-  // 2FA verification in progress
+  // 2FA verification in progress (only for non-admin users)
   if (authenticationState === "verifying") {
     return (
       <div className="login-container">
@@ -568,195 +559,8 @@ const Login = ({ onLogin }) => {
     );
   }
   
+  // Fallback (should never reach here)
   return null;
 };
  
 export default Login;
-
-// auth
-const authenticateUser = async (req, res) => {
-  const { fnumber, password } = req.body;
-
-  if (!fnumber || !password) {
-    return res.status(400).json({ 
-      success: false, 
-      error: 'F-number and password are required' 
-    });
-  }
-
-  try {
-    console.log(`[AUTH] Authentication attempt for user: ${fnumber}`);
-    
-    const authToken = await getAuthToken();
-    console.log('[AUTH] Successfully obtained token for authentication');
-    
-    console.log('[AUTH] Sending authentication request to LDAP service');
-    const authResponse = await axios.post(LDAP_AUTH_URL, {
-      fnumber,
-      password
-    }, { 
-      headers: {
-        'Authorization': authToken,
-        'Content-Type': 'application/json'
-      },
-      httpsAgent: new require('https').Agent({ rejectUnauthorized: false }) 
-    });
-    
-    console.log('[AUTH] Auth response status:', authResponse.status);
-    
-    // First, let's check for invalid credentials scenarios
-    if (authResponse.data && 
-        (authResponse.data.status_code === '401' || 
-         authResponse.data.status_code === 401 ||
-         (authResponse.data.status_message && 
-          authResponse.data.status_message.toLowerCase().includes('invalid credentials')))) {
-      console.log('[AUTH] Invalid credentials for user:', fnumber);
-      return res.status(401).json({ 
-        success: false, 
-        error: 'Invalid credentials. Please check your F-number and password.' 
-      });
-    }
-    
-    // Check for any other error conditions
-    if (!authResponse.data || 
-        (authResponse.data.status_code !== '000' && 
-         authResponse.data.status_code !== '0' && 
-         authResponse.data.status_code !== 0)) {
-      console.error('[AUTH] Authentication failed:', JSON.stringify(authResponse.data, null, 2));
-      return res.status(401).json({ 
-        success: false, 
-        error: authResponse.data?.status_message || 'Authentication failed. Please try again.' 
-      });
-    }
-    
-    // Check if we have a valid token in the response
-    if (!authResponse.data.token) {
-      console.error('[AUTH] Authentication response missing token');
-      return res.status(500).json({ 
-        success: false, 
-        error: 'Authentication system error. Please try again later.' 
-      });
-    }
-    
-    console.log('[AUTH] Authentication successful for user:', fnumber);
-    console.log('[AUTH] Returning token for 2FA verification');
-    
-    // Log all data when authentication is successful
-    console.log('[AUTH] Full auth response data:', JSON.stringify(authResponse.data, null, 2));
-    
-    return res.status(200).json({
-      success: true,
-      message: 'Authentication successful, proceed with 2FA verification',
-      token: authResponse.data.token, 
-      data: authResponse.data 
-    });
-    
-  } catch (err) {
-    console.error('[AUTH] Authentication error:', err.message);
-    
-    // If there's a specific error related to credentials in the response
-    if (err.response && err.response.data) {
-      const errorData = err.response.data;
-      
-      // Check for common error patterns that indicate invalid credentials
-      if (errorData.status_code === 401 || 
-          (errorData.status_message && 
-           errorData.status_message.toLowerCase().includes('invalid')) ||
-          (errorData.error && 
-           errorData.error.toLowerCase().includes('credentials'))) {
-        
-        console.log('[AUTH] Server reported invalid credentials');
-        return res.status(401).json({ 
-          success: false, 
-          error: 'Invalid credentials. Please check your F-number and password.' 
-        });
-      }
-      
-      console.error('[AUTH] Error response status:', err.response.status);
-      console.error('[AUTH] Error response data:', JSON.stringify(err.response.data, null, 2));
-    }
-    
-    return res.status(500).json({ 
-      success: false, 
-      error: `Authentication failed. Please try again later.` 
-    });
-  }
-};
-
-// verify
-const verify2FA = async (req, res) => {
-  const { token, code } = req.body;
-
-  if (!token) {
-    return res.status(400).json({ 
-      success: false, 
-      error: 'Token is required' 
-    });
-  }
-
-  try {
-    console.log(`[2FA] Verification attempt with token: ${token.substring(0, 8)}...`);
-    
-    // Check the status of the 2FA verification
-    const verifyResponse = await axios.post(VERIFICATION_STATUS_URL, {
-      token,
-      code: code || ""
-    }, { 
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      httpsAgent: new require('https').Agent({ rejectUnauthorized: false }) 
-    });
-    
-    console.log('[2FA] Verification response status:', verifyResponse.status);
-    
-    // If verification is still pending
-    if (verifyResponse.data && verifyResponse.data.status === "pending") {
-      console.log('[2FA] Verification still pending for token:', token.substring(0, 8));
-      return res.status(202).json({ 
-        success: false, 
-        pending: true,
-        error: 'Verification still pending. Please approve the request on your device.' 
-      });
-    }
-    
-    // If verification failed
-    if (!verifyResponse.data || verifyResponse.data.status !== "approved") {
-      console.error('[2FA] Verification failed:', JSON.stringify(verifyResponse.data, null, 2));
-      return res.status(401).json({ 
-        success: false, 
-        error: verifyResponse.data?.message || 'Verification failed. Please try again.' 
-      });
-    }
-    
-    console.log('[2FA] Verification successful for token:', token.substring(0, 8));
-    
-    // Get user information and available branches
-    const userInfo = await getUserInfo(verifyResponse.data.user_id);
-    const branches = await getUserBranches(verifyResponse.data.user_id);
-    
-    // Generate a session token
-    const sessionToken = generateSessionToken(verifyResponse.data.user_id);
-    
-    return res.status(200).json({
-      success: true,
-      message: 'Verification successful',
-      sessionToken: sessionToken,
-      fnumber: userInfo.fnumber,
-      branches: branches
-    });
-    
-  } catch (err) {
-    console.error('[2FA] Verification error:', err.message);
-    
-    if (err.response && err.response.data) {
-      console.error('[2FA] Error response status:', err.response.status);
-      console.error('[2FA] Error response data:', JSON.stringify(err.response.data, null, 2));
-    }
-    
-    return res.status(500).json({ 
-      success: false, 
-      error: `Verification failed. Please try again later.` 
-    });
-  }
-};
