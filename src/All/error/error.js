@@ -10442,6 +10442,8 @@ module.exports = {
 
 
 // new users auth
+
+
 const authenticateUser = async (req, res) => {
   const { fnumber, password } = req.body;
 
@@ -10644,6 +10646,7 @@ const authenticateUser = async (req, res) => {
 
 
 // why
+
 PS C:\Users\f8877557\file-backend> cd new-backend
 PS C:\Users\f8877557\file-backend\new-backend> node server.js
 Server is running on port 5001
