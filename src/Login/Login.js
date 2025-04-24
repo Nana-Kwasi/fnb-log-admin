@@ -1,10 +1,10 @@
-
-import React, { useState, useEffect,useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useVisitor } from "../context/VisitorContext";
 import "../login.css";
 
 const Login = ({ onLogin }) => {
-  const [fnumber, setFnumber] = useState("");
+  // Common state
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [selectedBranch, setSelectedBranch] = useState("");
   const [branches, setBranches] = useState([]);
@@ -13,13 +13,15 @@ const Login = ({ onLogin }) => {
   const [manualLoginAttempt, setManualLoginAttempt] = useState(false);
   const [loadingSpinner, setLoadingSpinner] = useState(false);
   
+  // 2FA state (for non-admin users)
   const [showVerification, setShowVerification] = useState(false);
   const [verificationCode, setVerificationCode] = useState("");
   const [showBranchSelection, setShowBranchSelection] = useState(false);
   const [sessionToken, setSessionToken] = useState("");
-  const [savedfnumber, setSavedFnumber] = useState(""); 
+  const [savedIdentifier, setSavedIdentifier] = useState(""); 
   const [authToken, setAuthToken] = useState("");
   const [pollingStatus, setPollingStatus] = useState("pending"); // pending, success, failed
+  const [isAdminUser, setIsAdminUser] = useState(false);
 
   const pollingIntervalRef = useRef(null);
   const maxPollingTime = 120000; // 2 minutes
@@ -27,10 +29,13 @@ const Login = ({ onLogin }) => {
 
   const { login, loading, error, setError, authenticated } = useVisitor();
 
+  // API URLs
   const API_URL = "http://localhost:5001";
+  const BRANCHES_URL = "http://localhost:5001/visitors/index";
+  const AUTH_URL = "http://localhost:5001/auth";
 
+  // Cleanup polling on unmount
   useEffect(() => {
-    // Cleanup polling on unmount
     return () => {
       if (pollingIntervalRef.current) {
         clearInterval(pollingIntervalRef.current);
@@ -38,18 +43,60 @@ const Login = ({ onLogin }) => {
     };
   }, []);
 
+  // Handle successful authentication
   useEffect(() => {
-    if (authenticated && fnumber && manualLoginAttempt) {
+    if (authenticated && identifier && manualLoginAttempt) {
       console.log("Authentication successful after manual login attempt, navigating to dashboard");
       setTimeout(() => { 
-        onLogin(fnumber);
+        onLogin(identifier);
         setManualLoginAttempt(false);
       }, 1000); 
     } else if (authenticated) {
       console.log("Already authenticated from storage, but not navigating (waiting for manual login)");
     }
-  }, [authenticated, fnumber, onLogin, manualLoginAttempt]);
+  }, [authenticated, identifier, onLogin, manualLoginAttempt]);
 
+  // Fetch branches initially
+  useEffect(() => {
+    const fetchBranches = async () => {
+      try {
+        setFetchingBranches(true);
+        console.log("Fetching branches from:", BRANCHES_URL);
+        const response = await fetch(BRANCHES_URL);
+        
+        if (!response.ok) {
+          throw new Error(`API response error: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log(`Received ${data.length} branches from API`);
+        
+        const branchOptions = data
+          .filter(branch => branch.branchName && branch.branchName.trim() !== "")
+          .sort((a, b) => a.branchName.localeCompare(b.branchName));
+        
+        console.log(`Found ${branchOptions.length} unique branches`);
+        setBranches(branchOptions);
+      } catch (err) {
+        console.error("Error fetching branches:", err);
+        setLocalError("Failed to load branches. Please try again later.");
+      } finally {
+        setFetchingBranches(false);
+      }
+    };
+
+    // Only fetch branches if we need them for the admin flow or branch selection screen
+    if (!showVerification || showBranchSelection) {
+      fetchBranches();
+    }
+  }, [BRANCHES_URL, showVerification, showBranchSelection]);
+
+  // Check if a user is admin based on their identifier
+  const checkIfAdmin = (identifier) => {
+    return identifier.includes('@') && !identifier.startsWith('F');
+  };
+
+  // Start polling for 2FA status (for non-admin users)
   const startPollingFor2FA = (token) => {
     console.log("Starting to poll for 2FA status with token:", token);
     setPollingStatus("pending");
@@ -85,6 +132,15 @@ const Login = ({ onLogin }) => {
         const data = await response.json();
         console.log("2FA status check response:", data);
         
+        // Check for specific error conditions
+        if (!response.ok && data.status_code === "001" && data.status_message.includes("User not found in LDAP")) {
+          clearInterval(pollingIntervalRef.current);
+          setPollingStatus("failed");
+          setLocalError("User not found in LDAP. Please check your credentials.");
+          setShowVerification(false);
+          return;
+        }
+        
         // If verification was successful
         if (response.ok && data.success) {
           clearInterval(pollingIntervalRef.current);
@@ -97,7 +153,7 @@ const Login = ({ onLogin }) => {
           if (data.branches && data.branches.length === 1) {
             // If only one branch, auto-select it and proceed to final login
             setSelectedBranch(data.branches[0].branchName);
-            await handleFinalLogin(data.fnumber || savedfnumber, data.branches[0].branchName, data.sessionToken);
+            await handleFinalLogin(data.fnumber || savedIdentifier, data.branches[0].branchName, data.sessionToken);
           } else if (data.branches && data.branches.length > 1) {
             // If multiple branches, show branch selection screen
             setShowVerification(false);
@@ -109,7 +165,6 @@ const Login = ({ onLogin }) => {
           }
         }
         // If it's still pending, continue polling
-        // If we got an error, don't stop polling - let the timeout handle it
         
       } catch (err) {
         console.error("Error polling for 2FA status:", err);
@@ -118,19 +173,84 @@ const Login = ({ onLogin }) => {
     }, 3000); // Check every 3 seconds
   };
 
+  // Handle initial form submission for both admin and non-admin users
   const handleInitialSubmit = async (e) => {
     e.preventDefault();
     console.log("Initial login form submitted");
     setLocalError("");
     setLoadingSpinner(true);
 
-    if (fnumber.length > 25) {
-      setLocalError("F number is incorrect");
+    // Validate F-number length for non-admin users
+    if (!identifier.includes('@') && identifier.length !== 8) {
+      setLocalError("F number must be exactly 8 characters");
       setLoadingSpinner(false);
       return;
     }
 
+    // Determine if this is an admin login or regular user
+    const isAdmin = checkIfAdmin(identifier);
+    setIsAdminUser(isAdmin);
+    
     try {
+      if (isAdmin) {
+        // Admin authentication flow
+        await handleAdminAuth(identifier, password);
+      } else {
+        // Regular user authentication flow (with 2FA)
+        await handleRegularUserAuth(identifier, password);
+      }
+    } catch (err) {
+      console.error("Authentication error:", err);
+      setLocalError(err.message || "Authentication failed. Please check your credentials and try again.");
+      setLoadingSpinner(false);
+    }
+  };
+
+  // Handle admin authentication
+  const handleAdminAuth = async (email, password) => {
+    try {
+      console.log("Using admin authentication flow");
+      
+      // For admin users, we fetch branches first and show branch selection
+      const response = await fetch(`${AUTH_URL}/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password
+        })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Admin login failed');
+      }
+      
+      const data = await response.json();
+      
+      // Extract user role from response or set a default
+      const userRole = data.user && data.user.role ? data.user.role : "admin";
+      
+      // Show branch selection for admin users
+      setShowBranchSelection(true);
+      setSessionToken(data.token);
+      setSavedIdentifier(email);
+      setLoadingSpinner(false);
+      
+    } catch (err) {
+      console.error("Admin authentication error:", err);
+      setLocalError(err.message || "Admin authentication failed. Please check your credentials.");
+      setLoadingSpinner(false);
+    }
+  };
+
+  // Handle regular user authentication (with 2FA)
+  const handleRegularUserAuth = async (fnumber, password) => {
+    try {
+      console.log("Using regular user authentication flow with 2FA");
+      
       const response = await fetch(`${API_URL}/users/authenticate`, {
         method: 'POST',
         headers: {
@@ -145,26 +265,31 @@ const Login = ({ onLogin }) => {
       const data = await response.json();
       
       if (!response.ok || !data.success) {
+        // Check for specific error messages from the server
+        if (data.status_code === "001" && data.status_message.includes("User not found in LDAP")) {
+          throw new Error("User not found in LDAP. Please check your credentials.");
+        }
         throw new Error(data.error || 'Authentication failed');
       }
       
       console.log("Authentication response:", data);
       
       setAuthToken(data.token);
-      setSavedFnumber(fnumber);
+      setSavedIdentifier(fnumber);
       
       // Now show verification screen and start polling
       setShowVerification(true);
       startPollingFor2FA(data.token);
       
     } catch (err) {
-      console.error("Authentication error:", err);
-      setLocalError(err.message || "Authentication failed. Please check your credentials and try again.");
+      console.error("Regular user authentication error:", err);
+      throw err; // Re-throw to be caught by the caller
     } finally {
       setLoadingSpinner(false);
     }
   };
 
+  // Handle 2FA verification with code (for non-admin users)
   const handleVerify2FA = async (e) => {
     e.preventDefault();
     setLocalError("");
@@ -186,7 +311,7 @@ const Login = ({ onLogin }) => {
         body: JSON.stringify({
           token: authToken,
           code: verificationCode,
-          fnumber: savedfnumber // Make sure to send the fnumber
+          fnumber: savedIdentifier // Make sure to send the fnumber
         })
       });
       
@@ -209,7 +334,7 @@ const Login = ({ onLogin }) => {
       if (data.branches && data.branches.length === 1) {
         // If only one branch, auto-select it and proceed to final login
         setSelectedBranch(data.branches[0].branchName);
-        await handleFinalLogin(data.fnumber || savedfnumber, data.branches[0].branchName, data.sessionToken);
+        await handleFinalLogin(data.fnumber || savedIdentifier, data.branches[0].branchName, data.sessionToken);
       } else if (data.branches && data.branches.length > 1) {
         // If multiple branches, show branch selection screen
         setShowVerification(false);
@@ -227,6 +352,7 @@ const Login = ({ onLogin }) => {
     }
   };
 
+  // Handle branch selection for both admin and non-admin users
   const handleBranchSubmit = async (e) => {
     e.preventDefault();
     console.log("Branch selection form submitted");
@@ -236,48 +362,72 @@ const Login = ({ onLogin }) => {
       return;
     }
     
-    await handleFinalLogin(savedfnumber, selectedBranch, sessionToken);
+    await handleFinalLogin(savedIdentifier, selectedBranch, sessionToken);
   };
 
-  const handleFinalLogin = async (fnumber, branch, sessionToken) => {
+  const handleFinalLogin = async (identifier, branch, sessionToken) => {
     setLocalError("");
     setLoadingSpinner(true);
     
     try {
       console.log(`Finalizing login with branch: ${branch}`);
       
-      const response = await fetch(`${API_URL}/users/finalize-login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          fnumber,
-          branch,
-          sessionToken
-        })
-      });
+      const selectedBranchObj = branches.find(branchObj => branchObj.branchName === branch);
+      const branchCode = selectedBranchObj ? selectedBranchObj.branchCode : '';
+      
+      let response;
+      
+      if (isAdminUser) {
+        response = await fetch(`${AUTH_URL}/login`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            email: identifier,
+            password: password, // We need to use the password again for the final admin login
+            branch
+          })
+        });
+      } else {
+        // Regular user finalization
+        response = await fetch(`${API_URL}/users/finalize-login`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            fnumber: identifier,
+            branch,
+            sessionToken
+          })
+        });
+      }
       
       const data = await response.json();
       
-      if (!response.ok || !data.success) {
+      if (!response.ok || (data.success === false)) {
         throw new Error(data.error || 'Login failed');
       }
       
+      // Store user data
+      const userData = {
+        ...(data.user || {}),
+        branchName: branch,
+        branchCode: branchCode || (data.user ? data.user.branchCode : ''),
+        role: isAdminUser ? 'admin' : (data.user ? data.user.role : 'user')
+      };
+      
       localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify({
-        ...data.user,
-        branchName: data.user.branch,
-        branchCode: data.user.branchCode
-      }));
+      localStorage.setItem('user', JSON.stringify(userData));
       
       setManualLoginAttempt(true);
       const success = await login(
-        fnumber, 
-        data.user.branchCode, 
+        identifier, 
+        userData.branchCode, 
         data.token, 
-        data.user.branch, 
-        data.user.role
+        branch, 
+        userData.role
       );
       
       if (!success) {
@@ -294,6 +444,7 @@ const Login = ({ onLogin }) => {
     }
   };
 
+  // Cancel 2FA process and go back to login
   const cancelAuth = () => {
     // Stop the polling
     if (pollingIntervalRef.current) {
@@ -317,9 +468,9 @@ const Login = ({ onLogin }) => {
           <form onSubmit={handleInitialSubmit}>
             <input
               type="text"
-              placeholder="F-Number"
-              value={fnumber}
-              onChange={(e) => setFnumber(e.target.value)}
+              placeholder="F-Number or Email"
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
               maxLength={25}
               required
             />
@@ -341,7 +492,6 @@ const Login = ({ onLogin }) => {
     );
   }
   
-  // 2FA verification screen
   if (showVerification) {
     return (
       <div className="login-container">
@@ -403,7 +553,7 @@ const Login = ({ onLogin }) => {
     );
   }
   
-  // Branch selection form
+  // Branch selection form (for both admin and non-admin users)
   return (
     <div className="login-container">
       <div className="login-card">
