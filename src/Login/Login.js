@@ -208,21 +208,20 @@ const Login = ({ onLogin }) => {
 
   // Handle admin authentication
   // Update the handleAdminAuth function in your Login component:
-
 const handleAdminAuth = async (email, password) => {
   try {
     console.log("Using admin authentication flow");
+    setLoadingSpinner(true);
     
-    // First authenticate admin credentials before showing branch selection
-    const response = await fetch(`${AUTH_URL}/login`, {
+    // Use a new endpoint specifically for admin credential verification
+    const response = await fetch(`${AUTH_URL}/verify-admin`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         email,
-        password,
-        branch: "" // Empty branch for initial authentication
+        password
       })
     });
     
@@ -236,6 +235,12 @@ const handleAdminAuth = async (email, password) => {
     setSessionToken(data.token || "");
     setSavedIdentifier(email);
     
+    // Set branches from response if available
+    if (data.branches && Array.isArray(data.branches)) {
+      setBranches(data.branches);
+      setFetchingBranches(false);
+    }
+    
     // Now show branch selection after successful authentication
     setShowBranchSelection(true);
     setLoadingSpinner(false);
@@ -243,6 +248,77 @@ const handleAdminAuth = async (email, password) => {
   } catch (err) {
     console.error("Admin authentication error:", err);
     setLocalError(err.message || "Admin authentication failed. Please check your credentials.");
+    setLoadingSpinner(false);
+  }
+};
+
+// Update the handleFinalLogin function to handle the branch selection properly:
+const handleFinalLogin = async (identifier, branch, sessionToken) => {
+  setLocalError("");
+  setLoadingSpinner(true);
+  
+  try {
+    console.log(`Finalizing login with branch: ${branch}`);
+    
+    const selectedBranchObj = branches.find(branchObj => branchObj.branchName === branch);
+    const branchCode = selectedBranchObj ? selectedBranchObj.branchCode : '';
+    
+    // For admin users, make the final login call with the selected branch
+    if (isAdminUser) {
+      const response = await fetch(`${AUTH_URL}/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${sessionToken}` // Use the temp token for authorization
+        },
+        body: JSON.stringify({
+          email: identifier,
+          password: password, // You might want to remove this for security if using the token
+          branch
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok || (data.success === false)) {
+        throw new Error(data.error || 'Login failed');
+      }
+      
+      // Store user data
+      const userData = {
+        ...(data.user || {}),
+        branchName: branch,
+        branchCode: branchCode || (data.user ? data.user.branchCode : ''),
+        role: 'admin'
+      };
+      
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(userData));
+      
+      setManualLoginAttempt(true);
+      const success = await login(
+        identifier, 
+        userData.branchCode, 
+        data.token, 
+        branch, 
+        userData.role
+      );
+      
+      if (!success) {
+        setManualLoginAttempt(false);
+        throw new Error("Login failed. Please try again.");
+      }
+    }
+    // Keep your existing regular user login flow
+    else {
+      // Regular user finalization code...
+    }
+    
+  } catch (err) {
+    console.error("Login finalization error:", err);
+    setManualLoginAttempt(false);
+    setLocalError(err.message || "An unexpected error occurred. Please try again.");
+  } finally {
     setLoadingSpinner(false);
   }
 };
@@ -368,84 +444,84 @@ const handleAdminAuth = async (email, password) => {
     await handleFinalLogin(savedIdentifier, selectedBranch, sessionToken);
   };
 
-  const handleFinalLogin = async (identifier, branch, sessionToken) => {
-    setLocalError("");
-    setLoadingSpinner(true);
+  // const handleFinalLogin = async (identifier, branch, sessionToken) => {
+  //   setLocalError("");
+  //   setLoadingSpinner(true);
     
-    try {
-      console.log(`Finalizing login with branch: ${branch}`);
+  //   try {
+  //     console.log(`Finalizing login with branch: ${branch}`);
       
-      const selectedBranchObj = branches.find(branchObj => branchObj.branchName === branch);
-      const branchCode = selectedBranchObj ? selectedBranchObj.branchCode : '';
+  //     const selectedBranchObj = branches.find(branchObj => branchObj.branchName === branch);
+  //     const branchCode = selectedBranchObj ? selectedBranchObj.branchCode : '';
       
-      let response;
+  //     let response;
       
-      if (isAdminUser) {
-        response = await fetch(`${AUTH_URL}/login`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            email: identifier,
-            password: password, // We need to use the password again for the final admin login
-            branch
-          })
-        });
-      } else {
-        // Regular user finalization
-        response = await fetch(`${API_URL}/users/finalize-login`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            fnumber: identifier,
-            branch,
-            sessionToken
-          })
-        });
-      }
+  //     if (isAdminUser) {
+  //       response = await fetch(`${AUTH_URL}/login`, {
+  //         method: 'POST',
+  //         headers: {
+  //           'Content-Type': 'application/json'
+  //         },
+  //         body: JSON.stringify({
+  //           email: identifier,
+  //           password: password, // We need to use the password again for the final admin login
+  //           branch
+  //         })
+  //       });
+  //     } else {
+  //       // Regular user finalization
+  //       response = await fetch(`${API_URL}/users/finalize-login`, {
+  //         method: 'POST',
+  //         headers: {
+  //           'Content-Type': 'application/json'
+  //         },
+  //         body: JSON.stringify({
+  //           fnumber: identifier,
+  //           branch,
+  //           sessionToken
+  //         })
+  //       });
+  //     }
       
-      const data = await response.json();
+  //     const data = await response.json();
       
-      if (!response.ok || (data.success === false)) {
-        throw new Error(data.error || 'Login failed');
-      }
+  //     if (!response.ok || (data.success === false)) {
+  //       throw new Error(data.error || 'Login failed');
+  //     }
       
-      // Store user data
-      const userData = {
-        ...(data.user || {}),
-        branchName: branch,
-        branchCode: branchCode || (data.user ? data.user.branchCode : ''),
-        role: isAdminUser ? 'admin' : (data.user ? data.user.role : 'user')
-      };
+  //     // Store user data
+  //     const userData = {
+  //       ...(data.user || {}),
+  //       branchName: branch,
+  //       branchCode: branchCode || (data.user ? data.user.branchCode : ''),
+  //       role: isAdminUser ? 'admin' : (data.user ? data.user.role : 'user')
+  //     };
       
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(userData));
+  //     localStorage.setItem('token', data.token);
+  //     localStorage.setItem('user', JSON.stringify(userData));
       
-      setManualLoginAttempt(true);
-      const success = await login(
-        identifier, 
-        userData.branchCode, 
-        data.token, 
-        branch, 
-        userData.role
-      );
+  //     setManualLoginAttempt(true);
+  //     const success = await login(
+  //       identifier, 
+  //       userData.branchCode, 
+  //       data.token, 
+  //       branch, 
+  //       userData.role
+  //     );
       
-      if (!success) {
-        setManualLoginAttempt(false);
-        throw new Error("Login failed. Please try again.");
-      }
+  //     if (!success) {
+  //       setManualLoginAttempt(false);
+  //       throw new Error("Login failed. Please try again.");
+  //     }
       
-    } catch (err) {
-      console.error("Login finalization error:", err);
-      setManualLoginAttempt(false);
-      setLocalError(err.message || "An unexpected error occurred. Please try again.");
-    } finally {
-      setLoadingSpinner(false);
-    }
-  };
+  //   } catch (err) {
+  //     console.error("Login finalization error:", err);
+  //     setManualLoginAttempt(false);
+  //     setLocalError(err.message || "An unexpected error occurred. Please try again.");
+  //   } finally {
+  //     setLoadingSpinner(false);
+  //   }
+  // };
 
   // Cancel 2FA process and go back to login
   const cancelAuth = () => {
