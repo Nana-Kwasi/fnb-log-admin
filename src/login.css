@@ -472,12 +472,7 @@ form .error-message {
     border-top-color: white;
     animation: spin 1s ease-in-out infinite;
   }
-  /* Add these styles to your login.css file */
-
-/* Verification overlay and modal */
-.verification-bg {
-  background-color: #f5f5f5;
-}
+  /* Enhanced verification styles */
 
 .verification-overlay {
   position: fixed;
@@ -514,6 +509,16 @@ form .error-message {
   padding: 20px;
   border-radius: 8px;
   background-color: #f9f9f9;
+}
+
+.success-status {
+  background-color: rgba(76, 175, 80, 0.1);
+  border: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+.error-status {
+  background-color: rgba(244, 67, 54, 0.1);
+  border: 1px solid rgba(244, 67, 54, 0.3);
 }
 
 .verification-spinner {
@@ -595,6 +600,58 @@ form .error-message {
 
 .retry-button:hover {
   background-color: #005394;
+}
+
+/* Timer bar animation */
+.verification-timer {
+  margin-top: 20px;
+  height: 4px;
+  width: 100%;
+  background-color: #e0e0e0;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.timer-bar {
+  height: 100%;
+  width: 100%;
+  background-color: #0067b1;
+  animation: timerCountdown 120s linear;
+  transform-origin: left;
+}
+
+@keyframes timerCountdown {
+  0% { transform: scaleX(1); }
+  100% { transform: scaleX(0); }
+}
+
+.loading-text {
+  color: #666;
+  font-style: italic;
+}
+
+.dot-animation {
+  display: inline-block;
+  animation: dotAnimate 1.5s infinite;
+  width: 20px;
+  text-align: left;
+}
+
+@keyframes dotAnimate {
+  0% { content: "."; }
+  33% { content: ".."; }
+  66% { content: "..."; }
+  100% { content: "."; }
+}
+
+/* Debug info */
+.debug-info {
+  margin-top: 15px;
+  padding: 10px;
+  background-color: #f1f1f1;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #666;
 }
   @keyframes spin {
     to {
