@@ -11074,3 +11074,49 @@ const handleFinalLogin = async (identifier, branch, sessionToken) => {
 
 //route
 router.post('/verify-admin', authController.verifyAdminCredentials);
+
+
+// new error
+[2FA] 2FA verification failed: {
+  "status_code": "002",
+  "status_message": "Pending authentication",
+  "server_timestamp": "2025-04-24T15:49:53.208794335",
+  "data": {
+    "authId": "351d8421-ca57-48fc-88f9-d666c4618689",
+    "clientId": "8ca09f75-720f-4641-9b70-5344850df34e",
+    "status": "Pending",
+    "statusMessage": null,
+    "payload": null,
+    "dateCreated": "2025-04-24T15:49:40.886282",
+    "lastUpdated": "2025-04-24T15:49:40.886303",
+    "fnumber": "F8877557"
+  }
+}
+2025-04-24T15:50:29.780Z - POST /users/verify2fa
+[2FA] Starting 2FA verification process
+[2FA] Checking 2FA status without code
+[2FA] Using token: 351d8421-c...66c4618689
+Requesting token from: https://172.29.18.126/adproxyservice/prod/client/renew-token
+Token response status: 200
+[2FA] Successfully obtained token for 2FA verification
+[2FA] Sending verification request to LDAP service
+[2FA] Verify response status: 200
+[2FA] Verify response data: {
+  "status_code": "000",
+  "status_message": "Successful authentication",
+  "server_timestamp": "2025-04-24T15:49:56.030579432",
+  "data": {
+    "authId": "351d8421-ca57-48fc-88f9-d666c4618689",
+    "clientId": "8ca09f75-720f-4641-9b70-5344850df34e",
+    "status": "Success",
+    "statusMessage": null,
+    "payload": "{\"userId\":\"F8877557\",\"mobile\":\"+233592486117\",\"email\":\"Francis.Kontoh@firstnationalbank.com.gh\",\"userPrincipalName\":\"F8877557@fnb.co.za\",\"title\":\"Internship\",\"name\":\"Kontoh, Francis\",\"manager\":\"CN=Eshun\\\\, Kwesi,OU=DomainUsers,DC=fnb,DC=co,DC=za\",\"memberOf\":[\"CN=AppsDevelopmentTeam_PROD_IT_FNBGhana,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za\",\"CN=W365_VDI_2vCPU8GB256GB_FNB,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za\",\"CN=CLOUD_VDI_FULLACCESS_FNB,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za\",\"CN=GlobalWorkDay_CloudApps_All_Users,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za\",\"CN=GlobalERP_CloudApps_All_Employees,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za\",\"CN=Myappstore_Prod_AllUsers_FNB,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za\",\"CN=GlobalERP_CloudApps_All_Users,OU=Office365,OU=DomainUsers,DC=fnb,DC=co,DC=za\",\"CN=2V_production_FNB_Staff,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za\",\"CN=DLP_Level-1-FullLockdown_prod_FNB,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za\",\"CN=Users for 2FA testing,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za\",\"CN=One Drive Test,OU=DomainGroups,DC=fnb,DC=co,DC=za\",\"CN=InternetUsers - All,OU=InterNet Access,OU=Security,OU=Groups,OU=FNBUsers,DC=fnb,DC=co,DC=za\"]}",
+    "dateCreated": "2025-04-24T15:49:40.886282",
+    "lastUpdated": "2025-04-24T15:49:53.649651",
+    "fnumber": "F8877557"
+  }
+}
+[2FA] 2FA verification successful
+[2FA] User identified as: F8877557
+[2FA] Checking if user F8877557 exists in database
+[2FA] User F8877557 not found in system
