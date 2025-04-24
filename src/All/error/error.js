@@ -10887,12 +10887,66 @@ const verifyToken = (req, res) => {
     res.status(401).json({ error: 'Token is not valid' });
   }
 };
+// 1. Create a new backend endpoint for admin verification only
+
+// In your authController.js
+const verifyAdminCredentials = async (req, res) => {
+  const { email, password } = req.body;
+
+  try {
+    if (!email || !password) {
+      return res.status(400).json({ success: false, error: 'Email and password are required' });
+    }
+
+    // Verify admin credentials
+    const adminResult = await pool.query(
+      'SELECT * FROM admin_users WHERE email = $1',
+      [email]
+    );
+
+    const user = adminResult.rows[0];
+
+    if (!user) {
+      console.log(`Admin not found: ${email}`);
+      return res.status(401).json({ success: false, error: 'Invalid credentials' });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+
+    if (!isMatch) {
+      console.log(`Invalid password for admin: ${email}`);
+      return res.status(401).json({ success: false, error: 'Invalid credentials' });
+    }
+
+    // Get available branches for this admin
+    const branches = user.branches || [];
+    
+    // Generate a temporary token for branch selection
+    const tempToken = jwt.sign({ 
+      user_id: user.id,
+      email: user.email,
+      role: user.role || 'admin',
+      temp: true // Flag to indicate this is a temporary token
+    }, JWT_SECRET, { expiresIn: '5m' });
+
+    // Return success with available branches and temporary token
+    return res.json({
+      success: true,
+      token: tempToken,
+      branches: branches.map(branch => ({ branchName: branch, branchCode: branch })) // Format branches like your API
+    });
+
+  } catch (err) {
+    console.error('Admin verification error:', err);
+    res.status(500).json({ success: false, error: 'Server error during verification' });
+  }
+};
 
 module.exports = {
   login,
   registerUser,
   verifyToken,
-  
+  verifyAdminCredentials
 };
 
 //err
@@ -10901,20 +10955,42 @@ Email, password, and branch are required
 
 
 
-
 // Update the handleAdminAuth function in your Login component:
 const handleAdminAuth = async (email, password) => {
   try {
     console.log("Using admin authentication flow");
+    setLoadingSpinner(true);
     
-    // For admin users, we first fetch branches and then show branch selection
-    // Instead of making the API call here, we'll just set up the branch selection screen
-    setShowBranchSelection(true);
+    // Use a new endpoint specifically for admin credential verification
+    const response = await fetch(`${AUTH_URL}/verify-admin`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        email,
+        password
+      })
+    });
+    
+    const data = await response.json();
+    
+    if (!response.ok || !data.success) {
+      throw new Error(data.error || "Admin authentication failed. Please check your credentials.");
+    }
+    
+    // Store admin token for use in final authentication
+    setSessionToken(data.token || "");
     setSavedIdentifier(email);
     
-    // We don't need to make the API call here, since we'll do it after branch selection
-    // Just store the credentials for later use
+    // Set branches from response if available
+    if (data.branches && Array.isArray(data.branches)) {
+      setBranches(data.branches);
+      setFetchingBranches(false);
+    }
     
+    // Now show branch selection after successful authentication
+    setShowBranchSelection(true);
     setLoadingSpinner(false);
     
   } catch (err) {
@@ -10924,7 +11000,7 @@ const handleAdminAuth = async (email, password) => {
   }
 };
 
-// And then update the handleFinalLogin function to handle admin login correctly:
+// Update the handleFinalLogin function to handle the branch selection properly:
 const handleFinalLogin = async (identifier, branch, sessionToken) => {
   setLocalError("");
   setLoadingSpinner(true);
@@ -10932,77 +11008,58 @@ const handleFinalLogin = async (identifier, branch, sessionToken) => {
   try {
     console.log(`Finalizing login with branch: ${branch}`);
     
-    // Get branch code from selected branch name
     const selectedBranchObj = branches.find(branchObj => branchObj.branchName === branch);
     const branchCode = selectedBranchObj ? selectedBranchObj.branchCode : '';
     
-    let response;
-    let data;
-    
+    // For admin users, make the final login call with the selected branch
     if (isAdminUser) {
-      // Admin finalization - use auth endpoint with the branch parameter
-      console.log("Making admin login request with branch:", branch);
-      response = await fetch(`${AUTH_URL}/login`, {
+      const response = await fetch(`${AUTH_URL}/login`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${sessionToken}` // Use the temp token for authorization
         },
         body: JSON.stringify({
           email: identifier,
-          password: password, // We need the password for admin login
-          branch: branch // Include the branch parameter
+          password: password, // You might want to remove this for security if using the token
+          branch
         })
       });
       
-      data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || 'Admin login failed');
-      }
-    } else {
-      // Regular user finalization
-      response = await fetch(`${API_URL}/users/finalize-login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          fnumber: identifier,
-          branch,
-          sessionToken
-        })
-      });
-      
-      data = await response.json();
+      const data = await response.json();
       
       if (!response.ok || (data.success === false)) {
         throw new Error(data.error || 'Login failed');
       }
+      
+      // Store user data
+      const userData = {
+        ...(data.user || {}),
+        branchName: branch,
+        branchCode: branchCode || (data.user ? data.user.branchCode : ''),
+        role: 'admin'
+      };
+      
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(userData));
+      
+      setManualLoginAttempt(true);
+      const success = await login(
+        identifier, 
+        userData.branchCode, 
+        data.token, 
+        branch, 
+        userData.role
+      );
+      
+      if (!success) {
+        setManualLoginAttempt(false);
+        throw new Error("Login failed. Please try again.");
+      }
     }
-    
-    // Store user data
-    const userData = {
-      ...(data.user || {}),
-      branchName: branch,
-      branchCode: branchCode || (data.user ? data.user.branchCode : ''),
-      role: isAdminUser ? (data.user && data.user.role ? data.user.role : 'admin') : (data.user ? data.user.role : 'user')
-    };
-    
-    localStorage.setItem('token', data.token);
-    localStorage.setItem('user', JSON.stringify(userData));
-    
-    setManualLoginAttempt(true);
-    const success = await login(
-      identifier, 
-      userData.branchCode, 
-      data.token, 
-      branch, 
-      userData.role
-    );
-    
-    if (!success) {
-      setManualLoginAttempt(false);
-      throw new Error("Login failed. Please try again.");
+    // Keep your existing regular user login flow
+    else {
+      // Regular user finalization code...
     }
     
   } catch (err) {
@@ -11013,3 +11070,7 @@ const handleFinalLogin = async (identifier, branch, sessionToken) => {
     setLoadingSpinner(false);
   }
 };
+
+
+//route
+router.post('/verify-admin', authController.verifyAdminCredentials);
