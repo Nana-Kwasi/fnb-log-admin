@@ -10669,4 +10669,71 @@ Token response status: 200
   "token": "ddf7d551-98e3-4c92-95a8-0b9682a5872e"
 }
 
-// 
+// errorrrrrrr
+PS C:\Users\f8877557\file-backend> cd new-backend
+PS C:\Users\f8877557\file-backend\new-backend> node server.js
+Server is running on port 5001
+Health check available at: http://localhost:5001/health
+Auth endpoints available at: http://localhost:5001/auth/login
+Connected to the database
+2025-04-24T10:20:32.614Z - GET /visitors/index
+Fetching all unique branches
+Found 6 unique branches
+2025-04-24T10:20:32.801Z - GET /visitors/index
+Fetching all unique branches
+Found 6 unique branches
+2025-04-24T10:21:46.111Z - POST /users/authenticate
+[AUTH] Authentication attempt for user: admin@fnb.com
+Requesting token from: https://172.29.18.126/adproxyservice/prod/client/renew-token
+Token response status: 200
+[AUTH] Successfully obtained token for authentication
+[AUTH] Sending authentication request to LDAP service
+[AUTH] Auth response status: 200
+[AUTH] Authentication successful for user: admin@fnb.com
+[AUTH] Returning token for 2FA verification
+[AUTH] Full auth response data: {
+  "status_code": "000",
+  "status_message": "Login request sent",
+  "server_timestamp": "2025-04-24T10:21:12.478043423",
+  "token": "cacbc866-4467-4d71-8609-e01e8b7697a7"
+}
+2025-04-24T10:21:59.678Z - POST /users/authenticate
+[AUTH] Authentication attempt for user: admin@fnb.com
+Requesting token from: https://172.29.18.126/adproxyservice/prod/client/renew-token
+Token response status: 200
+[AUTH] Successfully obtained token for authentication
+[AUTH] Sending authentication request to LDAP service
+[AUTH] Auth response status: 200
+[AUTH] Authentication successful for user: admin@fnb.com
+[AUTH] Returning token for 2FA verification
+[AUTH] Full auth response data: {
+  "status_code": "000",
+  "status_message": "Login request sent",
+  "server_timestamp": "2025-04-24T10:21:26.29856466",
+  "token": "fc1acb30-d1dc-42fc-a437-ca6ab9b42454"
+}
+2025-04-24T10:22:03.715Z - POST /users/verify2fa
+[2FA] Starting 2FA verification process
+[2FA] Checking 2FA status without code
+[2FA] Using token: fc1acb30-d...6ab9b42454
+Requesting token from: https://172.29.18.126/adproxyservice/prod/client/renew-token
+Token response status: 200
+[2FA] Successfully obtained token for 2FA verification
+[2FA] Sending verification request to LDAP service
+[2FA] 2FA verification error: Request failed with status code 400
+[2FA] Error response status: 400
+[2FA] Error response data: {
+  "status_code": "001",
+  "status_message": "User not found in LDAP.",
+  "server_timestamp": "2025-04-24T10:21:30.31111102",
+  "data": {
+    "authId": "fc1acb30-d1dc-42fc-a437-ca6ab9b42454",
+    "clientId": "8ca09f75-720f-4641-9b70-5344850df34e",
+    "status": "Failed",
+    "statusMessage": "User not found in LDAP.",
+    "payload": null,
+    "dateCreated": "2025-04-24T10:21:26.295138",
+    "lastUpdated": "2025-04-24T10:21:26.82585",
+    "fnumber": "admin@fnb.com"
+  }
+}
