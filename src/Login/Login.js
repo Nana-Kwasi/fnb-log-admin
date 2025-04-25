@@ -625,6 +625,7 @@ const Login = ({ onLogin }) => {
   const maxPollingTime = 120000; // 2 minutes
   const pollingStartTimeRef = useRef(null);
   const buttonTimerRef = useRef(null);
+  const statusCheckCountRef = useRef(0);
 
   const { login, loading, error, setError, authenticated } = useVisitor();
 
@@ -698,7 +699,7 @@ const Login = ({ onLogin }) => {
     if (showVerification && !showVerifyButton) {
       buttonTimerRef.current = setTimeout(() => {
         setShowVerifyButton(true);
-      }, 10000); // Show button after 10 seconds
+      }, 5000); // Show verify button after 5 seconds instead of 10
     }
     
     return () => {
@@ -713,13 +714,14 @@ const Login = ({ onLogin }) => {
     return identifier.includes('@') && !identifier.startsWith('F');
   };
 
-  // Check verification status manually
+  // Check verification status without a code
   const checkVerificationStatus = async () => {
     setCheckingStatus(true);
     setLocalError("");
+    statusCheckCountRef.current += 1;
     
     try {
-      console.log("Manually checking 2FA status...");
+      console.log("Checking 2FA status...");
       const response = await fetch(`${API_URL}/users/verify2fa`, {
         method: 'POST',
         headers: {
@@ -733,10 +735,10 @@ const Login = ({ onLogin }) => {
       });
       
       const data = await response.json();
-      console.log("Manual 2FA status check response:", data);
+      console.log("2FA status check response:", data);
       
       // Check for specific error conditions
-      if (!response.ok && data.status_code === "001" && data.status_message.includes("User not found in LDAP")) {
+      if (!response.ok && data.status_code === "001" && data.status_message && data.status_message.includes("User not found in LDAP")) {
         setPollingStatus("failed");
         setLocalError("User not found in LDAP. Please check your credentials.");
         return;
@@ -768,8 +770,13 @@ const Login = ({ onLogin }) => {
         }, 1500);
       } else {
         // Still pending or failed
-        if (data.status_code === "002" && data.status_message.includes("Pending")) {
+        if (data.status_code === "002" && data.status_message && data.status_message.includes("Pending")) {
           setLocalError("Authentication is still pending. Please approve the request on your phone.");
+          
+          // If we've checked multiple times and it's still pending, show manual code option
+          if (statusCheckCountRef.current > 2) {
+            setShowManualCodeEntry(true);
+          }
         } else {
           setPollingStatus("failed");
           setLocalError(data.status_message || "Verification failed. Please try again.");
@@ -789,11 +796,17 @@ const Login = ({ onLogin }) => {
     console.log("Starting to poll for 2FA status with token:", token);
     setPollingStatus("pending");
     pollingStartTimeRef.current = Date.now();
+    statusCheckCountRef.current = 0;
     
     // Clear any existing interval
     if (pollingIntervalRef.current) {
       clearInterval(pollingIntervalRef.current);
     }
+    
+    // Check status immediately after a short delay
+    setTimeout(() => {
+      checkVerificationStatus();
+    }, 3000);
     
     pollingIntervalRef.current = setInterval(async () => {
       try {
@@ -805,6 +818,14 @@ const Login = ({ onLogin }) => {
           return;
         }
         
+        // Increase the status check count
+        statusCheckCountRef.current += 1;
+        
+        // Don't check if we're already checking
+        if (checkingStatus) {
+          return;
+        }
+        
         console.log("Polling for 2FA status...");
         const response = await fetch(`${API_URL}/users/verify2fa`, {
           method: 'POST',
@@ -813,7 +834,8 @@ const Login = ({ onLogin }) => {
           },
           body: JSON.stringify({
             token: token,
-            code: "" // Empty code to just check status
+            code: "", // Empty code to just check status
+            fnumber: savedIdentifier
           })
         });
         
@@ -821,11 +843,19 @@ const Login = ({ onLogin }) => {
         console.log("2FA status check response:", data);
         
         // Check for specific error conditions
-        if (!response.ok && data.status_code === "001" && data.status_message.includes("User not found in LDAP")) {
+        if (!response.ok && data.status_code === "001" && data.status_message && data.status_message.includes("User not found in LDAP")) {
           clearInterval(pollingIntervalRef.current);
           setPollingStatus("failed");
           setLocalError("User not found in LDAP. Please check your credentials.");
           setShowVerification(false);
+          return;
+        }
+        
+        // Check for user not found in system
+        if (response.ok && data.error && data.error.includes("User not found in system")) {
+          clearInterval(pollingIntervalRef.current);
+          setPollingStatus("failed");
+          setLocalError("User not found in system. Please contact administrator.");
           return;
         }
         
@@ -856,12 +886,16 @@ const Login = ({ onLogin }) => {
           }, 1500);
         }
         // If it's still pending, continue polling
+        else if (statusCheckCountRef.current > 4) {
+          // After several checks, show manual code option if not already shown
+          setShowManualCodeEntry(true);
+        }
         
       } catch (err) {
         console.error("Error polling for 2FA status:", err);
         // Don't stop polling on error - let the timeout handle it
       }
-    }, 3000); // Check every 3 seconds
+    }, 8000); // Check less frequently (every 8 seconds)
   };
 
   // Handle initial form submission for both admin and non-admin users
@@ -942,79 +976,6 @@ const Login = ({ onLogin }) => {
     }
   };
 
-  // Handle final login after branch selection
-  const handleFinalLogin = async (identifier, branch, sessionToken) => {
-    setLocalError("");
-    setLoadingSpinner(true);
-    
-    try {
-      console.log(`Finalizing login with branch: ${branch}`);
-      
-      const selectedBranchObj = branches.find(branchObj => branchObj.branchName === branch);
-      const branchCode = selectedBranchObj ? selectedBranchObj.branchCode : '';
-      
-      // For admin users, make the final login call with the selected branch
-      if (isAdminUser) {
-        const response = await fetch(`${AUTH_URL}/login`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${sessionToken}` // Use the temp token for authorization
-          },
-          body: JSON.stringify({
-            email: identifier,
-            password: password, // You might want to remove this for security if using the token
-            branch
-          })
-        });
-        
-        const data = await response.json();
-        
-        if (!response.ok || (data.success === false)) {
-          throw new Error(data.error || 'Login failed');
-        }
-        
-        // Store user data
-        const userData = {
-          ...(data.user || {}),
-          branchName: branch,
-          branchCode: branchCode || (data.user ? data.user.branchCode : ''),
-          role: 'admin'
-        };
-        
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(userData));
-        
-        setManualLoginAttempt(true);
-        const success = await login(
-          identifier, 
-          userData.branchCode, 
-          data.token, 
-          branch, 
-          userData.role
-        );
-        
-        if (!success) {
-          setManualLoginAttempt(false);
-          throw new Error("Login failed. Please try again.");
-        }
-      }
-      // Regular user flow
-      else {
-        // Regular user finalization code would go here
-        console.log("Finalizing regular user login");
-        // Add your existing code for regular user finalization
-      }
-      
-    } catch (err) {
-      console.error("Login finalization error:", err);
-      setManualLoginAttempt(false);
-      setLocalError(err.message || "An unexpected error occurred. Please try again.");
-    } finally {
-      setLoadingSpinner(false);
-    }
-  };
-
   // Handle regular user authentication (with 2FA)
   const handleRegularUserAuth = async (fnumber, password) => {
     try {
@@ -1035,7 +996,7 @@ const Login = ({ onLogin }) => {
       
       if (!response.ok || !data.success) {
         // Check for specific error messages from the server
-        if (data.status_code === "001" && data.status_message.includes("User not found in LDAP")) {
+        if (data.status_code === "001" && data.status_message && data.status_message.includes("User not found in LDAP")) {
           throw new Error("User not found in LDAP. Please check your credentials.");
         }
         throw new Error(data.error || 'Authentication failed');
@@ -1131,22 +1092,117 @@ const Login = ({ onLogin }) => {
     }
   };
 
-  // Handle branch selection for both admin and non-admin users
-  const handleBranchSubmit = async (e) => {
-    e.preventDefault();
-    console.log("Branch selection form submitted");
+  // Handle final login after branch selection
+  const handleFinalLogin = async (identifier, branch, sessionToken) => {
+    setLocalError("");
+    setLoadingSpinner(true);
     
-    if (!selectedBranch) {
-      setLocalError("Please select a branch");
-      return;
+    try {
+      console.log(`Finalizing login with branch: ${branch}`);
+      
+      const selectedBranchObj = branches.find(branchObj => branchObj.branchName === branch);
+      const branchCode = selectedBranchObj ? selectedBranchObj.branchCode : '';
+      
+      // For admin users, make the final login call with the selected branch
+      if (isAdminUser) {
+        const response = await fetch(`${AUTH_URL}/login`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${sessionToken}` // Use the temp token for authorization
+          },
+          body: JSON.stringify({
+            email: identifier,
+            branch
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok || (data.success === false)) {
+          throw new Error(data.error || 'Login failed');
+        }
+        
+        // Store user data
+        const userData = {
+          ...(data.user || {}),
+          branchName: branch,
+          branchCode: branchCode || (data.user ? data.user.branchCode : ''),
+          role: 'admin'
+        };
+        
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(userData));
+        
+        setManualLoginAttempt(true);
+        const success = await login(
+          identifier, 
+          userData.branchCode, 
+          data.token, 
+          branch, 
+          userData.role
+        );
+        
+        if (!success) {
+          setManualLoginAttempt(false);
+          throw new Error("Login failed. Please try again.");
+        }
+      }
+      // Regular user flow with the selected branch
+      else {
+        console.log("Finalizing regular user login with branch:", branch);
+        
+        const response = await fetch(`${API_URL}/users/finalize-login`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            fnumber: identifier,
+            branch,
+            sessionToken
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok || (data.success === false)) {
+          throw new Error(data.error || 'Login failed');
+        }
+        
+        // Store user data
+        const userData = {
+          ...(data.user || {}),
+          branchName: branch,
+          branchCode: branchCode || (data.user ? data.user.branchCode : ''),
+          role: data.user ? data.user.role : 'user'
+        };
+        
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(userData));
+        
+        setManualLoginAttempt(true);
+        const success = await login(
+          identifier, 
+          userData.branchCode, 
+          data.token, 
+          branch, 
+          userData.role
+        );
+        
+        if (!success) {
+          setManualLoginAttempt(false);
+          throw new Error("Login failed. Please try again.");
+        }
+      }
+      
+    } catch (err) {
+      console.error("Login finalization error:", err);
+      setManualLoginAttempt(false);
+      setLocalError(err.message || "An unexpected error occurred. Please try again.");
+    } finally {
+      setLoadingSpinner(false);
     }
-    
-    await handleFinalLogin(savedIdentifier, selectedBranch, sessionToken);
-  };
-
-  // Toggle manual code entry
-  const toggleManualCodeEntry = () => {
-    setShowManualCodeEntry(!showManualCodeEntry);
   };
 
   // Cancel 2FA process and go back to login
@@ -1230,7 +1286,7 @@ const Login = ({ onLogin }) => {
             </div>
           </div>
           
-          {/* Check Status Button - appears after delay */}
+          {/* More prominent Verify button - appears sooner */}
           {showVerifyButton && pollingStatus === "pending" && (
             <button 
               className="verify-status-button" 
@@ -1241,17 +1297,10 @@ const Login = ({ onLogin }) => {
             </button>
           )}
           
-          {/* Manual code entry option */}
-          <div className="manual-code-option">
-            <button 
-              type="button" 
-              className="toggle-code-button"
-              onClick={toggleManualCodeEntry}
-            >
-              {showManualCodeEntry ? "Hide Code Entry" : "Use Verification Code Instead"}
-            </button>
-            
-            {showManualCodeEntry && (
+          {/* Optional manual code entry - hidden by default but can appear after multiple failed checks */}
+          {showManualCodeEntry && (
+            <div className="manual-code-option">
+              <p className="manual-code-hint">If you're having trouble with automatic verification:</p>
               <form onSubmit={handleVerify2FA}>
                 <input
                   type="text"
@@ -1264,8 +1313,8 @@ const Login = ({ onLogin }) => {
                   {loadingSpinner ? <span className="spinner"></span> : "Verify with Code"}
                 </button>
               </form>
-            )}
-          </div>
+            </div>
+          )}
           
           {displayError && <p className="error-message">{displayError}</p>}
           
@@ -1298,7 +1347,7 @@ const Login = ({ onLogin }) => {
             >
               <option value="">Select Branch</option>
               {branches.map((branch) => (
-                <option key={branch.branchCode} value={branch.branchName}>
+                <option key={branch.branchCode || branch.branchName} value={branch.branchName}>
                   {branch.branchName}
                 </option>
               ))}
