@@ -737,101 +737,73 @@ const checkVerificationStatus = async () => {
     const data = await response.json();
     console.log("Manual 2FA status check response:", data);
     
-    // First, check if the verification was actually successful despite any other indicators
-    if (data.status_code === "000" || data.status_message.includes("Successful")) {
-      // Success case
-      setPollingStatus("success");
-      
-      // Extract user data and session token
-      setSessionToken(data.data?.payload ? JSON.parse(data.data.payload).sessionToken : data.sessionToken);
-      
-      // Process branch data if available
-      const userPayload = data.data?.payload ? JSON.parse(data.data.payload) : null;
-      const userBranches = userPayload?.branches || data.branches || [];
-      
-      if (userBranches.length > 0) {
-        setBranches(userBranches);
-        
-        // Wait a moment to show success status before proceeding
-        setTimeout(() => {
-          if (userBranches.length === 1) {
-            // Auto-select single branch
-            setSelectedBranch(userBranches[0].branchName);
-            handleFinalLogin(data.data?.fnumber || savedIdentifier, userBranches[0].branchName, data.sessionToken);
-          } else {
-            // Show branch selection
-            setShowVerification(false);
-            setShowBranchSelection(true);
-            setFetchingBranches(false);
-          }
-        }, 1500);
-      } else {
-        // Try to fetch branches separately if they weren't included
-        fetchUserBranches(savedIdentifier, data.sessionToken || data.data?.payload?.sessionToken);
-      }
+    // Handle "User not found in system" error - this means the 2FA was successful
+    // but the user doesn't have database access
+    if (response.ok && data.error && data.error.includes("not found in system")) {
+      setPollingStatus("failed");
+      setLocalError("Your 2FA authentication was successful, but you don't have access to this system. Please contact support.");
       return;
     }
     
-    // Handle various non-success scenarios
-    if (data.status_code === "001" && data.status_message.includes("User not found")) {
+    // Check for specific error conditions
+    if (data.status_code === "001" && data.status_message?.includes("User not found in LDAP")) {
       setPollingStatus("failed");
       setLocalError("User not found in LDAP. Please check your credentials.");
-    } else if (data.status_code === "002" || data.status_message.includes("Pending")) {
-      // Still pending - show message but don't set as failed
-      setLocalError("Authentication is still pending. Please approve the request on your phone.");
-      // Consider adding another check in a few seconds
-      setTimeout(() => {
-        if (pollingStatus === "pending") {
-          checkVerificationStatus();
-        }
-      }, 3000);
-    } else {
-      // Some other failure
-      setPollingStatus("failed");
-      setLocalError(data.status_message || "Verification failed. Please try again.");
+      return;
     }
     
+    // Handle pending status appropriately
+    if (data.status_code === "002" || data.status_message?.includes("Pending")) {
+      setLocalError("Authentication is still pending. Please approve the request on your phone.");
+      return;
+    }
+    
+    // If verification was successful
+    if (response.ok && (data.status_code === "000" || data.success === true)) {
+      // If we have a "not found in system" message in any of the data fields
+      if (
+        data.message?.includes("not found in system") ||
+        data.error?.includes("not found in system") ||
+        data.status_message?.includes("not found in system")
+      ) {
+        setPollingStatus("failed");
+        setLocalError("Your authentication was successful, but you don't have access to this system. Please contact support.");
+        return;
+      }
+      
+      setPollingStatus("success");
+      
+      // Process the successful verification
+      setSessionToken(data.sessionToken);
+      setBranches(data.branches || []);
+      
+      // Wait a moment to show success status before proceeding
+      setTimeout(() => {
+        if (data.branches && data.branches.length === 1) {
+          // If only one branch, auto-select it and proceed to final login
+          setSelectedBranch(data.branches[0].branchName);
+          handleFinalLogin(data.fnumber || savedIdentifier, data.branches[0].branchName, data.sessionToken);
+        } else if (data.branches && data.branches.length > 1) {
+          // If multiple branches, show branch selection screen
+          setShowVerification(false);
+          setShowBranchSelection(true);
+          setFetchingBranches(false);
+        } else {
+          setLocalError('No branches available for this user');
+          setPollingStatus("failed");
+        }
+      }, 1500);
+    } else {
+      // Only set as failed if it's not pending and not successful
+      setPollingStatus("failed");
+      setLocalError(data.status_message || data.error || "Verification failed. Please try again.");
+    }
   } catch (err) {
     console.error("Error checking 2FA status:", err);
     setLocalError("Error checking verification status. Please try again.");
     setPollingStatus("failed");
   } finally {
     setCheckingStatus(false);
-  }
-};
-
-// Helper function to fetch branches separately if needed
-const fetchUserBranches = async (identifier, token) => {
-  try {
-    const response = await fetch(`${API_URL}/users/${identifier}/branches`, {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
-    });
-    
-    const data = await response.json();
-    
-    if (response.ok && data.branches && data.branches.length > 0) {
-      setBranches(data.branches);
-      
-      setTimeout(() => {
-        if (data.branches.length === 1) {
-          setSelectedBranch(data.branches[0].branchName);
-          handleFinalLogin(identifier, data.branches[0].branchName, token);
-        } else {
-          setShowVerification(false);
-          setShowBranchSelection(true);
-          setFetchingBranches(false);
-        }
-      }, 1000);
-    } else {
-      setPollingStatus("failed");
-      setLocalError('No branches available for this user');
-    }
-  } catch (err) {
-    console.error("Error fetching branches:", err);
-    setPollingStatus("failed");
-    setLocalError('Failed to retrieve branches. Please try again.');
   }
 };
   // Start polling for 2FA status (for non-admin users)
