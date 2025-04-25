@@ -636,6 +636,75 @@ form .error-message {
   width: 20px;
   text-align: left;
 }
+/* Add these styles to your login.css file */
+
+.verify-status-button {
+  background-color: #f47920;
+  color: white;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  width: 100%;
+  margin: 15px 0;
+  transition: all 0.3s ease;
+}
+
+.verify-status-button:hover {
+  background-color: #e06b16;
+}
+
+.verify-status-button:disabled {
+  background-color: #f4a46b;
+  cursor: not-allowed;
+}
+
+.toggle-code-button {
+  background: none;
+  border: none;
+  color: #f47920;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 8px;
+  margin: 10px 0;
+  font-size: 14px;
+}
+
+.toggle-code-button:hover {
+  color: #e06b16;
+}
+
+.manual-code-option {
+  margin-top: 15px;
+  text-align: center;
+}
+
+.status-indicator {
+  padding: 15px;
+  border-radius: 4px;
+  margin: 15px 0;
+  background-color: #f9f9f9;
+}
+
+.pending-status, .success-status, .failed-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.success-icon {
+  color: #4caf50;
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.failed-icon {
+  color: #f44336;
+  font-size: 20px;
+  font-weight: bold;
+}
 
 @keyframes dotAnimate {
   0% { content: "."; }
