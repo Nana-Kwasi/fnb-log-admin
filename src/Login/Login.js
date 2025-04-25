@@ -715,76 +715,79 @@ const Login = ({ onLogin }) => {
   };
 
   // Check verification status manually
-  const checkVerificationStatus = async () => {
-    setCheckingStatus(true);
-    setLocalError("");
+ // Check verification status manually
+const checkVerificationStatus = async () => {
+  setCheckingStatus(true);
+  setLocalError("");
+  
+  try {
+    console.log("Manually checking 2FA status...");
+    const response = await fetch(`${API_URL}/users/verify2fa`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        token: authToken,
+        code: "", // Empty code to just check status
+        fnumber: savedIdentifier
+      })
+    });
     
-    try {
-      console.log("Manually checking 2FA status...");
-      const response = await fetch(`${API_URL}/users/verify2fa`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          token: authToken,
-          code: "", // Empty code to just check status
-          fnumber: savedIdentifier
-        })
-      });
-      
-      const data = await response.json();
-      console.log("Manual 2FA status check response:", data);
-      
-      // Check for specific error conditions
-      if (!response.ok && data.status_code === "001" && data.status_message.includes("User not found in LDAP")) {
-        setPollingStatus("failed");
-        setLocalError("User not found in LDAP. Please check your credentials.");
-        return;
-      }
-      
-      // If verification was successful
-      if (response.ok && data.success) {
-        setPollingStatus("success");
-        
-        // Process the successful verification
-        setSessionToken(data.sessionToken);
-        setBranches(data.branches || []);
-        
-        // Wait a moment to show success status before proceeding
-        setTimeout(() => {
-          if (data.branches && data.branches.length === 1) {
-            // If only one branch, auto-select it and proceed to final login
-            setSelectedBranch(data.branches[0].branchName);
-            handleFinalLogin(data.fnumber || savedIdentifier, data.branches[0].branchName, data.sessionToken);
-          } else if (data.branches && data.branches.length > 1) {
-            // If multiple branches, show branch selection screen
-            setShowVerification(false);
-            setShowBranchSelection(true);
-            setFetchingBranches(false);
-          } else {
-            setLocalError('No branches available for this user');
-            setPollingStatus("failed");
-          }
-        }, 1500);
-      } else {
-        // Still pending or failed
-        if (data.status_code === "002" && data.status_message.includes("Pending")) {
-          setLocalError("Authentication is still pending. Please approve the request on your phone.");
-        } else {
-          setPollingStatus("failed");
-          setLocalError(data.status_message || "Verification failed. Please try again.");
-        }
-      }
-    } catch (err) {
-      console.error("Error checking 2FA status:", err);
-      setLocalError("Error checking verification status. Please try again.");
+    const data = await response.json();
+    console.log("Manual 2FA status check response:", data);
+    
+    // Check for specific error conditions
+    if (!response.ok && data.status_code === "001" && data.status_message.includes("User not found in LDAP")) {
       setPollingStatus("failed");
-    } finally {
-      setCheckingStatus(false);
+      setLocalError("User not found in LDAP. Please check your credentials.");
+      return;
     }
-  };
-
+    
+    // Handle pending status appropriately (don't treat as failure)
+    if (data.status_code === "002" && data.status_message.includes("Pending")) {
+      // Simply show message that it's still pending, but don't set an error
+      setLocalError("Authentication is still pending. Please approve the request on your phone.");
+      return;
+    }
+    
+    // If verification was successful
+    if (response.ok && (data.status_code === "000" || (data.success === true))) {
+      setPollingStatus("success");
+      
+      // Process the successful verification
+      setSessionToken(data.sessionToken);
+      setBranches(data.branches || []);
+      
+      // Wait a moment to show success status before proceeding
+      setTimeout(() => {
+        if (data.branches && data.branches.length === 1) {
+          // If only one branch, auto-select it and proceed to final login
+          setSelectedBranch(data.branches[0].branchName);
+          handleFinalLogin(data.fnumber || savedIdentifier, data.branches[0].branchName, data.sessionToken);
+        } else if (data.branches && data.branches.length > 1) {
+          // If multiple branches, show branch selection screen
+          setShowVerification(false);
+          setShowBranchSelection(true);
+          setFetchingBranches(false);
+        } else {
+          setLocalError('No branches available for this user');
+          setPollingStatus("failed");
+        }
+      }, 1500);
+    } else {
+      // Only set as failed if it's not pending and not successful
+      setPollingStatus("failed");
+      setLocalError(data.status_message || "Verification failed. Please try again.");
+    }
+  } catch (err) {
+    console.error("Error checking 2FA status:", err);
+    setLocalError("Error checking verification status. Please try again.");
+    setPollingStatus("failed");
+  } finally {
+    setCheckingStatus(false);
+  }
+};
   // Start polling for 2FA status (for non-admin users)
   const startPollingFor2FA = (token) => {
     console.log("Starting to poll for 2FA status with token:", token);
