@@ -714,8 +714,7 @@ const Login = ({ onLogin }) => {
     return identifier.includes('@') && !identifier.startsWith('F');
   };
 
-  // Check verification status manually
- // Check verification status manually
+ // In the checkVerificationStatus function, modify the response handling:
 const checkVerificationStatus = async () => {
   setCheckingStatus(true);
   setLocalError("");
@@ -737,18 +736,53 @@ const checkVerificationStatus = async () => {
     const data = await response.json();
     console.log("Manual 2FA status check response:", data);
     
-    // Handle "User not found in system" error - this means the 2FA was successful
-    // but the user doesn't have database access
-    if (response.ok && data.error && data.error.includes("not found in system")) {
-      setPollingStatus("failed");
-      setLocalError("Your 2FA authentication was successful, but you don't have access to this system. Please contact support.");
-      return;
-    }
+    // First, check if 2FA verification itself was successful
+    const is2FASuccessful = response.ok && (
+      data.success === true || 
+      data.status_code === "000" || 
+      data.status_code === 0
+    );
     
-    // Check for specific error conditions
-    if (data.status_code === "001" && data.status_message?.includes("User not found in LDAP")) {
-      setPollingStatus("failed");
-      setLocalError("User not found in LDAP. Please check your credentials.");
+    if (is2FASuccessful) {
+      setPollingStatus("success"); // Mark 2FA itself as successful
+      
+      // Now handle the database user check as a separate concern
+      if (data.userExists === false || 
+          data.error?.includes("not found in system") || 
+          data.message?.includes("not found in system")) {
+        
+        // This is a database access issue, not a 2FA failure
+        setTimeout(() => {
+          setPollingStatus("success"); // Keep success state for 2FA
+          setLocalError("Your authentication was successful, but you don't have access to this system. Please contact support.");
+          
+          // Stop polling since 2FA is actually successful
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current);
+          }
+        }, 1000);
+        return;
+      }
+      
+      // Regular success flow - wait a moment before proceeding
+      setTimeout(() => {
+        // Process the successful verification with database access
+        setSessionToken(data.sessionToken);
+        
+        if (data.branches && data.branches.length === 1) {
+          // If only one branch, auto-select it and proceed to final login
+          setSelectedBranch(data.branches[0].branchName);
+          handleFinalLogin(data.fnumber || savedIdentifier, data.branches[0].branchName, data.sessionToken);
+        } else if (data.branches && data.branches.length > 1) {
+          // If multiple branches, show branch selection screen
+          setShowVerification(false);
+          setShowBranchSelection(true);
+          setBranches(data.branches);
+          setFetchingBranches(false);
+        } else {
+          setLocalError('No branches available for this user');
+        }
+      }, 1500);
       return;
     }
     
@@ -758,46 +792,10 @@ const checkVerificationStatus = async () => {
       return;
     }
     
-    // If verification was successful
-    if (response.ok && (data.status_code === "000" || data.success === true)) {
-      // If we have a "not found in system" message in any of the data fields
-      if (
-        data.message?.includes("not found in system") ||
-        data.error?.includes("not found in system") ||
-        data.status_message?.includes("not found in system")
-      ) {
-        setPollingStatus("failed");
-        setLocalError("Your authentication was successful, but you don't have access to this system. Please contact support.");
-        return;
-      }
-      
-      setPollingStatus("success");
-      
-      // Process the successful verification
-      setSessionToken(data.sessionToken);
-      setBranches(data.branches || []);
-      
-      // Wait a moment to show success status before proceeding
-      setTimeout(() => {
-        if (data.branches && data.branches.length === 1) {
-          // If only one branch, auto-select it and proceed to final login
-          setSelectedBranch(data.branches[0].branchName);
-          handleFinalLogin(data.fnumber || savedIdentifier, data.branches[0].branchName, data.sessionToken);
-        } else if (data.branches && data.branches.length > 1) {
-          // If multiple branches, show branch selection screen
-          setShowVerification(false);
-          setShowBranchSelection(true);
-          setFetchingBranches(false);
-        } else {
-          setLocalError('No branches available for this user');
-          setPollingStatus("failed");
-        }
-      }, 1500);
-    } else {
-      // Only set as failed if it's not pending and not successful
-      setPollingStatus("failed");
-      setLocalError(data.status_message || data.error || "Verification failed. Please try again.");
-    }
+    // If it's not successful and not pending, it's failed
+    setPollingStatus("failed");
+    setLocalError(data.status_message || data.error || "Verification failed. Please try again.");
+    
   } catch (err) {
     console.error("Error checking 2FA status:", err);
     setLocalError("Error checking verification status. Please try again.");
@@ -806,86 +804,105 @@ const checkVerificationStatus = async () => {
     setCheckingStatus(false);
   }
 };
-  // Start polling for 2FA status (for non-admin users)
-  const startPollingFor2FA = (token) => {
-    console.log("Starting to poll for 2FA status with token:", token);
-    setPollingStatus("pending");
-    pollingStartTimeRef.current = Date.now();
-    
-    // Clear any existing interval
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current);
+
+
+
+
+// Replace the startPollingFor2FA function:
+const startPollingFor2FA = (token) => {
+  console.log("Starting to poll for 2FA status with token:", token);
+  setPollingStatus("pending");
+  pollingStartTimeRef.current = Date.now();
+  
+  // Clear any existing interval
+  if (pollingIntervalRef.current) {
+    clearInterval(pollingIntervalRef.current);
+  }
+  
+  // Use a longer interval to reduce API calls (5 seconds instead of 3)
+  pollingIntervalRef.current = setInterval(async () => {
+    // Skip polling if we're manually checking or if status is no longer pending
+    if (checkingStatus || pollingStatus !== "pending") {
+      return;
     }
     
-    pollingIntervalRef.current = setInterval(async () => {
-      try {
-        // Check if we've exceeded the max polling time
-        if (Date.now() - pollingStartTimeRef.current > maxPollingTime) {
-          clearInterval(pollingIntervalRef.current);
-          setPollingStatus("failed");
-          setLocalError("2FA verification timed out. Please try again.");
-          return;
-        }
+    try {
+      // Check if we've exceeded the max polling time
+      if (Date.now() - pollingStartTimeRef.current > maxPollingTime) {
+        clearInterval(pollingIntervalRef.current);
+        setPollingStatus("failed");
+        setLocalError("2FA verification timed out. Please try again.");
+        return;
+      }
+      
+      console.log("Polling for 2FA status...");
+      const response = await fetch(`${API_URL}/users/verify2fa`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          token: token,
+          code: "", // Empty code to just check status
+          fnumber: savedIdentifier
+        })
+      });
+      
+      const data = await response.json();
+      console.log("2FA status check response:", data);
+      
+      // Check for specific error conditions
+      if (!response.ok && data.status_code === "001" && data.status_message?.includes("User not found in LDAP")) {
+        clearInterval(pollingIntervalRef.current);
+        setPollingStatus("failed");
+        setLocalError("User not found in LDAP. Please check your credentials.");
+        return;
+      }
+      
+      // First, check if 2FA verification itself was successful
+      const is2FASuccessful = response.ok && (
+        data.success === true || 
+        data.status_code === "000" || 
+        data.status_code === 0
+      );
+      
+      if (is2FASuccessful) {
+        clearInterval(pollingIntervalRef.current);
+        setPollingStatus("success");
         
-        console.log("Polling for 2FA status...");
-        const response = await fetch(`${API_URL}/users/verify2fa`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            token: token,
-            code: "", // Empty code to just check status
-            fnumber: savedIdentifier // Add the fnumber to the request
-          })
-        });
-        
-        const data = await response.json();
-        console.log("2FA status check response:", data);
-        
-        // Check for specific error conditions
-        if (!response.ok && data.status_code === "001" && data.status_message.includes("User not found in LDAP")) {
-          clearInterval(pollingIntervalRef.current);
-          setPollingStatus("failed");
-          setLocalError("User not found in LDAP. Please check your credentials.");
-          setShowVerification(false);
-          return;
-        }
-        
-        // If verification was successful
-        if (response.ok && data.success) {
-          clearInterval(pollingIntervalRef.current);
-          setPollingStatus("success");
+        // Now handle the database user check as a separate concern
+        if (data.userExists === false || 
+            data.error?.includes("not found in system") || 
+            data.message?.includes("not found in system")) {
           
-          // Process the successful verification
+          setTimeout(() => {
+            setLocalError("Your authentication was successful, but you don't have access to this system. Please contact support.");
+          }, 1000);
+          return;
+        }
+        
+        setTimeout(() => {
           setSessionToken(data.sessionToken);
           setBranches(data.branches || []);
           
-          // Wait a moment to show success status before proceeding
-          setTimeout(() => {
-            if (data.branches && data.branches.length === 1) {
-              // If only one branch, auto-select it and proceed to final login
-              setSelectedBranch(data.branches[0].branchName);
-              handleFinalLogin(data.fnumber || savedIdentifier, data.branches[0].branchName, data.sessionToken);
-            } else if (data.branches && data.branches.length > 1) {
-              // If multiple branches, show branch selection screen
-              setShowVerification(false);
-              setShowBranchSelection(true);
-              setFetchingBranches(false);
-            } else {
-              setLocalError('No branches available for this user');
-              setPollingStatus("failed");
-            }
-          }, 1500);
-        }
-        // If it's still pending, continue polling
-        
-      } catch (err) {
-        console.error("Error polling for 2FA status:", err);
-        // Don't stop polling on error - let the timeout handle it
+          if (data.branches && data.branches.length === 1) {
+            setSelectedBranch(data.branches[0].branchName);
+            handleFinalLogin(data.fnumber || savedIdentifier, data.branches[0].branchName, data.sessionToken);
+          } else if (data.branches && data.branches.length > 1) {
+            setShowVerification(false);
+            setShowBranchSelection(true);
+            setFetchingBranches(false);
+          } else {
+            setLocalError('No branches available for this user');
+          }
+        }, 1500);
       }
-    }, 3000); // Check every 3 seconds
-  };
+      
+    } catch (err) {
+      console.error("Error polling for 2FA status:", err);
+    }
+  }, 5000); 
+};
 
   // Handle initial form submission for both admin and non-admin users
   const handleInitialSubmit = async (e) => {
