@@ -705,6 +705,93 @@ form .error-message {
   font-size: 20px;
   font-weight: bold;
 }
+/* Add this to your login.css file */
+
+.verify-status-button {
+  background-color: #007bff;
+  color: white;
+  padding: 10px 15px;
+  border: none;
+  border-radius: 4px;
+  font-size: 16px;
+  cursor: pointer;
+  margin: 10px 0;
+  width: 100%;
+  transition: opacity 0.5s ease-in-out, background-color 0.3s;
+}
+
+.verify-status-button:hover {
+  background-color: #0069d9;
+}
+
+.verify-status-button:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+}
+
+.verify-status-button.visible {
+  opacity: 1;
+}
+
+.verify-status-button.faded {
+  opacity: 0.6;
+}
+
+/* Make the toggle code button less prominent */
+.toggle-code-button {
+  background-color: transparent;
+  color: #007bff;
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+  margin-top: 15px;
+  text-decoration: underline;
+}
+
+.toggle-code-button:hover {
+  color: #0056b3;
+}
+
+/* Status indicators */
+.status-indicator {
+  margin: 15px 0;
+  padding: 10px;
+  border-radius: 5px;
+  background-color: #f8f9fa;
+}
+
+.pending-status {
+  color: #856404;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.success-status {
+  color: #155724;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.failed-status {
+  color: #721c24;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.success-icon {
+  color: #28a745;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.failed-icon {
+  color: #dc3545;
+  font-size: 18px;
+  font-weight: bold;
+}
 
 @keyframes dotAnimate {
   0% { content: "."; }
