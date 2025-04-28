@@ -213,6 +213,8 @@ const AppContent = ({ handleLogin, userEmail }) => {
       }
     }
   }, [user]);
+   
+    
 
   const maskedEmail = userEmail
     ? `${"*".repeat(8)}${userEmail.slice(8)}`
@@ -225,10 +227,16 @@ const AppContent = ({ handleLogin, userEmail }) => {
   return (
     <>
       <nav className="sidebar">
-        <div className="profile-section">
-          <AiOutlineUser className="profile-icon" />
-          <p className="profile-name">{maskedEmail}</p>
-        </div>
+{/*       <div>
+        <img 
+          src="/FNB LOGO.png" 
+          alt="Profile Logo" 
+          className="profile-icon" 
+          style={{ width: '50px', height: '50px', borderRadius: '50%' }} 
+        />
+        <p className="profile-name">{maskedEmail}</p>
+      </div> */}
+
         <ul className="menu">
           <li>
             <NavLink to="/" className={({ isActive }) => (isActive ? "active" : "")}>
@@ -270,6 +278,8 @@ const AppContent = ({ handleLogin, userEmail }) => {
           </li>
         </ul>
       </nav>
+
+      
       <main className="content">
         <Routes>
           <Route path="/" element={<Dashboard />} />
@@ -306,9 +316,11 @@ const App = () => {
             userEmail={userEmail} 
           />
         </div>
+        
       </Router>
     </VisitorProvider>
   );
 };
 
 export default App;
+ 
