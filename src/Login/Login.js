@@ -1367,6 +1367,8 @@
 // };
 
 // export default Login;
+
+
 import React, { useState, useEffect, useRef } from "react";
 import { useVisitor } from "../context/VisitorContext";
 import "../login.css";
@@ -1412,6 +1414,7 @@ const Login = ({ onLogin }) => {
   const API_URL = "http://localhost:5001";
   const BRANCHES_URL = "http://localhost:5001/visitors/index";
   const AUTH_URL = "http://localhost:5001/auth";
+
 
   // Cleanup polling and timers on unmount
   useEffect(() => {
@@ -1541,8 +1544,11 @@ const Login = ({ onLogin }) => {
         setPollingStatus("success");
         clearInterval(pollingIntervalRef.current);
         
+        // Save the 2FA status response for user data extraction
+        sessionStorage.setItem('verify2faResponse', JSON.stringify(data));
+        
         // Now check user branches
-        await checkUserBranches();
+        await checkUserBranches(data);
       }
     } catch (err) {
       console.error("Error tracking 2FA status:", err);
@@ -1612,6 +1618,7 @@ const Login = ({ onLogin }) => {
   };
 
   // Check verification status function
+  
   const checkVerificationStatus = async () => {
     setCheckingStatus(true);
     setLocalError("");
@@ -1792,6 +1799,10 @@ const Login = ({ onLogin }) => {
       const selectedBranchObj = branches.find(branchObj => branchObj.branchName === branch);
       const branchCode = selectedBranchObj ? selectedBranchObj.branchCode : '';
       
+      // Get the stored 2FA response if available
+      const storedVerifyResponse = sessionStorage.getItem('verify2faResponse');
+      const verifyResponseData = storedVerifyResponse ? JSON.parse(storedVerifyResponse) : null;
+      
       // For admin users, make the final login call with the selected branch
       if (isAdminUser) {
         const response = await fetch(`${AUTH_URL}/login`, {
@@ -1830,7 +1841,8 @@ const Login = ({ onLogin }) => {
           userData.branchCode, 
           data.token, 
           branch, 
-          userData.role
+          userData.role,
+          verifyResponseData
         );
         
         if (!success) {
@@ -1858,7 +1870,8 @@ const Login = ({ onLogin }) => {
           branchCode,
           sessionToken, 
           branch, 
-          userData.role
+          userData.role,
+          verifyResponseData
         );
         
         if (!success) {
@@ -1866,6 +1879,9 @@ const Login = ({ onLogin }) => {
           throw new Error("Login failed. Please try again.");
         }
       }
+      
+      // Clean up the stored 2FA response after successful login
+      sessionStorage.removeItem('verify2faResponse');
       
     } catch (err) {
       console.error("Login finalization error:", err);
@@ -1926,6 +1942,7 @@ const Login = ({ onLogin }) => {
   };
 
   // Handle 2FA verification with code (for non-admin users)
+  
   const handleVerify2FA = async (e) => {
     e.preventDefault();
     setLocalError("");
@@ -1965,8 +1982,11 @@ const Login = ({ onLogin }) => {
       
       setPollingStatus("success");
       
+      // Save the 2FA verification response for user data extraction
+      sessionStorage.setItem('verify2faResponse', JSON.stringify(data));
+      
       // After successful 2FA verification, check branches
-      await checkUserBranches();
+      await checkUserBranches(data);
       
     } catch (err) {
       console.error("2FA verification error:", err);
@@ -1975,6 +1995,7 @@ const Login = ({ onLogin }) => {
       setLoadingSpinner(false);
     }
   };
+  
 
   // Handle branch selection for both admin and non-admin users
   const handleBranchSubmit = async (e) => {
