@@ -499,6 +499,7 @@ const checkUserBranches = async (req, res) => {
 
 
 // hope
+
 const checkUserBranches = async () => {
   setCheckingBranches(true);
   try {
@@ -560,5 +561,108 @@ const checkUserBranches = async () => {
     setLocalError("Failed to check branch access. Please try again.");
   } finally {
     setCheckingBranches(false);
+  }
+};
+
+
+// hope is in
+
+const verify2FA = async (req, res) => {
+  const { token, code, fnumber: requestFnumber } = req.body;
+
+  if (!token) {
+    return res.status(400).json({ error: 'Token is required' });
+  }
+
+  try {
+    console.log("[2FA] Starting 2FA verification process");
+    if (code) {
+      console.log("[2FA] Verifying with code:", code);
+    } else {
+      console.log("[2FA] Checking 2FA status without code");
+    }
+    console.log("[2FA] Using token:", token.substring(0, 10) + "..." + token.substring(token.length - 10));
+    
+    const authToken = await getAuthToken();
+    console.log('[2FA] Successfully obtained token for 2FA verification');
+    
+    console.log('[2FA] Sending verification request to LDAP service');
+    const verifyResponse = await axios.post(LDAP_VERIFY_2FA_URL, {
+      token,
+      code: code || "" // Send empty string if no code provided
+    }, { 
+      headers: {
+        'Authorization': authToken,
+        'Content-Type': 'application/json'
+      },
+      httpsAgent: new require('https').Agent({ rejectUnauthorized: false }) 
+    });
+    
+    console.log('[2FA] Verify response status:', verifyResponse.status);
+    console.log('[2FA] Verify response data:', JSON.stringify(verifyResponse.data, null, 2));
+    
+    if (!verifyResponse.data || 
+        (verifyResponse.data.status_code !== '000' && 
+         verifyResponse.data.status_code !== '0' && 
+         verifyResponse.data.status_code !== 0)) {
+      console.error('[2FA] 2FA verification failed:', JSON.stringify(verifyResponse.data, null, 2));
+      return res.status(401).json({ 
+        success: false, 
+        error: verifyResponse.data?.status_message || '2FA verification failed',
+        data: verifyResponse.data 
+      });
+    }
+    
+    console.log('[2FA] 2FA verification successful');
+    
+    const fnumber = verifyResponse.data.fnumber || 
+                   (verifyResponse.data.data && verifyResponse.data.data.fnumber) ||
+                   requestFnumber;
+                   
+    if (!fnumber) {
+      console.error('[2FA] No fnumber found in response or request');
+      return res.status(400).json({
+        success: false,
+        error: 'Unable to identify user. Missing F-number in response.',
+      });
+    }
+    
+    console.log(`[2FA] User identified as: ${fnumber}`);
+    
+    // Generate a session token
+    const sessionToken = jwt.sign(
+      { 
+        fnumber: fnumber
+      }, 
+      JWT_SECRET, 
+      { expiresIn: '8h' }
+    );
+    
+    console.log(`[2FA] Session token generated for user: ${fnumber}`);
+    console.log('[2FA] 2FA verification process complete, returning success response');
+    
+    // Log all data when 2FA verification is successful
+    console.log('[2FA] Full verify response data:', JSON.stringify(verifyResponse.data, null, 2));
+    
+    return res.status(200).json({
+      success: true,
+      message: '2FA verification successful',
+      fnumber,
+      sessionToken,
+      verifyResponseData: verifyResponse.data 
+    });
+    
+  } catch (err) {
+    console.error('[2FA] 2FA verification error:', err.message);
+    
+    if (err.response) {
+      console.error('[2FA] Error response status:', err.response.status);
+      console.error('[2FA] Error response data:', JSON.stringify(err.response.data, null, 2));
+    }
+    
+    return res.status(500).json({ 
+      success: false, 
+      error: `Server error during 2FA verification: ${err.message}` 
+    });
   }
 };
