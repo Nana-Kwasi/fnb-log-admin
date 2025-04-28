@@ -1368,7 +1368,6 @@
 
 // export default Login;
 
-
 import React, { useState, useEffect, useRef } from "react";
 import { useVisitor } from "../context/VisitorContext";
 import "../login.css";
@@ -1395,13 +1394,18 @@ const Login = ({ onLogin }) => {
   const [pollingStatus, setPollingStatus] = useState("pending"); // pending, success, failed
   const [isAdminUser, setIsAdminUser] = useState(false);
   const [showManualCodeEntry, setShowManualCodeEntry] = useState(false);
-  const [verifyButtonVisible, setVerifyButtonVisible] = useState(true);
+  const [verifyButtonVisible, setVerifyButtonVisible] = useState(false); // Changed to false initially
   
   // Timer states
-  const [remainingTime, setRemainingTime] = useState(50);
+  const [remainingTime, setRemainingTime] = useState(60); // Changed from 50 to 60 seconds
   const [showTimer, setShowTimer] = useState(false);
   const [checkingBranches, setCheckingBranches] = useState(false);
 
+  // Transition states
+  const [showTransition, setShowTransition] = useState(false);
+  const [transitionMessage, setTransitionMessage] = useState("Checking your assigned branches...");
+  const [transitionProgress, setTransitionProgress] = useState(0);
+  
   const pollingIntervalRef = useRef(null);
   const maxPollingTime = 120000; // 2 minutes
   const pollingStartTimeRef = useRef(null);
@@ -1414,7 +1418,6 @@ const Login = ({ onLogin }) => {
   const API_URL = "http://localhost:5001";
   const BRANCHES_URL = "http://localhost:5001/visitors/index";
   const AUTH_URL = "http://localhost:5001/auth";
-
 
   // Cleanup polling and timers on unmount
   useEffect(() => {
@@ -1479,20 +1482,29 @@ const Login = ({ onLogin }) => {
     }
   }, [BRANCHES_URL, showVerification, showBranchSelection]);
 
-  // Add button fading effect to catch user's attention
+  // New effect to show the check verification status button after 10 seconds
   useEffect(() => {
     if (showVerification && pollingStatus === "pending") {
-      // Create a fade in/out effect for the verify button
-      buttonFadeIntervalRef.current = setInterval(() => {
-        setVerifyButtonVisible(prev => !prev);
-      }, 1500); // Toggle visibility every 1.5 seconds
+      // Initially hide the button for 10 seconds
+      setVerifyButtonVisible(false);
+      
+      // Show button after 10 seconds
+      const buttonShowTimer = setTimeout(() => {
+        setVerifyButtonVisible(true);
+        
+        // Start the fading effect after button appears
+        buttonFadeIntervalRef.current = setInterval(() => {
+          setVerifyButtonVisible(prev => !prev);
+        }, 1500); // Toggle visibility every 1.5 seconds
+      }, 10000); // 10 seconds delay
+      
+      return () => {
+        clearTimeout(buttonShowTimer);
+        if (buttonFadeIntervalRef.current) {
+          clearInterval(buttonFadeIntervalRef.current);
+        }
+      };
     }
-    
-    return () => {
-      if (buttonFadeIntervalRef.current) {
-        clearInterval(buttonFadeIntervalRef.current);
-      }
-    };
   }, [showVerification, pollingStatus]);
   
   // Timer countdown effect
@@ -1515,6 +1527,40 @@ const Login = ({ onLogin }) => {
       }
     };
   }, [showVerification, showTimer, remainingTime]);
+
+  // Transition effect for successful verification
+  useEffect(() => {
+    if (showTransition) {
+      // Update progress over 10 seconds
+      const progressInterval = setInterval(() => {
+        setTransitionProgress(prev => {
+          if (prev >= 100) {
+            clearInterval(progressInterval);
+            return 100;
+          }
+          return prev + 1;
+        });
+      }, 100); // 10 seconds = 100 steps × 100ms
+
+      // Change message halfway through
+      const messageTimer = setTimeout(() => {
+        setTransitionMessage("Thank you for hanging on");
+      }, 5000); // 5 seconds
+
+      // Complete transition after 10 seconds
+      const completeTimer = setTimeout(() => {
+        setShowTransition(false);
+        setShowVerification(false);
+        setShowBranchSelection(true);
+      }, 10000); // 10 seconds
+
+      return () => {
+        clearInterval(progressInterval);
+        clearTimeout(messageTimer);
+        clearTimeout(completeTimer);
+      };
+    }
+  }, [showTransition]);
 
   // Check if a user is admin based on their identifier
   const checkIfAdmin = (identifier) => {
@@ -1599,12 +1645,9 @@ const Login = ({ onLogin }) => {
           // Complete final login with the auto-selected branch
           await handleFinalLogin(savedIdentifier, branchesArray[0].branchName, sessionToken || data.sessionToken);
         } else {
-          // If multiple branches, show branch selection screen
-          setTimeout(() => {
-            setShowVerification(false);
-            setShowBranchSelection(true);
-            setFetchingBranches(false);
-          }, 1000);
+          // If multiple branches, show transition screen then branch selection
+          setShowTransition(true);
+          setTransitionProgress(0);
         }
       } else {
         setLocalError('No branches available for this user');
@@ -1618,7 +1661,6 @@ const Login = ({ onLogin }) => {
   };
 
   // Check verification status function
-  
   const checkVerificationStatus = async () => {
     setCheckingStatus(true);
     setLocalError("");
@@ -1681,7 +1723,7 @@ const Login = ({ onLogin }) => {
     pollingStartTimeRef.current = Date.now();
     
     // Start countdown timer
-    setRemainingTime(50);
+    setRemainingTime(60); // Changed to 60 seconds
     setShowTimer(true);
     
     // Clear any existing interval
@@ -1924,7 +1966,7 @@ const Login = ({ onLogin }) => {
       setSavedIdentifier(fnumber);
       
       // Reset state for the verification screen
-      setVerifyButtonVisible(true);
+      setVerifyButtonVisible(false); // Will be shown after 10 seconds timer
       setShowManualCodeEntry(false);
       setVerificationCode("");
       setPollingStatus("pending");
@@ -1942,7 +1984,6 @@ const Login = ({ onLogin }) => {
   };
 
   // Handle 2FA verification with code (for non-admin users)
-  
   const handleVerify2FA = async (e) => {
     e.preventDefault();
     setLocalError("");
@@ -1995,7 +2036,6 @@ const Login = ({ onLogin }) => {
       setLoadingSpinner(false);
     }
   };
-  
 
   // Handle branch selection for both admin and non-admin users
   const handleBranchSubmit = async (e) => {
@@ -2038,6 +2078,103 @@ const Login = ({ onLogin }) => {
   
   const displayError = error || localError;
 
+  // New CSS styles added inline - will be moved to login.css
+  const styles = {
+    timerContainer: {
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginTop: '20px',
+      marginBottom: '20px'
+    },
+    timerCircle: {
+      position: 'relative',
+      width: '80px',
+      height: '80px',
+      borderRadius: '50%',
+      backgroundColor: '#f0f0f0',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      boxShadow: '0 4px 10px rgba(0,0,0,0.1)'
+    },
+    timerProgress: {
+      position: 'absolute',
+      top: '0',
+      left: '0',
+      width: '80px',
+      height: '80px',
+      borderRadius: '50%',
+      clipPath: `polygon(40px 40px, 40px 0, ${40 + 40 * Math.sin(remainingTime / 60 * 2 * Math.PI)}px ${40 - 40 * Math.cos(remainingTime / 60 * 2 * Math.PI)}px)`,
+      backgroundColor: '#007bff',
+      transition: 'clip-path 1s linear'
+    },
+    timerText: {
+      position: 'relative',
+      fontSize: '18px',
+      fontWeight: 'bold',
+      color: '#333',
+      zIndex: '1'
+    },
+    transitionOverlay: {
+      position: 'fixed',
+      top: '0',
+      left: '0',
+      width: '100%',
+      height: '100%',
+      backdropFilter: 'blur(10px)',
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: '100'
+    },
+    transitionCard: {
+      backgroundColor: 'white',
+      borderRadius: '10px',
+      padding: '30px',
+      width: '80%',
+      maxWidth: '400px',
+      textAlign: 'center',
+      boxShadow: '0 10px 25px rgba(0,0,0,0.2)'
+    },
+    progressContainer: {
+      width: '100%',
+      height: '10px',
+      backgroundColor: '#f0f0f0',
+      borderRadius: '5px',
+      marginTop: '20px',
+      overflow: 'hidden'
+    },
+    progressBar: {
+      height: '100%',
+      backgroundColor: '#4caf50',
+      width: `${transitionProgress}%`,
+      transition: 'width 0.3s ease-in-out'
+    },
+    transitionMessage: {
+      fontSize: '18px',
+      fontWeight: 'bold',
+      margin: '20px 0',
+      color: '#333'
+    },
+    transitionSpinner: {
+      width: '50px',
+      height: '50px',
+      borderRadius: '50%',
+      border: '5px solid #f3f3f3',
+      borderTop: '5px solid #3498db',
+      animation: 'spin 1s linear infinite',
+      margin: '0 auto 20px auto'
+    },
+    verifyButtonAppear: {
+      animation: 'fadeIn 1s ease-in-out',
+      opacity: verifyButtonVisible ? 1 : 0,
+      transition: 'opacity 0.5s ease-in-out'
+    }
+  };
+
   // Render initial login form
   if (!showVerification && !showBranchSelection) {
     return (
@@ -2076,7 +2213,20 @@ const Login = ({ onLogin }) => {
   if (showVerification) {
     return (
       <div className="login-container">
-        <div className="login-card">
+        {/* Transition overlay for successful verification */}
+        {showTransition && (
+          <div style={styles.transitionOverlay}>
+            <div style={styles.transitionCard}>
+              <div style={styles.transitionSpinner}></div>
+              <div style={styles.transitionMessage}>{transitionMessage}</div>
+              <div style={styles.progressContainer}>
+                <div style={styles.progressBar}></div>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        <div className="login-card verification-card">
           <img src="/FNB logo.png" alt="FNB Logo" className="login-logo" />
           <h2>Two-Factor Authentication</h2>
           
@@ -2085,9 +2235,10 @@ const Login = ({ onLogin }) => {
             <p>Please check your phone for an authentication request and approve it to continue.</p>
             
             {showTimer && (
-              <div className="timer-container">
-                <div className="countdown-timer">
-                  Waiting for response: {remainingTime}s
+              <div style={styles.timerContainer}>
+                <div style={styles.timerCircle}>
+                  <div style={styles.timerProgress}></div>
+                  <span style={styles.timerText}>{remainingTime}s</span>
                 </div>
               </div>
             )}
@@ -2099,112 +2250,109 @@ const Login = ({ onLogin }) => {
                   Waiting for approval on your phone...
                 </div>
               )}
-              {pollingStatus === "success" && (
-                <div className="success-status">
-                  <span className="success-icon">✓</span>
-                  Verification successful! 
-                  {checkingBranches && <span> Checking your assigned branches...</span>}
-                </div>
-              )}
-              {pollingStatus === "failed" && (
-                <div className="failed-status">
-                  <span className="failed-icon">✗</span>
-                  Verification failed. Please try again.
-                </div>
-              )}
-            </div>
-          </div>
-          
-          {/* Check Status Button - always visible with fading effect */}
-          {pollingStatus === "pending" && (
-            <button 
-              className={`verify-status-button ${verifyButtonVisible ? 'visible' : 'faded'}`}
-              onClick={checkVerificationStatus}
-              disabled={checkingStatus}
-              style={{
-                opacity: verifyButtonVisible ? 1 : 0.5,
-                transition: 'opacity 0.5s ease-in-out'
-              }}
-            >
-              {checkingStatus ? <span className="spinner"></span> : "Check Verification Status"}
-            </button>
-          )}
-          
-          {/* Manual code entry option - hidden by default */}
-          <div className="manual-code-option">
-            <button 
-              type="button" 
-              className="toggle-code-button"
-              onClick={toggleManualCodeEntry}
-            >
-              {showManualCodeEntry ? "Hide Code Entry" : "Use Verification Code Instead"}
-            </button>
-            
-            {showManualCodeEntry && (
-              <form onSubmit={handleVerify2FA}>
-                <input
-                  type="text"
-                  placeholder="Enter verification code"
-                  value={verificationCode}
-                  onChange={(e) => setVerificationCode(e.target.value)}
-                />
-                
-                <button type="submit" className="login-button" disabled={loading || loadingSpinner || pollingStatus === "success"}>
-                  {loadingSpinner ? <span className="spinner"></span> : "Verify with Code"}
-                </button>
-              </form>
-            )}
-          </div>
-          
-          {displayError && <p className="error-message">{displayError}</p>}
-          
-          <button 
-            className="back-button" 
-            onClick={cancelAuth}
-            disabled={loadingSpinner || checkingStatus}
-          >
-            Back to Login
-          </button>
-        </div>
-      </div>
-    );
-  }
+             {pollingStatus === "success" && (
+  <div className="success-status">
+    <span className="success-icon">✓</span>
+    Verification successful! 
+    {checkingBranches && <span> Checking your assigned branches...</span>}
+  </div>
+)}
+{pollingStatus === "failed" && (
+  <div className="failed-status">
+    <span className="failed-icon">✗</span>
+    Verification failed. Please try again.
+  </div>
+)}
+</div>
+</div>
+
+{/* Check Status Button - only visible after 10 seconds with fading effect */}
+{pollingStatus === "pending" && (
+  <button 
+    className="verify-status-button"
+    onClick={checkVerificationStatus}
+    disabled={checkingStatus}
+    style={styles.verifyButtonAppear}
+  >
+    {checkingStatus ? <span className="spinner"></span> : "Check Verification Status"}
+  </button>
+)}
+
+{/* Manual code entry option - hidden by default */}
+<div className="manual-code-option">
+  <button 
+    type="button" 
+    className="toggle-code-button"
+    onClick={toggleManualCodeEntry}
+  >
+    {showManualCodeEntry ? "Hide Code Entry" : "Use Verification Code Instead"}
+  </button>
   
-  // Branch selection form (for both admin and non-admin users)
-  return (
-    <div className="login-container">
-      <div className="login-card">
-        <img src="/FNB logo.png" alt="FNB Logo" className="login-logo" />
-        <h2>Select Branch</h2>
-        <form onSubmit={handleBranchSubmit}>
-          <div className="select-container">
-            <select
-              value={selectedBranch}
-              onChange={(e) => setSelectedBranch(e.target.value)}
-              required
-              disabled={fetchingBranches}
-              className="branch-select"
-            >
-              <option value="">Select Branch</option>
-              {branches.map((branch) => (
-                <option key={branch.branchCode || branch.id || Math.random()} value={branch.branchName}>
-                  {branch.branchName}
-                </option>
-              ))}
-            </select>
-            {fetchingBranches && (
-              <span className="select-spinner"></span>
-            )}
-          </div>
-          
-          {displayError && <p className="error-message">{displayError}</p>}
-          <button type="submit" className="login-button" disabled={loading || loadingSpinner || fetchingBranches}>
-            {loadingSpinner ? <span className="spinner"></span> : "Continue"}
-          </button>
-        </form>
-      </div>
+  {showManualCodeEntry && (
+    <form onSubmit={handleVerify2FA}>
+      <input
+        type="text"
+        placeholder="Enter verification code"
+        value={verificationCode}
+        onChange={(e) => setVerificationCode(e.target.value)}
+      />
+      
+      <button type="submit" className="login-button" disabled={loading || loadingSpinner || pollingStatus === "success"}>
+        {loadingSpinner ? <span className="spinner"></span> : "Verify with Code"}
+      </button>
+    </form>
+  )}
+</div>
+
+{displayError && <p className="error-message">{displayError}</p>}
+
+<button 
+  className="back-button" 
+  onClick={cancelAuth}
+  disabled={loadingSpinner || checkingStatus}
+>
+  Back to Login
+</button>
+</div>
+</div>
+);
+}
+
+// Branch selection form (for both admin and non-admin users)
+return (
+<div className="login-container">
+<div className="login-card">
+  <img src="/FNB logo.png" alt="FNB Logo" className="login-logo" />
+  <h2>Select Branch</h2>
+  <form onSubmit={handleBranchSubmit}>
+    <div className="select-container">
+      <select
+        value={selectedBranch}
+        onChange={(e) => setSelectedBranch(e.target.value)}
+        required
+        disabled={fetchingBranches}
+        className="branch-select"
+      >
+        <option value="">Select Branch</option>
+        {branches.map((branch) => (
+          <option key={branch.branchCode || branch.id || Math.random()} value={branch.branchName}>
+            {branch.branchName}
+          </option>
+        ))}
+      </select>
+      {fetchingBranches && (
+        <span className="select-spinner"></span>
+      )}
     </div>
-  );
+    
+    {displayError && <p className="error-message">{displayError}</p>}
+    <button type="submit" className="login-button" disabled={loading || loadingSpinner || fetchingBranches}>
+      {loadingSpinner ? <span className="spinner"></span> : "Continue"}
+    </button>
+  </form>
+</div>
+</div>
+);
 };
 
 export default Login;
