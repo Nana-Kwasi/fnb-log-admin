@@ -520,3 +520,169 @@ const handleLogin = async () => {
   }
   setLoading(false);
 };
+
+
+
+// hmm
+const express = require('express');
+const router = express.Router();
+const usersController = require('../controllers/Users Controller')
+const authMiddleware = require('../middleware/auth'); 
+
+
+router.post('/verify-fnumber', authMiddleware, usersController.verifyFnumber);
+
+router.post('/', authMiddleware, usersController.createUser);
+router.post('/authenticate', usersController.authenticateUser);
+router.post('/verify2fa', usersController.verify2FA);
+router.post('/finalize-login', usersController.finalizeLogin);
+router.post('/checkUserBranches', usersController.checkUserBranches);
+router.post('/track2FAStatus', usersController.track2FAStatus);
+
+
+
+
+router.get('/', authMiddleware, usersController.getAllUsers);
+
+
+router.put('/:id', authMiddleware, usersController.updateUser);
+
+
+router.delete('/:id', authMiddleware, usersController.deleteUser);
+
+module.exports = router;
+
+// branches
+
+const checkUserBranches = async (req, res) => {
+  const { fnumber } = req.body;
+
+  if (!fnumber) {
+    return res.status(400).json({ 
+      success: false, 
+      error: 'F-number is required' 
+    });
+  }
+
+  try {
+    console.log(`[BRANCH] Checking branches for user: ${fnumber}`);
+    
+    // Query database for branches this user has access to
+    const result = await pool.query(
+      'SELECT id, email, branch, branch_code FROM users_table WHERE email = $1', 
+      [fnumber]
+    );
+    
+    if (result.rows.length === 0) {
+      console.log(`[BRANCH] User ${fnumber} not found in system`);
+      return res.status(404).json({ 
+        success: false, 
+        error: 'User not found in system. Please contact administrator.',
+        userExists: false,
+        fnumber
+      });
+    }
+    
+    // Format the branches for the response
+    const branches = result.rows.map(row => ({
+      branchName: row.branch,
+      branchCode: row.branch_code
+    }));
+    
+    console.log(`[BRANCH] User ${fnumber} has access to ${branches.length} branches:`, 
+      JSON.stringify(branches, null, 2));
+    
+    return res.status(200).json({
+      success: true,
+      userExists: true,
+      fnumber,
+      branches
+    });
+    
+  } catch (err) {
+    console.error('[BRANCH] Error checking user branches:', err.message);
+    return res.status(500).json({ 
+      success: false, 
+      error: `Server error during branch checking: ${err.message}` 
+    });
+  }
+};
+
+// New function to track 2FA verification status
+const track2FAStatus = async (req, res) => {
+  const { token, fnumber } = req.body;
+
+  if (!token) {
+    return res.status(400).json({ 
+      success: false, 
+      error: 'Token is required' 
+    });
+  }
+
+  try {
+    console.log("[TRACK] Checking 2FA verification status for token:", 
+      token.substring(0, 10) + "..." + token.substring(token.length - 10));
+    
+    const authToken = await getAuthToken();
+    console.log('[TRACK] Successfully obtained token for status tracking');
+    
+    console.log('[TRACK] Sending status check to LDAP service');
+    const verifyResponse = await axios.post(LDAP_VERIFY_2FA_URL, {
+      token,
+      code: "" // Empty code to just check status
+    }, { 
+      headers: {
+        'Authorization': authToken,
+        'Content-Type': 'application/json'
+      },
+      httpsAgent: new require('https').Agent({ rejectUnauthorized: false }) 
+    });
+    
+    console.log('[TRACK] Status response code:', verifyResponse.status);
+    
+    // Return just the status information, no database checks
+    const statusCode = verifyResponse.data.status_code;
+    const statusMessage = verifyResponse.data.status_message;
+    const dataStatus = verifyResponse.data.data?.status;
+    
+    // Log the specific status information
+    console.log(`[TRACK] Status code: ${statusCode}, Message: ${statusMessage}, Data status: ${dataStatus}`);
+    
+    // Determine verification status
+    let verificationStatus = "pending";
+    
+    // Check if verification is successful
+    if (statusCode === "000" || statusCode === "0" || statusCode === 0) {
+      verificationStatus = "success";
+    } 
+    // Check if verification failed
+    else if (statusCode !== "002" && statusMessage?.toLowerCase() !== "pending authentication") {
+      verificationStatus = "failed";
+    }
+    
+    // Get the fnumber from the response if available
+    const responseFnumber = verifyResponse.data.data?.fnumber || fnumber;
+    
+    return res.status(200).json({
+      success: true,
+      statusCode,
+      statusMessage,
+      dataStatus,
+      verificationStatus,
+      fnumber: responseFnumber
+    });
+    
+  } catch (err) {
+    console.error('[TRACK] Status tracking error:', err.message);
+    
+    if (err.response) {
+      console.error('[TRACK] Error response status:', err.response.status);
+      console.error('[TRACK] Error response data:', JSON.stringify(err.response.data, null, 2));
+    }
+    
+    return res.status(500).json({ 
+      success: false, 
+      error: `Server error during status tracking: ${err.message}` 
+    });
+  }
+};
