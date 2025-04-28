@@ -340,6 +340,8 @@ module.exports = router;
 
 
 // logss
+
+
 [2FA] Verify response data: {
   "status_code": "000",
   "status_message": "Successful authentication",
@@ -377,3 +379,71 @@ module.exports = router;
 2025-04-28T09:21:45.852Z - POST /users/checkUserBranches
 [BRANCH] Checking branches for user: F8877557
 [BRANCH] User F8877557 not found in system
+
+
+
+
+
+// new getusersbranches
+const checkUserBranches = async (req, res) => {
+  const { fnumber } = req.body;
+  
+  if (!fnumber) {
+    return res.status(400).json({
+      success: false,
+      error: 'F-number is required'
+    });
+  }
+  
+  try {
+    console.log(`[BRANCH] Checking branches for user: ${fnumber}`);
+    
+    // Convert to lowercase to match database format
+    const lowerCaseFnumber = fnumber.toLowerCase();
+    
+    console.log(`[BRANCH] Querying database with value: ${lowerCaseFnumber}`);
+    
+    // Use the email column since that's where the F-number is stored
+    const result = await pool.query(
+      'SELECT id, email, branch, branch_code FROM users_table WHERE email = $1',
+      [lowerCaseFnumber]
+    );
+    
+    if (result.rows.length === 0) {
+      console.log(`[BRANCH] User ${fnumber} not found in system`);
+      return res.status(404).json({
+        success: false,
+        error: 'User not found in system. Please contact administrator.',
+        userExists: false,
+        fnumber
+      });
+    }
+    
+    // Format the branches for the response
+    const branches = result.rows.map(row => ({
+      branchName: row.branch,
+      branchCode: row.branch_code
+    }));
+    
+    console.log(`[BRANCH] User ${fnumber} has access to ${branches.length} branches:`,
+      JSON.stringify(branches, null, 2));
+    
+    // Generate a session token if needed
+    const sessionToken = Math.random().toString(36).substring(2) + Date.now().toString(36);
+    
+    return res.status(200).json({
+      success: true,
+      userExists: true,
+      fnumber,
+      branches,
+      sessionToken // Include session token in response
+    });
+    
+  } catch (err) {
+    console.error('[BRANCH] Error checking user branches:', err.message);
+    return res.status(500).json({
+      success: false,
+      error: `Server error during branch checking: ${err.message}`
+    });
+  }
+};
