@@ -337,3 +337,43 @@ router.put('/:id', authMiddleware, usersController.updateUser);
 router.delete('/:id', authMiddleware, usersController.deleteUser);
 
 module.exports = router;
+
+
+// logss
+[2FA] Verify response data: {
+  "status_code": "000",
+  "status_message": "Successful authentication",
+  "server_timestamp": "2025-04-28T09:21:14.775414588",
+  "data": {
+    "authId": "12bd4050-46e1-4fea-b432-9ed348185725",
+    "clientId": "8ca09f75-720f-4641-9b70-5344850df34e",
+    "status": "Success",
+    "statusMessage": null,
+    "payload": "{\"userId\":\"F8877557\",\"mobile\":\"+233592486117\",\"email\":\"Francis.Kontoh@firstnationalbank.com.gh\",\"userPrincipalName\":\"F8877557@fnb.co.za\",\"title\":\"Internship\",\"name\":\"Kontoh, Francis\",\"manager\":\"CN=Eshun\\\\, Kwesi,OU=DomainUsers,DC=fnb,DC=co,DC=za\",\"memberOf\":[\"CN=AppsDevelopmentTeam_PROD_IT_FNBGhana,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za\",\"CN=APPSTEAM_DEV_IT_Works,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za\",\"CN=W365_VDI_2vCPU8GB256GB_FNB,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za\",\"CN=CLOUD_VDI_FULLACCESS_FNB,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za\",\"CN=GlobalWorkDay_CloudApps_All_Users,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za\",\"CN=GlobalERP_CloudApps_All_Employees,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za\",\"CN=Myappstore_Prod_AllUsers_FNB,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za\",\"CN=GlobalERP_CloudApps_All_Users,OU=Office365,OU=DomainUsers,DC=fnb,DC=co,DC=za\",\"CN=2V_production_FNB_Staff,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za\",\"CN=DLP_Level-1-FullLockdown_prod_FNB,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za\",\"CN=Users for 2FA testing,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za\",\"CN=One Drive Test,OU=DomainGroups,DC=fnb,DC=co,DC=za\",\"CN=InternetUsers - All,OU=InterNet Access,OU=Security,OU=Groups,OU=FNBUsers,DC=fnb,DC=co,DC=za\"]}",
+    "dateCreated": "2025-04-28T09:20:55.088801",
+    "lastUpdated": "2025-04-28T09:21:09.752403",
+    "fnumber": "F8877557"
+  }
+}
+[2FA] 2FA verification successful
+[2FA] User identified as: F8877557
+[2FA] Session token generated for user: F8877557
+[2FA] 2FA verification process complete, returning success response
+[2FA] Full verify response data: {
+  "status_code": "000",
+  "status_message": "Successful authentication",
+  "server_timestamp": "2025-04-28T09:21:14.775414588",
+  "data": {
+    "authId": "12bd4050-46e1-4fea-b432-9ed348185725",
+    "clientId": "8ca09f75-720f-4641-9b70-5344850df34e",
+    "status": "Success",
+    "statusMessage": null,
+    "payload": "{\"userId\":\"F8877557\",\"mobile\":\"+233592486117\",\"email\":\"Francis.Kontoh@firstnationalbank.com.gh\",\"userPrincipalName\":\"F8877557@fnb.co.za\",\"title\":\"Internship\",\"name\":\"Kontoh, Francis\",\"manager\":\"CN=Eshun\\\\, Kwesi,OU=DomainUsers,DC=fnb,DC=co,DC=za\",\"memberOf\":[\"CN=AppsDevelopmentTeam_PROD_IT_FNBGhana,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za\",\"CN=APPSTEAM_DEV_IT_Works,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za\",\"CN=W365_VDI_2vCPU8GB256GB_FNB,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za\",\"CN=CLOUD_VDI_FULLACCESS_FNB,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za\",\"CN=GlobalWorkDay_CloudApps_All_Users,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za\",\"CN=GlobalERP_CloudApps_All_Employees,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za\",\"CN=Myappstore_Prod_AllUsers_FNB,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za\",\"CN=GlobalERP_CloudApps_All_Users,OU=Office365,OU=DomainUsers,DC=fnb,DC=co,DC=za\",\"CN=2V_production_FNB_Staff,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za\",\"CN=DLP_Level-1-FullLockdown_prod_FNB,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za\",\"CN=Users for 2FA testing,OU=GlobalSecurityGroups,OU=DomainGroups,DC=fnb,DC=co,DC=za\",\"CN=One Drive Test,OU=DomainGroups,DC=fnb,DC=co,DC=za\",\"CN=InternetUsers - All,OU=InterNet Access,OU=Security,OU=Groups,OU=FNBUsers,DC=fnb,DC=co,DC=za\"]}",
+    "dateCreated": "2025-04-28T09:20:55.088801",
+    "lastUpdated": "2025-04-28T09:21:09.752403",
+    "fnumber": "F8877557"
+  }
+}
+2025-04-28T09:21:45.852Z - POST /users/checkUserBranches
+[BRANCH] Checking branches for user: F8877557
+[BRANCH] User F8877557 not found in system
