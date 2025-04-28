@@ -496,3 +496,69 @@ const checkUserBranches = async (req, res) => {
     "branchCode": "330119"
   }
 ]
+
+
+// hope
+const checkUserBranches = async () => {
+  setCheckingBranches(true);
+  try {
+    console.log("Checking user branches...");
+    const response = await fetch(`${API_URL}/users/checkUserBranches`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        fnumber: savedIdentifier
+      })
+    });
+    
+    const data = await response.json();
+    console.log("Check user branches response:", data);
+    
+    // Debug the response structure
+    console.log("Response structure:", JSON.stringify(data));
+    
+    // Make sure we have branches before proceeding
+    if (!response.ok) {
+      setLocalError("Failed to retrieve branch access. Please contact support.");
+      return;
+    }
+    
+    // Check for branches in the response - handle different possible structures
+    const branchesArray = data.branches || (Array.isArray(data) ? data : []);
+    
+    if (branchesArray && branchesArray.length > 0) {
+      // Store session token if provided
+      if (data.sessionToken) {
+        setSessionToken(data.sessionToken);
+      }
+      
+      // Set branches from response
+      setBranches(branchesArray);
+      
+      if (branchesArray.length === 1) {
+        // If only one branch, auto-select it and proceed to final login
+        setSelectedBranch(branchesArray[0].branchName);
+        console.log("Auto-selecting single branch:", branchesArray[0].branchName);
+        
+        // Complete final login with the auto-selected branch
+        await handleFinalLogin(savedIdentifier, branchesArray[0].branchName, sessionToken || data.sessionToken);
+      } else {
+        // If multiple branches, show branch selection screen
+        setTimeout(() => {
+          setShowVerification(false);
+          setShowBranchSelection(true);
+          setFetchingBranches(false);
+        }, 1000);
+      }
+    } else {
+      setLocalError('No branches available for this user');
+    }
+  } catch (err) {
+    console.error("Error checking user branches:", err);
+    setLocalError("Failed to check branch access. Please try again.");
+  } finally {
+    setCheckingBranches(false);
+  }
+};

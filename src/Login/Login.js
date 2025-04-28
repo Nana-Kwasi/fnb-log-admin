@@ -1367,7 +1367,6 @@
 // };
 
 // export default Login;
-
 import React, { useState, useEffect, useRef } from "react";
 import { useVisitor } from "../context/VisitorContext";
 import "../login.css";
@@ -1550,7 +1549,7 @@ const Login = ({ onLogin }) => {
     }
   };
   
-  // New function to check user branches
+  // Function to check user branches
   const checkUserBranches = async () => {
     setCheckingBranches(true);
     try {
@@ -1567,25 +1566,32 @@ const Login = ({ onLogin }) => {
       
       const data = await response.json();
       console.log("Check user branches response:", data);
+      console.log("Response structure:", JSON.stringify(data));
       
-      if (!response.ok || !data.success) {
-        setLocalError(data.message || "Failed to retrieve branch access. Please contact support.");
+      if (!response.ok) {
+        setLocalError("Failed to retrieve branch access. Please contact support.");
         return;
       }
       
-      if (data.branches && data.branches.length > 0) {
+      // Handle different possible response structures
+      const branchesArray = data.branches || (Array.isArray(data) ? data : []);
+      
+      if (branchesArray && branchesArray.length > 0) {
         // Store session token if provided
         if (data.sessionToken) {
           setSessionToken(data.sessionToken);
         }
         
-        // Move to branch selection
-        setBranches(data.branches);
+        // Set branches from response
+        setBranches(branchesArray);
         
-        if (data.branches.length === 1) {
+        if (branchesArray.length === 1) {
           // If only one branch, auto-select it and proceed to final login
-          setSelectedBranch(data.branches[0].branchName);
-          handleFinalLogin(savedIdentifier, data.branches[0].branchName, sessionToken || data.sessionToken);
+          setSelectedBranch(branchesArray[0].branchName);
+          console.log("Auto-selecting single branch:", branchesArray[0].branchName);
+          
+          // Complete final login with the auto-selected branch
+          await handleFinalLogin(savedIdentifier, branchesArray[0].branchName, sessionToken || data.sessionToken);
         } else {
           // If multiple branches, show branch selection screen
           setTimeout(() => {
@@ -1605,7 +1611,7 @@ const Login = ({ onLogin }) => {
     }
   };
 
-  // Modified checkVerificationStatus function
+  // Check verification status function
   const checkVerificationStatus = async () => {
     setCheckingStatus(true);
     setLocalError("");
@@ -1834,9 +1840,31 @@ const Login = ({ onLogin }) => {
       }
       // Regular user flow
       else {
-        // Regular user finalization code would go here
         console.log("Finalizing regular user login");
-        // Add your existing code for regular user finalization
+        
+        const userData = {
+          fnumber: identifier,
+          branchName: branch,
+          branchCode: branchCode,
+          role: 'user'
+        };
+        
+        localStorage.setItem('token', sessionToken);
+        localStorage.setItem('user', JSON.stringify(userData));
+        
+        setManualLoginAttempt(true);
+        const success = await login(
+          identifier, 
+          branchCode,
+          sessionToken, 
+          branch, 
+          userData.role
+        );
+        
+        if (!success) {
+          setManualLoginAttempt(false);
+          throw new Error("Login failed. Please try again.");
+        }
       }
       
     } catch (err) {
@@ -1868,7 +1896,7 @@ const Login = ({ onLogin }) => {
       
       if (!response.ok || !data.success) {
         // Check for specific error messages from the server
-        if (data.status_code === "001" && data.status_message.includes("User not found in LDAP")) {
+        if (data.status_code === "001" && data.status_message?.includes("User not found in LDAP")) {
           throw new Error("User not found in LDAP. Please check your credentials.");
         }
         throw new Error(data.error || 'Authentication failed');
@@ -2023,6 +2051,7 @@ const Login = ({ onLogin }) => {
     );
   }
   
+  // 2FA verification screen
   if (showVerification) {
     return (
       <div className="login-container">
@@ -2137,7 +2166,7 @@ const Login = ({ onLogin }) => {
             >
               <option value="">Select Branch</option>
               {branches.map((branch) => (
-                <option key={branch.branchCode} value={branch.branchName}>
+                <option key={branch.branchCode || branch.id || Math.random()} value={branch.branchName}>
                   {branch.branchName}
                 </option>
               ))}
