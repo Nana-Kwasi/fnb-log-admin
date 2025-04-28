@@ -1,5 +1,5 @@
-import React, { useState,useEffect } from "react";
-import { AiOutlineUser, AiOutlineTeam, AiOutlineLeft, AiOutlineRight, AiOutlineLogout } from "react-icons/ai";
+import React, { useState, useEffect, useRef } from "react";
+import { AiOutlineUser, AiOutlineTeam, AiOutlineLeft, AiOutlineRight, AiOutlineLogout, AiOutlineDown } from "react-icons/ai";
 import { Line, Bar } from "react-chartjs-2";
 import { useNavigate } from "react-router-dom";
 import { useVisitor } from "../context/VisitorContext";
@@ -21,6 +21,8 @@ ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarEleme
 const Dashboard = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [modalVisible, setModalVisible] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
   const navigate = useNavigate();
   
   // Use the visitor context
@@ -31,7 +33,8 @@ const Dashboard = () => {
     loading, 
     error, 
     authenticated,
-    logout
+    logout,
+    user
   } = useVisitor();
 
   const { 
@@ -48,9 +51,27 @@ const Dashboard = () => {
     }
   }, [authenticated, loading, navigate]);
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setDropdownOpen(false);
+      }
+    }
+    
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
   const handleLogout = () => {
     logout();
     navigate("/login");
+  };
+
+  const toggleDropdown = () => {
+    setDropdownOpen(!dropdownOpen);
   };
 
   const fetchTodayVisitors = () => {
@@ -147,6 +168,36 @@ const Dashboard = () => {
     },
   };
 
+  // Get user display name
+  const getUserDisplayName = () => {
+    if (!user) return '';
+    
+    // Use name from user object if available
+    if (user.name) {
+      // Format "Lastname, Firstname" to "Firstname Lastname"
+      const nameParts = user.name.split(', ');
+      if (nameParts.length === 2) {
+        return `${nameParts[1]} ${nameParts[0]}`;
+      }
+      return user.name;
+    }
+    
+    // Fallback to email or userId
+    return user.email || user.userId || '';
+  };
+
+  // Get user title or role
+  const getUserTitle = () => {
+    if (!user) return '';
+    return user.title || user.role || '';
+  };
+
+  // Get user email
+  const getUserEmail = () => {
+    if (!user) return '';
+    return user.email || '';
+  };
+
   return (
     <div 
       className="dashboard" 
@@ -155,18 +206,22 @@ const Dashboard = () => {
         padding: '20px'
       }}>
       <div className="dashboard-header">
-        <h1 style={{color:'green'}}>FNB LOGS ADMIN DASHBOARD FOR  {selectedBranchName}</h1>
+        <h1 style={{color:'green'}}>FNB LOGS ADMIN DASHBOARD FOR {selectedBranchName}</h1>
         
         {selectedBranch && (
           <div className="branch-display">
           </div>
         )}
-         <button 
-            onClick={handleLogout}
+        
+        {/* User profile dropdown */}
+        <div className="user-profile-dropdown" ref={dropdownRef}>
+          <button 
+            onClick={toggleDropdown}
+            className="dropdown-button"
             style={{
               display: 'flex',
               alignItems: 'center',
-              backgroundColor: 'white',
+              backgroundColor: '#3498db',
               color: 'white',
               border: 'none',
               borderRadius: '4px',
@@ -176,11 +231,61 @@ const Dashboard = () => {
               boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
             }}
           >
-            <AiOutlineLogout style={{ marginRight: '5px' }} />
-            Logout
+            <AiOutlineUser style={{ marginRight: '5px' }} />
+            {getUserEmail() || 'User Profile'}
+            <AiOutlineDown style={{ marginLeft: '5px' }} />
           </button>
-        
-
+          
+          {dropdownOpen && (
+            <div 
+              className="dropdown-content"
+              style={{
+                position: 'absolute',
+                right: '0',
+                backgroundColor: 'white',
+                minWidth: '250px',
+                boxShadow: '0px 8px 16px 0px rgba(0,0,0,0.2)',
+                zIndex: '1',
+                borderRadius: '4px',
+                marginTop: '5px'
+              }}
+            >
+              <div style={{ padding: '15px', borderBottom: '1px solid #eee' }}>
+                <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>
+                  {getUserDisplayName()}
+                </div>
+                <div style={{ color: '#666', fontSize: '14px' }}>
+                  {getUserTitle()}
+                </div>
+                <div style={{ color: '#666', fontSize: '14px', marginTop: '5px' }}>
+                  {getUserEmail()}
+                </div>
+                {user && user.userId && (
+                  <div style={{ color: '#666', fontSize: '14px', marginTop: '5px' }}>
+                    ID: {user.userId}
+                  </div>
+                )}
+              </div>
+              <button 
+                onClick={handleLogout}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  width: '100%',
+                  padding: '10px 15px',
+                  border: 'none',
+                  backgroundColor: 'transparent',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  color: '#e74c3c'
+                }}
+              >
+                <AiOutlineLogout style={{ marginRight: '5px' }} />
+                Logout
+              </button>
+            </div>
+          )}
+        </div>
       </div>
       
       {loading ? (
@@ -305,7 +410,6 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
-
 
 // import React, { useState, useEffect } from "react";
 // import { AiOutlineUser, AiOutlineTeam, AiOutlineLeft, AiOutlineRight, AiOutlineLogout } from "react-icons/ai";

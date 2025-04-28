@@ -675,6 +675,38 @@ border-radius: 50%;
 border-top-color: #fff;
 animation: spin 1s ease-in-out infinite;
 }
+/* User Profile Dropdown Styles */
+.user-profile-dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.dropdown-button {
+  transition: background-color 0.3s ease;
+}
+
+.dropdown-button:hover {
+  background-color: #2980b9 !important;
+}
+
+.dropdown-content {
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dropdown-content button:hover {
+  background-color: #f1f1f1;
+}
 @keyframes spin {
 0% { transform: translateY(-50%) rotate(0deg); }
 100% { transform: translateY(-50%) rotate(360deg); }

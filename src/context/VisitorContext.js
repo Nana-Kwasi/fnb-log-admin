@@ -349,6 +349,7 @@ export const VisitorProvider = ({ children }) => {
     const day = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   };
+
 const parseAPIDate = (dateStr) => {
   if (!dateStr) {
     console.log("parseAPIDate: No date provided");
@@ -526,6 +527,49 @@ const parseAPIDate = (dateStr) => {
       return false;
     }
   };
+const parseUserProfileFromResponse = (verifyResponseData) => {
+  console.log("Parsing user profile from verify2fa response");
+  
+  if (!verifyResponseData) return null;
+  
+  try {
+    // Extract user data from verify2fa response
+    const { data } = verifyResponseData;
+    
+    if (!data) {
+      console.log("No data object found in verify2fa response");
+      return null;
+    }
+    
+    // Try to parse the payload if it's a string
+    let payloadData = {};
+    if (typeof data.payload === 'string') {
+      try {
+        payloadData = JSON.parse(data.payload);
+        console.log("Successfully parsed payload data", payloadData);
+      } catch (err) {
+        console.error("Error parsing payload JSON:", err);
+      }
+    } else if (typeof data.payload === 'object') {
+      payloadData = data.payload;
+    }
+    
+    // Extract the relevant user information
+    const userProfile = {
+      userId: data.fnumber || payloadData.userId || payloadData.fnumber || "",
+      name: payloadData.name || "",
+      title: payloadData.title || "",
+      email: payloadData.email || "",
+      mobile: payloadData.mobile || ""
+    };
+    
+    console.log("Extracted user profile:", userProfile);
+    return userProfile;
+  } catch (err) {
+    console.error("Error extracting user profile from verify2fa response:", err);
+    return null;
+  }
+};
 
   const verifyToken = async () => {
     if (!token) return false;
@@ -545,7 +589,8 @@ const parseAPIDate = (dateStr) => {
   };
 
  
-const login = async (email, branchCode, authToken = null, branchName = "", role = "") => {
+// Update your login function to include the profile parsing
+const login = async (email, branchCode, authToken = null, branchName = "", role = "", verifyResponseData = null) => {
   setLoading(true);
   setError("");
   
@@ -554,7 +599,18 @@ const login = async (email, branchCode, authToken = null, branchName = "", role 
       setToken(authToken);
       localStorage.setItem('token', authToken);
       
-      const userData = { email, branchCode, branchName, role };
+      // Extract user profile from verify2fa response if available
+      const userProfile = verifyResponseData ? parseUserProfileFromResponse(verifyResponseData) : null;
+      
+      const userData = { 
+        email, 
+        branchCode, 
+        branchName, 
+        role,
+        // Add user profile data if available
+        ...(userProfile ? userProfile : {})
+      };
+      
       setUser(userData);
       localStorage.setItem('user', JSON.stringify(userData));
       
@@ -584,11 +640,20 @@ const login = async (email, branchCode, authToken = null, branchName = "", role 
     
     const data = await response.json();
     
+    // Extract user profile from verify2fa response if available
+    const userProfile = verifyResponseData ? parseUserProfileFromResponse(verifyResponseData) : null;
+    
+    const userDataToStore = {
+      ...(data.user || { email, branchCode, branchName, role }),
+      // Add user profile data if available
+      ...(userProfile ? userProfile : {})
+    };
+    
     localStorage.setItem('token', data.token);
-    localStorage.setItem('user', JSON.stringify(data.user || { email, branchCode, branchName, role }));
+    localStorage.setItem('user', JSON.stringify(userDataToStore));
     
     setToken(data.token);
-    setUser(data.user || { email, branchCode, branchName, role });
+    setUser(userDataToStore);
     setSelectedBranch(branchCode);
     setSelectedBranchName(branchName);
     setAuthenticated(true);
