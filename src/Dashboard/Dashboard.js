@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { AiOutlineUser, AiOutlineTeam, AiOutlineLeft, AiOutlineRight, AiOutlineLogout } from "react-icons/ai";
+import { AiOutlineUser, AiOutlineTeam, AiOutlineLeft, AiOutlineRight } from "react-icons/ai";
 import { Line, Bar } from "react-chartjs-2";
 import { useNavigate } from "react-router-dom";
 import { useVisitor } from "../context/VisitorContext";
@@ -21,7 +21,6 @@ ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarEleme
 const Dashboard = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [modalVisible, setModalVisible] = useState(false);
-  const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const navigate = useNavigate();
   
   // Use the visitor context
@@ -31,9 +30,7 @@ const Dashboard = () => {
     selectedBranchName,
     loading, 
     error, 
-    authenticated,
-    userProfile,
-    logout
+    authenticated 
   } = useVisitor();
 
   const { 
@@ -61,15 +58,6 @@ const Dashboard = () => {
 
   const nextMonth = () => {
     setCurrentDate(new Date(currentDate.setMonth(currentDate.getMonth() + 1)));
-  };
-
-  const handleLogout = () => {
-    logout();
-    navigate("/login");
-  };
-
-  const toggleProfileDropdown = () => {
-    setShowProfileDropdown(!showProfileDropdown);
   };
 
   const generateCalendarDays = () => {
@@ -153,181 +141,139 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="dashboard-layout">
-      {/* New Sidebar */}
-      <div className="sidebar">
-        <div className="sidebar-header">
-          <img src="/FNB logo.png" alt="FNB Logo" className="sidebar-logo" />
-          <h3>FNB LOGS ADMIN</h3>
-        </div>
+    <div 
+      className="dashboard" 
+      style={{
+        minHeight: '100vh',
+        padding: '20px'
+      }}>
+      <div className="dashboard-header">
+        <h1 style={{color:'green'}}>FNB LOGS ADMIN DASHBOARD</h1>
         
-        <div className="sidebar-menu">
-          <div className="menu-item active">
-            <AiOutlineUser className="menu-icon" />
-            <span>Dashboard</span>
+        {selectedBranch && (
+          <div className="branch-display">
+            <h2>Branch: {selectedBranchName} {selectedBranch}</h2>
           </div>
-          {/* Add more menu items as needed */}
-        </div>
-        
-        <div className="sidebar-profile">
-          <div className="profile-header" onClick={toggleProfileDropdown}>
-            <div className="profile-icon">
-              <AiOutlineUser size={24} />
-            </div>
-            <div className="profile-info">
-              <span className="profile-name">{userProfile?.name || "User"}</span>
-              <span className="profile-branch">{selectedBranchName}</span>
-            </div>
-          </div>
-          
-          {showProfileDropdown && (
-            <div className="profile-dropdown">
-              <div className="profile-details">
-                <p><strong>ID:</strong> {userProfile?.userId || "N/A"}</p>
-                <p><strong>Title:</strong> {userProfile?.title || "N/A"}</p>
-                <p><strong>Email:</strong> {userProfile?.email || "N/A"}</p>
-                {userProfile?.mobile && (
-                  <p><strong>Mobile:</strong> {userProfile.mobile}</p>
-                )}
-              </div>
-              <button className="logout-button" onClick={handleLogout}>
-                <AiOutlineLogout /> Logout
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-      
-      {/* Main Content */}
-      <div className="dashboard-content">
-        <div className="dashboard-header">
-          <h1 style={{color:'green'}}>FNB LOGS ADMIN DASHBOARD</h1>
-          
-          {selectedBranch && (
-            <div className="branch-display">
-              <h2>Branch: {selectedBranchName} {selectedBranch}</h2>
-            </div>
-          )}
-        </div>
-        
-        {loading ? (
-          <div className="loading-container">
-            <div className="loading-spinner"></div>
-            <p>Loading dashboard data...</p>
-          </div>
-        ) : error ? (
-          <p className="error">{error}</p>
-        ) : (
-          <>
-            <div className="calendar-container">
-              <div className="calendar-header">
-                <h2>Calendar</h2>
-                <div className="calendar-nav">
-                  <button onClick={previousMonth}>
-                    <AiOutlineLeft />
-                  </button>
-                  <span>
-                    {new Date(
-                      currentDate.getFullYear(),
-                      currentDate.getMonth()
-                    ).toLocaleString("default", { month: "long" })}{" "}
-                    {currentDate.getFullYear()}
-                  </span>
-                  <button onClick={nextMonth}>
-                    <AiOutlineRight />
-                  </button>
-                </div>
-              </div>
-              <div className="calendar-grid">{generateCalendarDays()}</div>
-            </div>
-
-            <div className="stats">
-              <div className="stat-card" onClick={fetchTodayVisitors}>
-                <AiOutlineUser className="icon" />
-                <h3 style={{ color: "white" }}>Visitors Today</h3>
-                <p style={{color:'white'}}>{visitorsToday}</p>
-                {selectedBranchName && <span className="branch-indicator">{selectedBranchName}</span>}
-              </div>
-               
-              <div className="stat-card">
-                <AiOutlineTeam className="icon" />
-                <h3 style={{ color: "white" }}>Total Visitors</h3>
-                <p style={{color:'white'}}>{totalVisitors}</p>
-                {selectedBranch && <span className="branch-indicator">{selectedBranchName}</span>}
-              </div>
-            </div>
-
-            <div className="charts">
-              <div className="chart-container">
-                <h3 style={{color:'green'}}>
-                  Monthly Visitors {selectedBranch ? `- ${selectedBranch}` : ''}
-                </h3>
-                <Line data={lineData} options={chartOptions} />
-              </div>
-              <div className="chart-container">
-                <h3 style={{color:'green'}}>
-                  Monthly Visitors {selectedBranch ? `- ${selectedBranch}` : ''}
-                </h3>
-                <Bar data={barData} options={chartOptions} />
-              </div>
-            </div>
-
-            {modalVisible && (
-              <div className="modal">
-                <div className="modal-content">
-                  <div className="modal-header">
-                    <h2 className="modal-title">
-                      Today's Visitors {selectedBranch ? `- ${selectedBranch}` : ''}
-                    </h2>
-                    <button className="close-button" onClick={closeModal}>&times;</button>
-                  </div>
-                  <div className="modal-body">
-                    {loading ? (
-                      <p>Loading...</p>
-                    ) : todayVisitorsData?.length > 0 ? (
-                      <table className="modal-table">
-                        <thead>
-                          <tr>
-                            <th>Name</th>
-                            <th>Company</th>
-                            <th>Purpose</th>
-                            <th>Reason</th>
-                            <th>Department</th>
-                            <th>Time In</th>
-                            <th>Time Out</th>
-                            <th>Telephone</th>
-                            <th>Branch</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {todayVisitorsData.map((visitor) => (
-                            <tr key={visitor.id || visitor.telephone}>
-                              <td>{visitor.name}</td>
-                              <td>{visitor.company}</td>
-                              <td>{visitor.purpose}</td>
-                              <td>{visitor.reason}</td>
-                              <td>{visitor.department}</td>
-                              <td>{visitor.timeIn || visitor.timein}</td>
-                              <td>{visitor.timeOut || visitor.timeout}</td>
-                              <td>{visitor.telephone}</td>
-                              <td>{visitor.branchname || visitor.branch}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    ) : (
-                      <p>No visitors found for today.</p>
-                    )}
-                  </div>
-                  <div className="modal-footer">
-                    <button onClick={closeModal}>Close</button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </>
         )}
       </div>
+      
+      {loading ? (
+        <div className="loading-container">
+          <div className="loading-spinner"></div>
+          <p>Loading dashboard data...</p>
+        </div>
+      ) : error ? (
+        <p className="error">{error}</p>
+      ) : (
+        <>
+          <div className="calendar-container">
+            <div className="calendar-header">
+              <h2>Calendar</h2>
+              <div className="calendar-nav">
+                <button onClick={previousMonth}>
+                  <AiOutlineLeft />
+                </button>
+                <span>
+                  {new Date(
+                    currentDate.getFullYear(),
+                    currentDate.getMonth()
+                  ).toLocaleString("default", { month: "long" })}{" "}
+                  {currentDate.getFullYear()}
+                </span>
+                <button onClick={nextMonth}>
+                  <AiOutlineRight />
+                </button>
+              </div>
+            </div>
+            <div className="calendar-grid">{generateCalendarDays()}</div>
+          </div>
+
+          <div className="stats">
+            <div className="stat-card" onClick={fetchTodayVisitors}>
+              <AiOutlineUser className="icon" />
+              <h3 style={{ color: "white" }}>Visitors Today</h3>
+              <p style={{color:'white'}}>{visitorsToday}</p>
+              {selectedBranchName && <span className="branch-indicator">{selectedBranchName}</span>}
+            </div>
+             
+            <div className="stat-card">
+              <AiOutlineTeam className="icon" />
+              <h3 style={{ color: "white" }}>Total Visitors</h3>
+              <p style={{color:'white'}}>{totalVisitors}</p>
+              {selectedBranch && <span className="branch-indicator">{selectedBranchName}</span>}
+            </div>
+          </div>
+
+          <div className="charts">
+            <div className="chart-container">
+              <h3 style={{color:'green'}}>
+                Monthly Visitors {selectedBranch ? `- ${selectedBranch}` : ''}
+              </h3>
+              <Line data={lineData} options={chartOptions} />
+            </div>
+            <div className="chart-container">
+              <h3 style={{color:'green'}}>
+                Monthly Visitors {selectedBranch ? `- ${selectedBranch}` : ''}
+              </h3>
+              <Bar data={barData} options={chartOptions} />
+            </div>
+          </div>
+
+          {modalVisible && (
+            <div className="modal">
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h2 className="modal-title">
+                    Today's Visitors {selectedBranch ? `- ${selectedBranch}` : ''}
+                  </h2>
+                  <button className="close-button" onClick={closeModal}>&times;</button>
+                </div>
+                <div className="modal-body">
+                  {loading ? (
+                    <p>Loading...</p>
+                  ) : todayVisitorsData?.length > 0 ? (
+                    <table className="modal-table">
+                      <thead>
+                        <tr>
+                          <th>Name</th>
+                          <th>Company</th>
+                          <th>Purpose</th>
+                          <th>Reason</th>
+                          <th>Department</th>
+                          <th>Time In</th>
+                          <th>Time Out</th>
+                          <th>Telephone</th>
+                          <th>Branch</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {todayVisitorsData.map((visitor) => (
+                          <tr key={visitor.id || visitor.telephone}>
+                            <td>{visitor.name}</td>
+                            <td>{visitor.company}</td>
+                            <td>{visitor.purpose}</td>
+                            <td>{visitor.reason}</td>
+                            <td>{visitor.department}</td>
+                            <td>{visitor.timeIn || visitor.timein}</td>
+                            <td>{visitor.timeOut || visitor.timeout}</td>
+                            <td>{visitor.telephone}</td>
+                            <td>{visitor.branchname || visitor.branch}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <p>No visitors found for today.</p>
+                  )}
+                </div>
+                <div className="modal-footer">
+                  <button onClick={closeModal}>Close</button>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 };

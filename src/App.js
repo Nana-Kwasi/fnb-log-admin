@@ -174,7 +174,7 @@
 
 // export default App;
 import React, { useState, useEffect } from "react";
-import { BrowserRouter as Router, Routes, Route, NavLink } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, NavLink, useNavigate } from "react-router-dom";
 import Dashboard from "../src/Dashboard/Dashboard";
 import VisitorLogs from "../src/VisitorLogs/VisitorLogs";
 import VisitorDetail from "../src/VisitorDetail/VisitorDetail";
@@ -182,7 +182,7 @@ import Reports from "../src/Reports/Reports";
 import Analytics from "../src/Analytics/Analytics";
 import Login from "../src/Login/Login";
 import "./styles.css";
-import { AiOutlineDashboard, AiOutlineBarChart, AiOutlineUser } from "react-icons/ai";
+import { AiOutlineDashboard, AiOutlineBarChart, AiOutlineUser, AiOutlineLogout } from "react-icons/ai";
 import { BsPeople } from "react-icons/bs";
 import { MdReport } from "react-icons/md";
 import { VisitorProvider, useVisitor } from "../src/context/VisitorContext";
@@ -193,8 +193,9 @@ import Graphs from "./Graphs/Graphs";
 import AddUsers from "../src/AddUsers/AddUsers";
 
 const AppContent = ({ handleLogin, userEmail }) => {
-  const { user, authenticated } = useVisitor();
+  const { user, authenticated, userProfile, logout } = useVisitor();
   const [isAdmin, setIsAdmin] = useState(false);
+  const navigate = useNavigate();
   
   useEffect(() => {
     if (user && user.role) {
@@ -218,6 +219,11 @@ const AppContent = ({ handleLogin, userEmail }) => {
     ? `${"*".repeat(8)}${userEmail.slice(8)}`
     : "";
 
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
+
   if (!authenticated) {
     return <Login onLogin={handleLogin} />;
   }
@@ -227,7 +233,22 @@ const AppContent = ({ handleLogin, userEmail }) => {
       <nav className="sidebar">
         <div className="profile-section">
           <AiOutlineUser className="profile-icon" />
-          <p className="profile-name">{maskedEmail}</p>
+          <div className="profile-info">
+            {userProfile && userProfile.name && (
+              <p className="profile-name">{userProfile.name}</p>
+            )}
+            {userProfile && userProfile.title && (
+              <p className="profile-title">{userProfile.title}</p>
+            )}
+            {userProfile && userProfile.userId && (
+              <p className="profile-id">ID: {userProfile.userId}</p>
+            )}
+            <p className="profile-email">{maskedEmail}</p>
+          </div>
+          <button className="logout-button" onClick={handleLogout}>
+            <AiOutlineLogout className="logout-icon" />
+            Logout
+          </button>
         </div>
         <ul className="menu">
           <li>
