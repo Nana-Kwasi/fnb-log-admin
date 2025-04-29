@@ -1,6 +1,6 @@
 {
   "name": "fnb-visitors-log-admin",
-  "version": "2.0.9",
+  "version": "2.1.0",
   "private": true,
   "dependencies": {
     "@react-pdf/renderer": "^4.1.6",
