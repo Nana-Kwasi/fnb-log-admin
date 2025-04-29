@@ -1528,38 +1528,39 @@ const Login = ({ onLogin }) => {
   }, [showVerification, showTimer, remainingTime]);
 
   // Transition effect for successful verification
-  useEffect(() => {
-    if (showTransition) {
-      // Update progress over 10 seconds
-      const progressInterval = setInterval(() => {
-        setTransitionProgress(prev => {
-          if (prev >= 100) {
-            clearInterval(progressInterval);
-            return 100;
-          }
-          return prev + 1;
-        });
-      }, 100); // 10 seconds = 100 steps × 100ms
+ // Transition effect for successful verification
+ useEffect(() => {
+  if (showTransition) {
+    // Update progress over 15 seconds (increased from 10)
+    const progressInterval = setInterval(() => {
+      setTransitionProgress(prev => {
+        if (prev >= 100) {
+          clearInterval(progressInterval);
+          return 100;
+        }
+        return prev + 0.67; // Adjusted for 15 seconds
+      });
+    }, 100); // 15 seconds = 100 steps × 150ms
 
-      // Change message halfway through
-      const messageTimer = setTimeout(() => {
-        setTransitionMessage("Thank you for hanging on");
-      }, 5000); // 5 seconds
+    // Change message halfway through
+    const messageTimer = setTimeout(() => {
+      setTransitionMessage("Thank you for hanging on");
+    }, 7500); // 7.5 seconds (half of 15)
 
-      // Complete transition after 10 seconds
-      const completeTimer = setTimeout(() => {
-        setShowTransition(false);
-        setShowVerification(false);
-        setShowBranchSelection(true);
-      }, 10000); // 10 seconds
+    // Complete transition after 15 seconds
+    const completeTimer = setTimeout(() => {
+      setShowTransition(false);
+      setShowVerification(false);
+      setShowBranchSelection(true);
+    }, 15000); // 15 seconds (increased from 10)
 
-      return () => {
-        clearInterval(progressInterval);
-        clearTimeout(messageTimer);
-        clearTimeout(completeTimer);
-      };
-    }
-  }, [showTransition]);
+    return () => {
+      clearInterval(progressInterval);
+      clearTimeout(messageTimer);
+      clearTimeout(completeTimer);
+    };
+  }
+}, [showTransition]);
 
   // Check if a user is admin based on their identifier
   const checkIfAdmin = (identifier) => {
