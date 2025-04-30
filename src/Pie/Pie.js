@@ -448,8 +448,19 @@ const Dashboard = () => {
             
             <div className="stat-card special">
               <AiOutlinePieChart className="icon" />
-              <h3 style={{ color: "white" }}>Distribution</h3>
-              <p style={{color:'white'}}>View Details</p>
+              <h3 style={{ color: "white" }}>Peak Month</h3>
+              {analyticsData && analyticsData.length > 0 ? (
+                <>
+                  <p style={{color:'white'}}>
+                    {analyticsData.reduce((max, item) => (item.visits > max.visits ? item : max), analyticsData[0]).month}
+                  </p>
+                  <span style={{color:'rgba(255,255,255,0.8)', fontSize: '14px', marginTop: '5px'}}>
+                    {analyticsData.reduce((max, item) => (item.visits > max.visits ? item : max), analyticsData[0]).visits} visitors
+                  </span>
+                </>
+              ) : (
+                <p style={{color:'white'}}>No data available</p>
+              )}
               {selectedBranch && <span className="branch-indicator">{selectedBranchName}</span>}
             </div>
           </div>
@@ -583,11 +594,18 @@ const Dashboard = () => {
         .stat-card.special {
           background: linear-gradient(135deg, #5b247a 0%, #1bcedf 100%);
           transition: all 0.3s ease;
+          display: flex;
+          flex-direction: column;
         }
         
         .stat-card.special:hover {
           transform: translateY(-5px);
           box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+        
+        .stat-card.special span {
+          display: block;
+          margin-top: 5px;
         }
         
         @media (min-width: 1200px) {
