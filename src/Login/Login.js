@@ -2274,7 +2274,7 @@ const Login = ({ onLogin }) => {
     disabled={checkingStatus}
     style={styles.verifyButtonAppear}
   >
-    {checkingStatus ? <span className="spinner"></span> : "Check Verification Status"}
+    {checkingStatus ? <span className="spinner"></span> : "Proceed to branch verifying"}
   </button>
 )}
 

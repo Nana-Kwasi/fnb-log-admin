@@ -277,7 +277,7 @@ const Dashboard = () => {
                   backgroundColor: 'transparent',
                   cursor: 'pointer',
                   textAlign: 'left',
-                  color: '#e74c3c'
+                  color: 'white'
                 }}
               >
                 <AiOutlineLogout style={{ marginRight: '5px' }} />

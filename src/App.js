@@ -227,15 +227,9 @@ const AppContent = ({ handleLogin, userEmail }) => {
   return (
     <>
       <nav className="sidebar">
-{/*       <div>
-        <img 
-          src="/FNB LOGO.png" 
-          alt="Profile Logo" 
-          className="profile-icon" 
-          style={{ width: '50px', height: '50px', borderRadius: '50%' }} 
-        />
-        <p className="profile-name">{maskedEmail}</p>
-      </div> */}
+        
+
+
 
         <ul className="menu">
           <li>
@@ -277,6 +271,16 @@ const AppContent = ({ handleLogin, userEmail }) => {
             </NavLink>
           </li>
         </ul>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1px', padding: '1px', backgroundColor: '#f0f0f0',}}>
+    <img 
+        src="/RAN.png" 
+        alt="Profile Logo" 
+        className="profile-icon" 
+        style={{ width: '100px', height: '100px', marginLeft:'40px'}} 
+    />
+    <p className="profile-name" style={{ fontSize: '1.2em', fontWeight: 'bold', color: '#333' }}>{maskedEmail}</p>
+</div>
+
       </nav>
 
       
