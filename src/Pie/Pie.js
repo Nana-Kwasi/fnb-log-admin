@@ -211,14 +211,14 @@ const Dashboard = () => {
     },
   };
   
-  // Pie chart options
+  // Pie chart options - Updated to arrange months horizontally
   const pieChartOptions = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
       legend: { 
         display: true, 
-        position: "right",
+        position: "bottom", // Changed from "right" to "bottom" for horizontal arrangement
         labels: {
           boxWidth: 15,
           padding: 15,
@@ -431,37 +431,50 @@ const Dashboard = () => {
             <div className="calendar-grid">{generateCalendarDays()}</div>
           </div>
 
-          <div className="stats">
-            <div className="stat-card" onClick={fetchTodayVisitors}>
-              <AiOutlineUser className="icon" />
-              <h3 style={{ color: "white" }}>Visitors Today</h3>
-              <p style={{color:'white'}}>{visitorsToday}</p>
-              {selectedBranchName && <span className="branch-indicator">{selectedBranchName}</span>}
+          {/* Stats and Pie Chart Container - Now on same line */}
+          <div className="stats-and-pie-container">
+            <div className="stats">
+              <div className="stat-card" onClick={fetchTodayVisitors}>
+                <AiOutlineUser className="icon" />
+                <h3 style={{ color: "white" }}>Visitors Today</h3>
+                <p style={{color:'white'}}>{visitorsToday}</p>
+                {selectedBranchName && <span className="branch-indicator">{selectedBranchName}</span>}
+              </div>
+               
+              <div className="stat-card">
+                <AiOutlineTeam className="icon" />
+                <h3 style={{ color: "white" }}>Total Visitors</h3>
+                <p style={{color:'white'}}>{totalVisitors}</p>
+                {selectedBranch && <span className="branch-indicator">{selectedBranchName}</span>}
+              </div>
+              
+              <div className="stat-card special">
+                <AiOutlinePieChart className="icon" />
+                <h3 style={{ color: "white" }}>Peak Month</h3>
+                {analyticsData && analyticsData.length > 0 ? (
+                  <>
+                    <p style={{color:'white'}}>
+                      {analyticsData.reduce((max, item) => (item.visits > max.visits ? item : max), analyticsData[0]).month}
+                    </p>
+                    <span style={{color:'rgba(255,255,255,0.8)', fontSize: '14px', marginTop: '5px'}}>
+                      {analyticsData.reduce((max, item) => (item.visits > max.visits ? item : max), analyticsData[0]).visits} visitors
+                    </span>
+                  </>
+                ) : (
+                  <p style={{color:'white'}}>No data available</p>
+                )}
+                {selectedBranch && <span className="branch-indicator">{selectedBranchName}</span>}
+              </div>
             </div>
-             
-            <div className="stat-card">
-              <AiOutlineTeam className="icon" />
-              <h3 style={{ color: "white" }}>Total Visitors</h3>
-              <p style={{color:'white'}}>{totalVisitors}</p>
-              {selectedBranch && <span className="branch-indicator">{selectedBranchName}</span>}
-            </div>
-            
-            <div className="stat-card special">
-              <AiOutlinePieChart className="icon" />
-              <h3 style={{ color: "white" }}>Peak Month</h3>
-              {analyticsData && analyticsData.length > 0 ? (
-                <>
-                  <p style={{color:'white'}}>
-                    {analyticsData.reduce((max, item) => (item.visits > max.visits ? item : max), analyticsData[0]).month}
-                  </p>
-                  <span style={{color:'rgba(255,255,255,0.8)', fontSize: '14px', marginTop: '5px'}}>
-                    {analyticsData.reduce((max, item) => (item.visits > max.visits ? item : max), analyticsData[0]).visits} visitors
-                  </span>
-                </>
-              ) : (
-                <p style={{color:'white'}}>No data available</p>
-              )}
-              {selectedBranch && <span className="branch-indicator">{selectedBranchName}</span>}
+
+            {/* Pie Chart - Now beside stat cards */}
+            <div className="pie-chart-container">
+              <h3 style={{color:'green'}}>
+                Visitor Distribution {selectedBranch ? `- ${selectedBranchName}` : ''}
+              </h3>
+              <div className="pie-chart-wrapper">
+                <Pie data={pieData} options={pieChartOptions} />
+              </div>
             </div>
           </div>
 
@@ -478,18 +491,6 @@ const Dashboard = () => {
                   Monthly Visitors {selectedBranch ? `- ${selectedBranchName}` : ''}
                 </h3>
                 <Bar data={barData} options={chartOptions} />
-              </div>
-            </div>
-            
-            {/* New Pie Chart Section */}
-            <div className="pie-chart-section">
-              <div className="pie-chart-container">
-                <h3 style={{color:'green'}}>
-                  Visitor Distribution {selectedBranch ? `- ${selectedBranchName}` : ''}
-                </h3>
-                <div className="pie-chart-wrapper">
-                  <Pie data={pieData} options={pieChartOptions} />
-                </div>
               </div>
             </div>
           </div>
@@ -550,18 +551,88 @@ const Dashboard = () => {
         </>
       )}
       
-      {/* CSS for the new Pie Chart */}
+      {/* Updated CSS to put stats and pie chart on same line */}
       <style jsx>{`
+        .stats-and-pie-container {
+          display: flex;
+          gap: 20px;
+          margin-bottom: 20px;
+        }
+        
+        .stats {
+          display: flex;
+          gap: 15px;
+          flex: 1;
+        }
+        
+        .stat-card {
+          flex: 1;
+          background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+          border-radius: 10px;
+          padding: 20px;
+          color: white;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          text-align: center;
+          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+          cursor: pointer;
+          transition: all 0.3s ease;
+        }
+        
+        .stat-card:hover {
+          transform: translateY(-5px);
+          box-shadow: 0 8px 15px rgba(0, 0, 0, 0.15);
+        }
+        
+        .stat-card .icon {
+          font-size: 2.5rem;
+          margin-bottom: 10px;
+          color: white;
+        }
+        
+        .stat-card h3 {
+          margin: 0;
+          font-size: 1.2rem;
+          margin-bottom: 5px;
+        }
+        
+        .stat-card p {
+          margin: 0;
+          font-size: 1.8rem;
+          font-weight: bold;
+        }
+        
         .charts-container {
           display: flex;
           flex-direction: column;
           gap: 20px;
         }
         
-        .pie-chart-section {
+        .charts {
           display: flex;
-          justify-content: center;
-          margin-top: 20px;
+          flex-direction: column;
+          gap: 20px;
+        }
+        
+        .chart-container {
+          background-color: white;
+          border-radius: 10px;
+          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+          padding: 20px;
+          height: 400px;
+          transition: all 0.3s ease;
+        }
+        
+        .chart-container:hover {
+          box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+          transform: translateY(-3px);
+        }
+        
+        .chart-container h3 {
+          margin-top: 0;
+          margin-bottom: 15px;
+          text-align: center;
         }
         
         .pie-chart-container {
@@ -570,8 +641,8 @@ const Dashboard = () => {
           box-shadow: 0 4px 15px rgba(0,0,0,0.1);
           padding: 20px;
           transition: all 0.3s ease;
-          width: 100%;
-          max-width: 800px;
+          flex: 1;
+          max-width: 50%;
         }
         
         .pie-chart-container:hover {
@@ -587,7 +658,7 @@ const Dashboard = () => {
         }
         
         .pie-chart-wrapper {
-          height: 400px;
+          height: 300px;
           position: relative;
         }
         
@@ -616,6 +687,16 @@ const Dashboard = () => {
           
           .chart-container {
             flex: 1;
+          }
+        }
+        
+        @media (max-width: 1000px) {
+          .stats-and-pie-container {
+            flex-direction: column;
+          }
+          
+          .pie-chart-container {
+            max-width: 100%;
           }
         }
       `}</style>
