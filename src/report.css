@@ -53,7 +53,7 @@
 
 .filter-section button {
     padding: 12px 25px;
-    background-color: #4CAF50;
+    background-color: #e5bb00;
     color: white;
     border: none;
     border-radius: 8px;
@@ -127,7 +127,7 @@
     display: block;
     margin: 30px auto 0;
     padding: 12px 30px;
-    background-color: #007BFF;
+    background-color: #ffea00;
     color: white;
     border: none;
     border-radius: 8px;
@@ -139,7 +139,7 @@
 }
 
 .download-btn:hover {
-    background-color: #0056b3;
+    background-color: #000000;
     transform: scale(1.05);
 }
 

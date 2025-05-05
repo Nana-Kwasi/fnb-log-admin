@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
-import { AiOutlineUser, AiOutlineTeam, AiOutlineLeft, AiOutlineRight, AiOutlineLogout, AiOutlineDown } from "react-icons/ai";
-import { Line, Bar } from "react-chartjs-2";
+import { AiOutlineUser, AiOutlineTeam, AiOutlineLeft, AiOutlineRight, AiOutlineLogout, AiOutlineDown, AiOutlinePieChart } from "react-icons/ai";
+import { Line, Bar, Pie } from "react-chartjs-2";
 import { useNavigate } from "react-router-dom";
 import { useVisitor } from "../context/VisitorContext";
 import {
@@ -10,13 +10,24 @@ import {
   PointElement,
   LineElement,
   BarElement,
+  ArcElement,
   Title,
   Tooltip,
   Legend,
 } from "chart.js";
 import "../dashboard.css";
 
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend);
+ChartJS.register(
+  CategoryScale, 
+  LinearScale, 
+  PointElement, 
+  LineElement, 
+  BarElement, 
+  ArcElement, // Register ArcElement for Pie chart
+  Title, 
+  Tooltip, 
+  Legend
+);
 
 const Dashboard = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -150,6 +161,38 @@ const Dashboard = () => {
     ],
   };
 
+  // Pie chart data using the same analytics data
+  const pieData = {
+    labels: analyticsData?.map((item) => item.month) || [],
+    datasets: [
+      {
+        label: "Visitors Distribution",
+        data: analyticsData?.map((item) => item.visits) || [],
+        backgroundColor: [
+          'rgba(52, 152, 219, 0.8)',  // Blue
+          'rgba(46, 204, 113, 0.8)',  // Green
+          'rgba(155, 89, 182, 0.8)',  // Purple
+          'rgba(241, 196, 15, 0.8)',  // Yellow
+          'rgba(231, 76, 60, 0.8)',   // Red
+          'rgba(230, 126, 34, 0.8)',  // Orange
+          'rgba(26, 188, 156, 0.8)',  // Turquoise
+          'rgba(52, 73, 94, 0.8)',    // Dark blue
+          'rgba(149, 165, 166, 0.8)', // Gray
+          'rgba(243, 156, 18, 0.8)',  // Orange-yellow
+          'rgba(211, 84, 0, 0.8)',    // Dark orange
+          'rgba(22, 160, 133, 0.8)',  // Dark turquoise
+        ],
+        borderColor: [
+          '#3498db', '#2ecc71', '#9b59b6', '#f1c40f', 
+          '#e74c3c', '#e67e22', '#1abc9c', '#34495e',
+          '#95a5a6', '#f39c12', '#d35400', '#16a085',
+        ],
+        borderWidth: 2,
+        hoverOffset: 15,
+      },
+    ],
+  };
+
   const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
@@ -166,6 +209,75 @@ const Dashboard = () => {
         ticks: { color: "#34495e", font: { size: 17 } },
       },
     },
+  };
+  
+  // Pie chart options - Updated to arrange months horizontally
+  const pieChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { 
+        display: true, 
+        position: "bottom", // Changed from "right" to "bottom" for horizontal arrangement
+        labels: {
+          boxWidth: 15,
+          padding: 15,
+          font: {
+            size: 12,
+            weight: 'bold'
+          }
+        }
+      },
+      tooltip: {
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        bodyFont: {
+          size: 14
+        },
+        titleFont: {
+          size: 16,
+          weight: 'bold'
+        },
+        callbacks: {
+          label: function(context) {
+            const label = context.label || '';
+            const value = context.raw || 0;
+            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+            const percentage = Math.round((value / total) * 100);
+            return `${label}: ${value} visitors (${percentage}%)`;
+          }
+        }
+      },
+      title: {
+        display: true,
+        text: 'Monthly Visitor Distribution',
+        font: {
+          size: 16,
+          weight: 'bold'
+        },
+        color: '#333',
+        padding: {
+          top: 10,
+          bottom: 10
+        }
+      },
+      datalabels: {
+        color: '#fff',
+        font: {
+          weight: 'bold'
+        },
+        formatter: (value, ctx) => {
+          const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+          const percentage = Math.round((value / total) * 100);
+          return percentage + '%';
+        }
+      }
+    },
+    animation: {
+      animateRotate: true,
+      animateScale: true
+    },
+    cutout: '30%',
+    radius: '90%'
   };
 
   // Get user display name
@@ -206,7 +318,7 @@ const Dashboard = () => {
         padding: '20px'
       }}>
       <div className="dashboard-header">
-        <h1 style={{color:'green'}}>FNB LOGS ADMIN DASHBOARD FOR {selectedBranchName}</h1>
+        <h1 style={{color:'black'}}>FNB LOGS ADMIN DASHBOARD FOR {selectedBranchName}</h1>
         
         {selectedBranch && (
           <div className="branch-display">
@@ -277,7 +389,7 @@ const Dashboard = () => {
                   backgroundColor: 'transparent',
                   cursor: 'pointer',
                   textAlign: 'left',
-                  color: 'white'
+                  color: 'red'
                 }}
               >
                 <AiOutlineLogout style={{ marginRight: '5px' }} />
@@ -319,34 +431,67 @@ const Dashboard = () => {
             <div className="calendar-grid">{generateCalendarDays()}</div>
           </div>
 
-          <div className="stats">
-            <div className="stat-card" onClick={fetchTodayVisitors}>
-              <AiOutlineUser className="icon" />
-              <h3 style={{ color: "white" }}>Visitors Today</h3>
-              <p style={{color:'white'}}>{visitorsToday}</p>
-              {selectedBranchName && <span className="branch-indicator">{selectedBranchName}</span>}
+          {/* Stats and Pie Chart Container - Now on same line */}
+          <div className="stats-and-pie-container">
+            <div className="stats">
+              <div className="stat-card" onClick={fetchTodayVisitors}>
+                <AiOutlineUser className="icon" />
+                <h3 style={{ color: "white" }}>Visitors Today</h3>
+                <p style={{color:'white'}}>{visitorsToday}</p>
+                {selectedBranchName && <span className="branch-indicator">{selectedBranchName}</span>}
+              </div>
+               
+              <div className="stat-card">
+                <AiOutlineTeam className="icon" />
+                <h3 style={{ color: "white" }}>Total Visitors</h3>
+                <p style={{color:'white'}}>{totalVisitors}</p>
+                {selectedBranch && <span className="branch-indicator">{selectedBranchName}</span>}
+              </div>
+              
+              <div className="stat-card special">
+                <AiOutlinePieChart className="icon" />
+                <h3 style={{ color: "white" }}>Peak Month</h3>
+                {analyticsData && analyticsData.length > 0 ? (
+                  <>
+                    <p style={{color:'white'}}>
+                      {analyticsData.reduce((max, item) => (item.visits > max.visits ? item : max), analyticsData[0]).month}
+                    </p>
+                    <span style={{color:'rgba(255,255,255,0.8)', fontSize: '14px', marginTop: '5px'}}>
+                      {analyticsData.reduce((max, item) => (item.visits > max.visits ? item : max), analyticsData[0]).visits} visitors
+                    </span>
+                  </>
+                ) : (
+                  <p style={{color:'white'}}>No data available</p>
+                )}
+                {selectedBranch && <span className="branch-indicator">{selectedBranchName}</span>}
+              </div>
             </div>
-             
-            <div className="stat-card">
-              <AiOutlineTeam className="icon" />
-              <h3 style={{ color: "white" }}>Total Visitors</h3>
-              <p style={{color:'white'}}>{totalVisitors}</p>
-              {selectedBranch && <span className="branch-indicator">{selectedBranchName}</span>}
+
+            {/* Pie Chart - Now beside stat cards */}
+            <div className="pie-chart-container">
+              <h3 style={{color:'green'}}>
+                Visitor Distribution {selectedBranch ? `- ${selectedBranchName}` : ''}
+              </h3>
+              <div className="pie-chart-wrapper">
+                <Pie data={pieData} options={pieChartOptions} />
+              </div>
             </div>
           </div>
 
-          <div className="charts">
-            <div className="chart-container">
-              <h3 style={{color:'green'}}>
-                Monthly Visitors {selectedBranch ? `- ${selectedBranch}` : ''}
-              </h3>
-              <Line data={lineData} options={chartOptions} />
-            </div>
-            <div className="chart-container">
-              <h3 style={{color:'green'}}>
-                Monthly Visitors {selectedBranch ? `- ${selectedBranch}` : ''}
-              </h3>
-              <Bar data={barData} options={chartOptions} />
+          <div className="charts-container">
+            <div className="charts">
+              <div className="chart-container">
+                <h3 style={{color:'green'}}>
+                  Monthly Visitors {selectedBranch ? `- ${selectedBranchName}` : ''}
+                </h3>
+                <Line data={lineData} options={chartOptions} />
+              </div>
+              <div className="chart-container">
+                <h3 style={{color:'green'}}>
+                  Monthly Visitors {selectedBranch ? `- ${selectedBranchName}` : ''}
+                </h3>
+                <Bar data={barData} options={chartOptions} />
+              </div>
             </div>
           </div>
 
@@ -355,7 +500,7 @@ const Dashboard = () => {
               <div className="modal-content">
                 <div className="modal-header">
                   <h2 className="modal-title">
-                    Today's Visitors {selectedBranch ? `- ${selectedBranch}` : ''}
+                    Today's Visitors {selectedBranch ? `- ${selectedBranchName}` : ''}
                   </h2>
                   <button className="close-button" onClick={closeModal}>&times;</button>
                 </div>
@@ -405,6 +550,156 @@ const Dashboard = () => {
           )} 
         </>
       )}
+      
+      {/* Updated CSS to put stats and pie chart on same line */}
+      <style jsx>{`
+        .stats-and-pie-container {
+          display: flex;
+          gap: 20px;
+          margin-bottom: 20px;
+        }
+        
+        .stats {
+          display: flex;
+          gap: 15px;
+          flex: 1;
+        }
+        
+        .stat-card {
+          flex: 1;
+          background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+          border-radius: 10px;
+          padding: 20px;
+          color: white;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          text-align: center;
+          box-shadow: 0 4px 8px rgb(249, 243, 243);
+          cursor: pointer;
+          transition: all 0.3s ease;
+        }
+        
+        .stat-card:hover {
+          transform: translateY(-5px);
+          box-shadow: 0 8px 15px rgba(0, 0, 0, 0.15);
+        }
+        
+        .stat-card .icon {
+          font-size: 2.5rem;
+          margin-bottom: 10px;
+          color: white;
+        }
+        
+        .stat-card h3 {
+          margin: 0;
+          font-size: 1.2rem;
+          margin-bottom: 5px;
+        }
+        
+        .stat-card p {
+          margin: 0;
+          font-size: 1.8rem;
+          font-weight: bold;
+        }
+        
+        .charts-container {
+          display: flex;
+          flex-direction: column;
+          gap: 20px;
+        }
+        
+        .charts {
+          display: flex;
+          flex-direction: column;
+          gap: 20px;
+        }
+        
+        .chart-container {
+          background-color: white;
+          border-radius: 10px;
+          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+          padding: 20px;
+          height: 400px;
+          transition: all 0.3s ease;
+        }
+        
+        .chart-container:hover {
+          box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+          transform: translateY(-3px);
+        }
+        
+        .chart-container h3 {
+          margin-top: 0;
+          margin-bottom: 15px;
+          text-align: center;
+        }
+        
+        .pie-chart-container {
+          background-color: white;
+          border-radius: 10px;
+          box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+          padding: 20px;
+          transition: all 0.3s ease;
+          flex: 1;
+          max-width: 50%;
+        }
+        
+        .pie-chart-container:hover {
+          box-shadow: 0 6px 22px rgba(0,0,0,0.15);
+          transform: translateY(-3px);
+        }
+        
+        .pie-chart-container h3 {
+          margin-top: 0;
+          margin-bottom: 15px;
+          text-align: center;
+          font-size: 18px;
+        }
+        
+        .pie-chart-wrapper {
+          height: 300px;
+          position: relative;
+        }
+        
+        .stat-card.special {
+          background: linear-gradient(135deg, #5b247a 0%, #1bcedf 100%);
+          transition: all 0.3s ease;
+          display: flex;
+          flex-direction: column;
+        }
+        
+        .stat-card.special:hover {
+          transform: translateY(-5px);
+          box-shadow: 0 10px 25px rgba(231, 232, 226, 0.2);
+        }
+        
+        .stat-card.special span {
+          display: block;
+          margin-top: 5px;
+        }
+        
+        @media (min-width: 1200px) {
+          .charts {
+            flex-direction: row;
+            gap: 20px;
+          }
+          
+          .chart-container {
+            flex: 1;
+          }
+        }
+        
+        @media (max-width: 1000px) {
+          .stats-and-pie-container {
+            flex-direction: column;
+          }
+          
+          .pie-chart-container {
+            max-width: 100%;
+          }
+        }
+      `}</style>
     </div>
   );
 };

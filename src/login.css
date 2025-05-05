@@ -47,7 +47,7 @@ form .error-message {
     padding: 10px;
     border: none;
     border-radius: 5px;
-    background-color: #fbb03b; /* Orange button */
+    background-color: #ffa200; /* Orange button */
     color: white;
     font-size: 1rem;
     cursor: pointer;
@@ -171,18 +171,7 @@ form .error-message {
     box-shadow: 0 0 0 2px rgba(30, 84, 159, 0.1);
   }
   
-  .login-button {
-    width: 100%;
-    padding: 12px;
-    background-color: #1e549f;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    font-size: 16px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background-color 0.3s;
-  }
+  
   
   .login-button:hover {
     background-color: #164178;
@@ -307,18 +296,7 @@ form .error-message {
     align-items: center;
   }
   
-  .login-button {
-    width: 100%;
-    padding: 0.75rem;
-    background-color: #e17055;
-    color: white;
-    border: none;
-    border-radius: 0.5rem;
-    font-size: 1rem;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-    margin-top: 1rem;
-  }
+
   
   .login-button:hover {
     background-color: #d35400;
@@ -440,18 +418,7 @@ form .error-message {
     align-items: center;
   }
   
-  .login-button {
-    width: 100%;
-    padding: 0.75rem;
-    background-color: #e17055;
-    color: white;
-    border: none;
-    border-radius: 0.5rem;
-    font-size: 1rem;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-    margin-top: 1rem;
-  }
+ 
   
   .login-button:hover {
     background-color: #d35400;

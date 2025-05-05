@@ -1674,7 +1674,7 @@ const Login = ({ onLogin }) => {
         },
         body: JSON.stringify({
           token: authToken,
-          code: "", // Empty code to just check status
+          code: "",
           fnumber: savedIdentifier
         })
       });
@@ -1726,19 +1726,16 @@ const Login = ({ onLogin }) => {
     setRemainingTime(60); // Changed to 60 seconds
     setShowTimer(true);
     
-    // Clear any existing interval
+    
     if (pollingIntervalRef.current) {
       clearInterval(pollingIntervalRef.current);
     }
     
-    // Use a longer interval to reduce API calls (5 seconds instead of 3)
     pollingIntervalRef.current = setInterval(async () => {
-      // Skip polling if we're manually checking or if status is no longer pending
       if (checkingStatus || pollingStatus !== "pending") {
         return;
       }
       
-      // Check if we've exceeded the max polling time
       if (Date.now() - pollingStartTimeRef.current > maxPollingTime) {
         clearInterval(pollingIntervalRef.current);
         setPollingStatus("failed");
@@ -1746,7 +1743,6 @@ const Login = ({ onLogin }) => {
         return;
       }
       
-      // Use the new track2FAStatus API instead of calling verify2fa directly
       await track2FAStatus();
       
     }, 5000); 
