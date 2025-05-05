@@ -1493,3 +1493,281 @@
 
 // export default Login;
 
+
+
+// Fix 1: Updated track2FAStatus function to handle automatic navigation after 2FA success
+const track2FAStatus = async () => {
+    try {
+      console.log("Tracking 2FA status...");
+      const response = await fetch(`${API_URL}/users/track2FAStatus`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          token: authToken,
+          fnumber: savedIdentifier
+        })
+      });
+      
+      const data = await response.json();
+      console.log("Track 2FA status response:", data);
+      
+      if (response.ok && data.success && data.status === "Success") {
+        // 2FA verification was successful
+        setPollingStatus("success");
+        clearInterval(pollingIntervalRef.current);
+        
+        // Save the 2FA status response for user data extraction
+        sessionStorage.setItem('verify2faResponse', JSON.stringify(data));
+        
+        // Clear any button fading interval
+        if (buttonFadeIntervalRef.current) {
+          clearInterval(buttonFadeIntervalRef.current);
+        }
+        
+        // Wait a brief moment for the success state to be visible before transitioning
+        setTimeout(async () => {
+          // Now check user branches
+          await checkUserBranches(data);
+        }, 1500); // 1.5 seconds delay to show success state
+      }
+    } catch (err) {
+      console.error("Error tracking 2FA status:", err);
+    }
+  };
+  
+  // Fix 2: Updated checkUserBranches function to properly display transition messages
+  const checkUserBranches = async () => {
+    setCheckingBranches(true);
+    try {
+      console.log("Checking user branches...");
+      
+      // First, show the transition screen immediately with initial message
+      setShowTransition(true);
+      setTransitionProgress(0);
+      setTransitionMessage("Checking your assigned branches...");
+      
+      // Then make the actual API call
+      const response = await fetch(`${API_URL}/users/checkUserBranches`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          fnumber: savedIdentifier
+        })
+      });
+      
+      const data = await response.json();
+      console.log("Check user branches response:", data);
+      console.log("Response structure:", JSON.stringify(data));
+      
+      if (!response.ok) {
+        setLocalError("Failed to retrieve branch access. Please contact support.");
+        setShowTransition(false);
+        return;
+      }
+      
+      // Handle different possible response structures
+      const branchesArray = data.branches || (Array.isArray(data) ? data : []);
+      
+      if (branchesArray && branchesArray.length > 0) {
+        // Store session token if provided
+        if (data.sessionToken) {
+          setSessionToken(data.sessionToken);
+        }
+        
+        // Set branches from response
+        setBranches(branchesArray);
+        
+        if (branchesArray.length === 1) {
+          // If only one branch, show the full transition experience before auto-selecting
+          // Continue showing transition screen for the full duration
+          setTimeout(() => {
+            setTransitionMessage("Branch found. Preparing your dashboard...");
+            setTimeout(() => {
+              setShowTransition(false);
+              
+              // Auto-select the single branch and proceed to final login
+              const singleBranch = branchesArray[0].branchName;
+              setSelectedBranch(singleBranch);
+              console.log("Auto-selecting single branch:", singleBranch);
+              
+              // Complete final login with the auto-selected branch
+              handleFinalLogin(savedIdentifier, singleBranch, sessionToken || data.sessionToken);
+            }, 5000); // Show second message for 5 seconds
+          }, 5000); // Show first message for 5 seconds
+        } else {
+          // For multiple branches, let the transition effect complete naturally
+          // The useEffect for showTransition will handle showing branch selection
+        }
+      } else {
+        setShowTransition(false);
+        setLocalError('No branches available for this user');
+      }
+    } catch (err) {
+      console.error("Error checking user branches:", err);
+      setLocalError("Failed to check branch access. Please try again.");
+      setShowTransition(false);
+    } finally {
+      // Don't set checkingBranches to false here as we want the transition to complete
+    }
+  };
+  
+  // Fix 3: Updated manual check verification status function for the same flow
+  const checkVerificationStatus = async () => {
+    setCheckingStatus(true);
+    setLocalError("");
+    
+    try {
+      console.log("Manually checking 2FA status...");
+      const response = await fetch(`${API_URL}/users/verify2fa`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          token: authToken,
+          code: "",
+          fnumber: savedIdentifier
+        })
+      });
+      
+      const data = await response.json();
+      console.log("Manual 2FA status check response:", data);
+      
+      // First, check if 2FA verification itself was successful
+      const is2FASuccessful = response.ok && (
+        data.success === true || 
+        data.status_code === "000" || 
+        data.status_code === 0
+      );
+      
+      if (is2FASuccessful) {
+        setPollingStatus("success"); // Mark 2FA itself as successful
+        
+        // Clear any button fading interval
+        if (buttonFadeIntervalRef.current) {
+          clearInterval(buttonFadeIntervalRef.current);
+        }
+        
+        // Wait a brief moment for the success state to be visible before transitioning
+        setTimeout(async () => {
+          // Now check user branches using the separate API
+          await checkUserBranches();
+        }, 1500); // 1.5 seconds delay to show success state
+        
+        return;
+      }
+      
+      // Handle pending status appropriately
+      if (data.status_code === "002" || data.status_message?.includes("Pending")) {
+        setLocalError("Authentication is still pending. Please approve the request on your phone.");
+        return;
+      }
+      
+      // If it's not successful and not pending, it's failed
+      setPollingStatus("failed");
+      setLocalError(data.status_message || data.error || "Verification failed. Please try again.");
+      
+    } catch (err) {
+      console.error("Error checking 2FA status:", err);
+      setLocalError("Error checking verification status. Please try again.");
+      setPollingStatus("failed");
+    } finally {
+      setCheckingStatus(false);
+    }
+  };
+  
+  // Fix 4: Improved transition effect for clearer messaging
+  useEffect(() => {
+    if (showTransition) {
+      // Update progress over 15 seconds
+      const progressInterval = setInterval(() => {
+        setTransitionProgress(prev => {
+          if (prev >= 100) {
+            clearInterval(progressInterval);
+            return 100;
+          }
+          return prev + 0.67; // Adjusted for 15 seconds
+        });
+      }, 100); // 15 seconds = 100 steps × 150ms
+  
+      // Change message halfway through
+      const messageTimer = setTimeout(() => {
+        setTransitionMessage("Thank you for hanging on");
+      }, 7500); // 7.5 seconds (half of 15)
+  
+      // Complete transition after 15 seconds
+      const completeTimer = setTimeout(() => {
+        setShowTransition(false);
+        setShowVerification(false);
+        setShowBranchSelection(true);
+        setCheckingBranches(false); // Finally set checking branches to false
+      }, 15000); // 15 seconds total
+  
+      return () => {
+        clearInterval(progressInterval);
+        clearTimeout(messageTimer);
+        clearTimeout(completeTimer);
+      };
+    }
+  }, [showTransition]);
+  
+  // Fix 5: Update handleVerify2FA for consistent flow with manual code entry
+  const handleVerify2FA = async (e) => {
+    e.preventDefault();
+    setLocalError("");
+    setLoadingSpinner(true);
+    
+    try {
+      // Manual code verification if user entered a code
+      if (!verificationCode.trim()) {
+        setLocalError("Please enter a verification code");
+        setLoadingSpinner(false);
+        return;
+      }
+      
+      const response = await fetch(`${API_URL}/users/verify2fa`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          token: authToken,
+          code: verificationCode,
+          fnumber: savedIdentifier
+        })
+      });
+      
+      const data = await response.json();
+      console.log("Manual 2FA verification response:", data);
+      
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Verification failed');
+      }
+      
+      // Stop polling if it's still going
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+      }
+      
+      setPollingStatus("success");
+      
+      // Save the 2FA verification response for user data extraction
+      sessionStorage.setItem('verify2faResponse', JSON.stringify(data));
+      
+      // Wait a brief moment for the success state to be visible before transitioning
+      setTimeout(async () => {
+        // After successful 2FA verification, check branches
+        await checkUserBranches(data);
+      }, 1500); // 1.5 seconds delay to show success state
+      
+    } catch (err) {
+      console.error("2FA verification error:", err);
+      setLocalError(err.message || "Verification failed. Please try again.");
+    } finally {
+      setLoadingSpinner(false);
+    }
+  };
