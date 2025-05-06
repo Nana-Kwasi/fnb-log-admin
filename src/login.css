@@ -47,7 +47,7 @@ form .error-message {
     padding: 10px;
     border: none;
     border-radius: 5px;
-    background-color: #ffa200; /* Orange button */
+    background-color: #ffa200; 
     color: white;
     font-size: 1rem;
     cursor: pointer;
