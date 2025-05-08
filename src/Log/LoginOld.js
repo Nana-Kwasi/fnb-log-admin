@@ -1554,3 +1554,27 @@ router.post('/auth/api/verify-admin', authController.verifyAdminCredentials);
 
 module.exports = router
 
+// log
+2025-05-08T16:00:21.280Z - GET /visitors/api/index
+Route not found: GET /visitors/api/index
+2025-05-08T16:00:21.290Z - GET /visitors/api/index
+Route not found: GET /visitors/api/index
+2025-05-08T16:05:59.271Z - GET /visitors/api/index/branch
+Route not found: GET /visitors/api/index/branch
+2025-05-08T16:06:03.543Z - GET /visitors/api/index/branch
+Route not found: GET /visitors/api/index/branch
+2025-05-08T16:06:03.546Z - GET /visitors/api/index/branch
+Route not found: GET /visitors/api/index/branch
+2025-05-08T16:06:09.176Z - POST /users/auth/verify-admin
+Route not found: POST /users/auth/verify-admin
+2025-05-08T16:40:17.853Z - GET /visitors/api/index/branch
+Route not found: GET /visitors/api/index/branch
+2025-05-08T16:40:17.858Z - GET /visitors/api/index/branch
+Route not found: GET /visitors/api/index/branch
+2025-05-08T16:40:20.880Z - GET /visitors/api/index/branch
+Route not found: GET /visitors/api/index/branch
+2025-05-08T16:40:20.884Z - GET /visitors/api/index/branch
+Route not found: GET /visitors/api/index/branch
+2025-05-08T16:40:25.144Z - POST /users/auth/verify-admin
+Route not found: POST /users/auth/verify-admin
+
