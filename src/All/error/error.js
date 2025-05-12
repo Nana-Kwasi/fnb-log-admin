@@ -1,31 +1,34 @@
+=== REGISTERED ROUTES ===
+GET /health
+GET visitors//check-telephone/:telephone
+GET visitors//index
+GET visitors//index/branch
+GET visitors//
+GET visitors//by-phone
+GET visitors//:id
+POST visitors//
+PUT visitors//:id
+DELETE visitors//:id
+POST auth//login
+POST auth//register
+POST auth//verify
+POST auth//verify-admin
+POST users//verify-fnumber
+POST users//
+POST users//authenticate
+POST users//verify2fa
+POST users//finalize-login
+POST users//checkUserBranches
+POST users//track2FAStatus
+GET users//
+PUT users//:id
+DELETE users//:id
+======================
 
-// 3. Print all registered routes - add this after route registration
-console.log('\n=== REGISTERED ROUTES ===');
-function printRoutes(stack, basePath = '') {
-  stack.forEach(layer => {
-    if (layer.route) {
-      const methods = Object.keys(layer.route.methods)
-        .filter(method => layer.route.methods[method])
-        .join(', ').toUpperCase();
-      console.log(`${methods} ${basePath}${layer.route.path}`);
-    } else if (layer.name === 'router' && layer.handle.stack) {
-      // This is a router middleware
-      const routerBasePath = basePath + (layer.regexp.source.replace(/\\\//g, '/').replace(/\^\//g, '').replace(/\\/g, '').replace(/\?.*$/, '') || '/');
-      printRoutes(layer.handle.stack, routerBasePath);
-    }
-  });
-}
-printRoutes(app._router.stack);
-console.log('======================\n');
+Server is running on port 5001
+Health check available at: http://localhost:5001/health
+Auth endpoints available at: http://localhost:5001/auth/login
+Connected to the database
 
-// 4. Add a 404 handler at the very end
-app.use((req, res) => {
-  console.log(`[404] Route not found: ${req.method} ${req.originalUrl}`);
-  res.status(404).json({ message: `Route not found: ${req.method} ${req.originalUrl}` });
-});
 
-// 5. Error handler
-app.use((err, req, res, next) => {
-  console.error(`[500] Server error for ${req.method} ${req.originalUrl}:`, err);
-  res.status(500).json({ message: 'Internal server error', error: err.message });
-});
+

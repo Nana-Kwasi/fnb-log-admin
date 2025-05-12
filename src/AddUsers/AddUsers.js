@@ -1207,8 +1207,8 @@ const AddUsers = () => {
 
   const { token } = useVisitor();
 
-  const API_URL = "http://localhost:5001/api/users";
-  const BRANCHES_URL = "http://localhost:5001/visitors/api/index";
+  const API_URL = "http://localhost:5001/users";
+  const BRANCHES_URL = "http://localhost:5001/visitors/index";
 
   // Fetch branches and users on component mount
   useEffect(() => {
