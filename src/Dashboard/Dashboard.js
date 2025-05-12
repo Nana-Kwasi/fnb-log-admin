@@ -311,14 +311,9 @@ const Dashboard = () => {
   };
 
   return (
-    <div 
-      className="dashboard" 
-      style={{
-        minHeight: '100vh',
-        padding: '20px'
-      }}>
+    <div className="dashboard">
       <div className="dashboard-header">
-        <h1 style={{color:'black'}}>FNB LOGS ADMIN DASHBOARD FOR {selectedBranchName}</h1>
+        <h1>FNB LOGS ADMIN DASHBOARD FOR {selectedBranchName}</h1>
         
         {selectedBranch && (
           <div className="branch-display">
@@ -330,69 +325,31 @@ const Dashboard = () => {
           <button 
             onClick={toggleDropdown}
             className="dropdown-button"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              backgroundColor: '#3498db',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              padding: '10px 15px',
-              cursor: 'pointer',
-              fontWeight: 'bold',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-            }}
           >
-            <AiOutlineUser style={{ marginRight: '5px' }} />
+            <img 
+              src="/user.png" 
+              alt="User Profile" 
+              className="profile-icon" 
+            />
             {getUserEmail() || 'User Profile'}
-            <AiOutlineDown style={{ marginLeft: '5px' }} />
+            <AiOutlineDown className="dropdown-arrow" />
           </button>
           
           {dropdownOpen && (
-            <div 
-              className="dropdown-content"
-              style={{
-                position: 'absolute',
-                right: '0',
-                backgroundColor: 'white',
-                minWidth: '250px',
-                boxShadow: '0px 8px 16px 0px rgba(0,0,0,0.2)',
-                zIndex: '1',
-                borderRadius: '4px',
-                marginTop: '5px'
-              }}
-            >
-              <div style={{ padding: '15px', borderBottom: '1px solid #eee' }}>
-                <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>
-                  {getUserDisplayName()}
-                </div>
-                <div style={{ color: '#666', fontSize: '14px' }}>
-                  {getUserTitle()}
-                </div>
-                <div style={{ color: '#666', fontSize: '14px', marginTop: '5px' }}>
-                  {getUserEmail()}
-                </div>
+            <div className="dropdown-content">
+              <div className="dropdown-header">
+                <div className="user-name">{getUserDisplayName()}</div>
+                <div className="user-title">{getUserTitle()}</div>
+                <div className="user-email">{getUserEmail()}</div>
                 {user && user.userId && (
-                  <div style={{ color: '#666', fontSize: '14px', marginTop: '5px' }}>
-                    ID: {user.userId}
-                  </div>
+                  <div className="user-id">ID: {user.userId}</div>
                 )}
               </div>
               <button 
                 onClick={handleLogout}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  width: '100%',
-                  padding: '10px 15px',
-                  border: 'none',
-                  backgroundColor: 'transparent',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  color: 'red'
-                }}
+                className="logout-button"
               >
-                <AiOutlineLogout style={{ marginRight: '5px' }} />
+                <AiOutlineLogout className="logout-icon" />
                 Logout
               </button>
             </div>
@@ -430,46 +387,46 @@ const Dashboard = () => {
             </div>
             <div className="calendar-grid">{generateCalendarDays()}</div>
           </div>
-
-          {/* Stats and Pie Chart Container - Now on same line */}
+  
+          {/* Stats and Pie Chart Container */}
           <div className="stats-and-pie-container">
             <div className="stats">
-              <div className="stat-card" onClick={fetchTodayVisitors}>
-                <AiOutlineUser className="icon" />
-                <h3 style={{ color: "white" }}>Visitors Today</h3>
-                <p style={{color:'white'}}>{visitorsToday}</p>
+              <div className="stat-card visitors-today" onClick={fetchTodayVisitors}>
+                <img src="/user(1).png" alt="Visitors Today" className="stat-icon" />
+                <h3>Visitors Today</h3>
+                <p>{visitorsToday}</p>
                 {selectedBranchName && <span className="branch-indicator">{selectedBranchName}</span>}
               </div>
                
-              <div className="stat-card">
-                <AiOutlineTeam className="icon" />
-                <h3 style={{ color: "white" }}>Total Visitors</h3>
-                <p style={{color:'white'}}>{totalVisitors}</p>
+              <div className="stat-card total-visitors">
+                <img src="/group.png" alt="Total Visitors" className="stat-icon" />
+                <h3>Total Visitors</h3>
+                <p>{totalVisitors}</p>
                 {selectedBranch && <span className="branch-indicator">{selectedBranchName}</span>}
               </div>
               
               <div className="stat-card special">
-                <AiOutlinePieChart className="icon" />
-                <h3 style={{ color: "white" }}>Peak Month</h3>
+                <img src="/diversity.png" alt="Peak Month" className="stat-icon" />
+                <h3>Peak Month</h3>
                 {analyticsData && analyticsData.length > 0 ? (
                   <>
-                    <p style={{color:'white'}}>
+                    <p>
                       {analyticsData.reduce((max, item) => (item.visits > max.visits ? item : max), analyticsData[0]).month}
                     </p>
-                    <span style={{color:'rgba(255,255,255,0.8)', fontSize: '14px', marginTop: '5px'}}>
+                    <span className="peak-visitors">
                       {analyticsData.reduce((max, item) => (item.visits > max.visits ? item : max), analyticsData[0]).visits} visitors
                     </span>
                   </>
                 ) : (
-                  <p style={{color:'white'}}>No data available</p>
+                  <p>No data available</p>
                 )}
                 {selectedBranch && <span className="branch-indicator">{selectedBranchName}</span>}
               </div>
             </div>
-
-            {/* Pie Chart - Now beside stat cards */}
+  
+            {/* Pie Chart */}
             <div className="pie-chart-container">
-              <h3 style={{color:'green'}}>
+              <h3>
                 Visitor Distribution {selectedBranch ? `- ${selectedBranchName}` : ''}
               </h3>
               <div className="pie-chart-wrapper">
@@ -477,24 +434,24 @@ const Dashboard = () => {
               </div>
             </div>
           </div>
-
+  
           <div className="charts-container">
             <div className="charts">
               <div className="chart-container">
-                <h3 style={{color:'green'}}>
+                <h3>
                   Monthly Visitors {selectedBranch ? `- ${selectedBranchName}` : ''}
                 </h3>
                 <Line data={lineData} options={chartOptions} />
               </div>
               <div className="chart-container">
-                <h3 style={{color:'green'}}>
+                <h3>
                   Monthly Visitors {selectedBranch ? `- ${selectedBranchName}` : ''}
                 </h3>
                 <Bar data={barData} options={chartOptions} />
               </div>
             </div>
           </div>
-
+  
           {modalVisible && (
             <div className="modal">
               <div className="modal-content">
@@ -550,156 +507,6 @@ const Dashboard = () => {
           )} 
         </>
       )}
-      
-      {/* Updated CSS to put stats and pie chart on same line */}
-      <style jsx>{`
-        .stats-and-pie-container {
-          display: flex;
-          gap: 20px;
-          margin-bottom: 20px;
-        }
-        
-        .stats {
-          display: flex;
-          gap: 15px;
-          flex: 1;
-        }
-        
-        .stat-card {
-          flex: 1;
-          background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
-          border-radius: 10px;
-          padding: 20px;
-          color: white;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          text-align: center;
-          box-shadow: 0 4px 8px rgb(249, 243, 243);
-          cursor: pointer;
-          transition: all 0.3s ease;
-        }
-        
-        .stat-card:hover {
-          transform: translateY(-5px);
-          box-shadow: 0 8px 15px rgba(0, 0, 0, 0.15);
-        }
-        
-        .stat-card .icon {
-          font-size: 2.5rem;
-          margin-bottom: 10px;
-          color: white;
-        }
-        
-        .stat-card h3 {
-          margin: 0;
-          font-size: 1.2rem;
-          margin-bottom: 5px;
-        }
-        
-        .stat-card p {
-          margin: 0;
-          font-size: 1.8rem;
-          font-weight: bold;
-        }
-        
-        .charts-container {
-          display: flex;
-          flex-direction: column;
-          gap: 20px;
-        }
-        
-        .charts {
-          display: flex;
-          flex-direction: column;
-          gap: 20px;
-        }
-        
-        .chart-container {
-          background-color: white;
-          border-radius: 10px;
-          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-          padding: 20px;
-          height: 400px;
-          transition: all 0.3s ease;
-        }
-        
-        .chart-container:hover {
-          box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
-          transform: translateY(-3px);
-        }
-        
-        .chart-container h3 {
-          margin-top: 0;
-          margin-bottom: 15px;
-          text-align: center;
-        }
-        
-        .pie-chart-container {
-          background-color: white;
-          border-radius: 10px;
-          box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-          padding: 20px;
-          transition: all 0.3s ease;
-          flex: 1;
-          max-width: 50%;
-        }
-        
-        .pie-chart-container:hover {
-          box-shadow: 0 6px 22px rgba(0,0,0,0.15);
-          transform: translateY(-3px);
-        }
-        
-        .pie-chart-container h3 {
-          margin-top: 0;
-          margin-bottom: 15px;
-          text-align: center;
-          font-size: 18px;
-        }
-        
-        .pie-chart-wrapper {
-          height: 300px;
-          position: relative;
-        }
-        
-        .stat-card.special {
-          background: linear-gradient(135deg, #5b247a 0%, #1bcedf 100%);
-          transition: all 0.3s ease;
-          display: flex;
-          flex-direction: column;
-        }
-        
-        .stat-card.special:hover {
-          transform: translateY(-5px);
-          box-shadow: 0 10px 25px rgba(231, 232, 226, 0.2);
-        }
-        
-        .stat-card.special span {
-          display: block;
-          margin-top: 5px;
-        }
-        
-        @media (min-width: 1200px) {
-          .charts {
-            flex-direction: row;
-            gap: 20px;
-          }
-          
-          .chart-container {
-            flex: 1;
-          }
-        }
-        
-        @media (max-width: 1000px) {
-          .stats-and-pie-container {
-            flex-direction: column;
-          }
-          
-          .pie-chart-container {
-            max-width: 100%;
-          }
-        }
-      `}</style>
     </div>
   );
 };
