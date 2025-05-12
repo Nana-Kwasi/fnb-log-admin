@@ -2702,3 +2702,99 @@ const Login = ({ onLogin }) => {
   };
   
   const displayError = error || localError;
+
+
+
+  //newwww
+  ```css
+/* Updated Stat Card Styles */
+.stats {
+  display: flex;
+  gap: 20px;
+  flex: 1;
+}
+
+.stat-card {
+  flex: 1;
+  border-radius: 12px;
+  padding: 25px 20px;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  background: transparent;
+}
+
+.stat-card::before {
+  content: none;
+}
+
+.stat-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
+}
+
+.stat-card .stat-icon {
+  width: 60px;
+  height: 60px;
+  margin-bottom: 15px;
+  filter: none;
+  transition: transform 0.3s ease;
+  opacity: 0.7;
+}
+
+.stat-card:hover .stat-icon {
+  transform: scale(1.1);
+  opacity: 1;
+}
+
+.stat-card h3 {
+  margin: 0;
+  font-size: 1.2rem;
+  margin-bottom: 10px;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.stat-card p {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: bold;
+  color: #2c3e50;
+}
+
+.visitors-today {
+  border: 2px solid #3498db;
+}
+
+.total-visitors {
+  border: 2px solid #2ecc71;
+}
+
+.stat-card.special {
+  border: 2px solid #9b59b6;
+}
+
+.peak-visitors {
+  display: block;
+  font-size: 14px;
+  opacity: 0.7;
+  margin-top: 5px;
+  color: #34495e;
+}
+
+.branch-indicator {
+  display: inline-block;
+  font-size: 12px;
+  background-color: rgba(0, 0, 0, 0.1);
+  padding: 3px 8px;
+  border-radius: 4px;
+  margin-top: 10px;
+  color: #2c3e50;
+}
