@@ -637,6 +637,10 @@ body {
   min-height: 100vh;
   padding: 20px;
   background-color: #f5f7fa;
+  flex: 1;
+  padding: 20px;
+  background: linear-gradient(to bottom, #1e2a35, #2c3e50);
+  overflow-y: auto;
 }
 
 /* Dashboard Header */
@@ -683,8 +687,8 @@ body {
 }
 
 .profile-icon {
-  width: 32px;
-  height: 32px;
+  width: 50px;
+  height: 50px;
   margin-right: 10px;
   border-radius: 50%;
   object-fit: cover;
@@ -923,7 +927,6 @@ body {
   gap: 25px;
   margin-bottom: 30px;
 }
-
 .stats {
   display: flex;
   gap: 20px;
@@ -932,7 +935,7 @@ body {
 
 .stat-card {
   flex: 1;
-  border-radius: 12px;
+  border-radius: 20px;
   padding: 25px 20px;
   color: white;
   display: flex;
@@ -944,19 +947,11 @@ body {
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
+  background: transparent;
 }
 
 .stat-card::before {
-  content: '';
-  position: absolute;
-  top: -20px;
-  left: -20px;
-  right: -20px;
-  bottom: -20px;
-  background: inherit;
-  filter: blur(15px);
-  opacity: 0.6;
-  z-index: -1;
+  content: none;
 }
 
 .stat-card:hover {
@@ -965,15 +960,17 @@ body {
 }
 
 .stat-card .stat-icon {
-  width: 60px;
-  height: 60px;
+  width: 100px;
+  height: 100px;
   margin-bottom: 15px;
-  filter: brightness(0) invert(1);
+  filter: none;
   transition: transform 0.3s ease;
+  opacity: 0.7;
 }
 
 .stat-card:hover .stat-icon {
   transform: scale(1.1);
+  opacity: 1;
 }
 
 .stat-card h3 {
@@ -981,24 +978,55 @@ body {
   font-size: 1.2rem;
   margin-bottom: 10px;
   font-weight: 600;
+  color: #2c3e50;
 }
 
 .stat-card p {
   margin: 0;
   font-size: 2rem;
   font-weight: bold;
+  color: #2c3e50;
 }
 
 .visitors-today {
-  background: linear-gradient(135deg, #3498db, #2980b9);
+  border: 2px solid #3498db;
 }
 
 .total-visitors {
-  background: linear-gradient(135deg, #2ecc71, #27ae60);
+  border: 2px solid #2ecc71;
 }
 
 .stat-card.special {
-  background: linear-gradient(135deg, #9b59b6, #8e44ad);
+  border: 2px solid #9b59b6;
+}
+
+.peak-visitors {
+  display: block;
+  font-size: 14px;
+  opacity: 0.7;
+  margin-top: 5px;
+  color: #f2f4f5;
+}
+
+.branch-indicator {
+  display: inline-block;
+  font-size: 12px;
+  background-color: rgba(0, 0, 0, 0.1);
+  padding: 3px 8px;
+  border-radius: 4px;
+  margin-top: 10px;
+  color: #2c3e50;
+}
+.visitors-today {
+  background: linear-gradient(135deg, #eff1f2, #eaebeb);
+}
+
+.total-visitors {
+  background: linear-gradient(135deg, #f3f4f3, #f5f8f7);
+}
+
+.stat-card.special {
+  background: linear-gradient(135deg, #edeced, #eeedef);
 }
 
 .peak-visitors {

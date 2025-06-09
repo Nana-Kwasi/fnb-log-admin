@@ -1,7 +1,8 @@
 {
   "name": "fnb-visitors-log-admin",
-  "version": "2.2.7",
+  "version": "2.2.9",
   "private": true,
+  "homepage": ".",
   "dependencies": {
     "@react-pdf/renderer": "^4.1.6",
     "@testing-library/jest-dom": "^5.17.0",

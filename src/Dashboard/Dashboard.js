@@ -392,7 +392,7 @@ const Dashboard = () => {
           <div className="stats-and-pie-container">
             <div className="stats">
               <div className="stat-card visitors-today" onClick={fetchTodayVisitors}>
-                <img src="/user(1).png" alt="Visitors Today" className="stat-icon" />
+                <img src="/user (1).png" alt="Visitors Today" className="stat-icon" />
                 <h3>Visitors Today</h3>
                 <p>{visitorsToday}</p>
                 {selectedBranchName && <span className="branch-indicator">{selectedBranchName}</span>}
@@ -512,6 +512,7 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
+
 
 // import React, { useState, useEffect } from "react";
 // import { AiOutlineUser, AiOutlineTeam, AiOutlineLeft, AiOutlineRight, AiOutlineLogout } from "react-icons/ai";

@@ -2706,9 +2706,9 @@ const Login = ({ onLogin }) => {
 
 
   //newwww
-  ```css
+ 
 /* Updated Stat Card Styles */
-.stats {
+ .stats {
   display: flex;
   gap: 20px;
   flex: 1;

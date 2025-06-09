@@ -275,7 +275,7 @@ const AppContent = ({ handleLogin, userEmail }) => {
     <img 
         src="/FNB logo.png" 
         alt="Profile Logo" 
-        className="profile-icon" 
+//         className="profile-icon" 
         style={{ width: '140px', height: '140px', marginLeft:'40px'}} 
     />
     <p className="profile-name" style={{ fontSize: '1.2em', fontWeight: 'bold', color: '#333' }}>{maskedEmail}</p>
