@@ -1184,8 +1184,6 @@
 
 // export default AddUsers;
 
-
-
 import React, { useState, useEffect } from "react";
 import { useVisitor } from "../context/VisitorContext";
 
@@ -1205,35 +1203,60 @@ const AddUsers = () => {
   const [deleteUserId, setDeleteUserId] = useState(null);
   const [fetchingBranches, setFetchingBranches] = useState(true);
 
+  // Branch management states
+  const [showBranchManagement, setShowBranchManagement] = useState(false);
+  const [newBranchName, setNewBranchName] = useState("");
+  const [newBranchCode, setNewBranchCode] = useState("");
+  const [editingBranch, setEditingBranch] = useState(null);
+  const [deleteBranchId, setDeleteBranchId] = useState(null);
+  const [branchLoading, setBranchLoading] = useState(false);
+  const [branchError, setBranchError] = useState("");
+  const [branchSuccess, setBranchSuccess] = useState("");
+   
   const { token } = useVisitor();
 
   const API_URL = "http://localhost:5001/users";
-  const BRANCHES_URL = "http://localhost:5001/visitors/index";
+  const BRANCHES_URL = "http://localhost:5001/fnb_branches";
 
-  // Fetch branches and users on component mount
+  // Fetch branches from the new API
+  const fetchBranches = async () => {
+    try {
+      setFetchingBranches(true);
+      console.log("Fetching branches from:", BRANCHES_URL);
+      const branchResponse = await fetch(BRANCHES_URL, {
+        headers: {
+          'x-auth-token': token
+        }
+      });
+      
+      if (!branchResponse.ok) {
+        throw new Error(`API response error: ${branchResponse.status}`);
+      }
+      
+      const branchData = await branchResponse.json();
+      console.log(`Received ${branchData.length} branches from API`);
+      
+      // Store branches with their names and codes
+      const branchOptions = branchData
+        .filter(branch => branch.branch_name && branch.branch_name.trim() !== "")
+        .sort((a, b) => a.branch_name.localeCompare(b.branch_name));
+      
+      console.log(`Found ${branchOptions.length} unique branches`);
+      setBranches(branchOptions);
+    } catch (err) {
+      console.error("Error fetching branches:", err);
+      setError("Failed to load branches. Please try again later.");
+    } finally {
+      setFetchingBranches(false);
+    }
+  };
+
+  // Fetch users and branches on component mount
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch branches - using the same API as in Login component
-        setFetchingBranches(true);
-        console.log("Fetching branches from:", BRANCHES_URL);
-        const branchResponse = await fetch(BRANCHES_URL);
-        
-        if (!branchResponse.ok) {
-          throw new Error(`API response error: ${branchResponse.status}`);
-        }
-        
-        const branchData = await branchResponse.json();
-        console.log(`Received ${branchData.length} branches from API`);
-        
-        // Store branches with their names and codes
-        const branchOptions = branchData
-          .filter(branch => branch.branchName && branch.branchName.trim() !== "")
-          .sort((a, b) => a.branchName.localeCompare(b.branchName));
-        
-        console.log(`Found ${branchOptions.length} unique branches`);
-        setBranches(branchOptions);
-        setFetchingBranches(false);
+        // Fetch branches
+        await fetchBranches();
 
         // Fetch users
         const usersResponse = await fetch(API_URL, {
@@ -1249,7 +1272,6 @@ const AddUsers = () => {
       } catch (err) {
         console.error("Error fetching data:", err);
         setError("Failed to load data. Please try again later.");
-        setFetchingBranches(false);
       }
     };
 
@@ -1271,7 +1293,7 @@ const AddUsers = () => {
     setLoading(true);
 
     // Find the selected branch code from the branches array
-    const selectedBranchObj = branches.find(branch => branch.branchName === selectedBranch);
+    const selectedBranchObj = branches.find(branch => branch.branch_name === selectedBranch);
     
     if (!selectedBranchObj) {
       setError("Invalid branch selection");
@@ -1279,7 +1301,7 @@ const AddUsers = () => {
       return;
     }
     
-    const branchCode = selectedBranchObj.branchCode;
+    const branchCode = selectedBranchObj.branch_code;
     console.log(`Selected branch: ${selectedBranch} (code: ${branchCode})`);
 
     try {
@@ -1375,7 +1397,7 @@ const AddUsers = () => {
     setLoading(true);
 
     // Find the selected branch code
-    const selectedBranchObj = branches.find(branch => branch.branchName === editingUser.branch);
+    const selectedBranchObj = branches.find(branch => branch.branch_name === editingUser.branch);
     
     if (!selectedBranchObj) {
       setError("Invalid branch selection");
@@ -1383,7 +1405,7 @@ const AddUsers = () => {
       return;
     }
     
-    const branchCode = selectedBranchObj.branchCode;
+    const branchCode = selectedBranchObj.branch_code;
 
     try {
       const updateData = {
@@ -1458,7 +1480,115 @@ const AddUsers = () => {
     }
   };
 
-  // Styles (same as previous implementation)
+  // Branch Management Functions
+  const handleCreateBranch = async (e) => {
+    e.preventDefault();
+    setBranchError("");
+    setBranchSuccess("");
+
+    if (!newBranchName || !newBranchCode) {
+      setBranchError("Please fill in all branch fields");
+      return;
+    }
+
+    setBranchLoading(true);
+
+    try {
+      const response = await fetch(BRANCHES_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-auth-token': token
+        },
+        body: JSON.stringify({
+          branch_name: newBranchName,
+          branch_code: newBranchCode
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Branch creation failed');
+      }
+
+      // Add new branch to branches list
+      setBranches([...branches, data.branch]);
+      setBranchSuccess("Branch created successfully!");
+      
+      // Reset form
+      setNewBranchName("");
+      setNewBranchCode("");
+    } catch (err) {
+      setBranchError(err.message);
+    } finally {
+      setBranchLoading(false);
+    }
+  };
+
+  const handleUpdateBranch = async (e) => {
+    e.preventDefault();
+    setBranchLoading(true);
+
+    try {
+      const response = await fetch(`${BRANCHES_URL}/${editingBranch.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-auth-token': token
+        },
+        body: JSON.stringify({
+          branch_name: editingBranch.branch_name,
+          branch_code: editingBranch.branch_code
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Branch update failed');
+      }
+
+      // Update branches list
+      setBranches(branches.map(branch => 
+        branch.id === editingBranch.id ? { ...branch, ...editingBranch } : branch
+      ));
+
+      setBranchSuccess("Branch updated successfully!");
+      setEditingBranch(null);
+    } catch (err) {
+      setBranchError(err.message);
+    } finally {
+      setBranchLoading(false);
+    }
+  };
+
+  const handleDeleteBranch = async (branchId) => {
+    setBranchLoading(true);
+    try {
+      const response = await fetch(`${BRANCHES_URL}/${branchId}`, {
+        method: 'DELETE',
+        headers: {
+          'x-auth-token': token
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete branch');
+      }
+
+      // Remove branch from local state
+      setBranches(branches.filter(branch => branch.id !== branchId));
+      setBranchSuccess("Branch deleted successfully!");
+    } catch (err) {
+      setBranchError(err.message);
+    } finally {
+      setBranchLoading(false);
+      setDeleteBranchId(null);
+    }
+  };
+
+  // Styles
   const styles = {
     container: {
       display: 'flex',
@@ -1519,6 +1649,13 @@ const AddUsers = () => {
       backgroundColor: '#fff',
       borderRadius: '8px',
       boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
+      margin: '10px 0',
+      padding: '15px',
+    },
+    branchCard: {
+      backgroundColor: '#f8f9fa',
+      borderRadius: '8px',
+      border: '1px solid #dee2e6',
       margin: '10px 0',
       padding: '15px',
     },
@@ -1598,6 +1735,15 @@ const AddUsers = () => {
     disableButton: {
       backgroundColor: '#F44336',
     },
+    branchManagementButton: {
+      backgroundColor: '#28a745',
+      color: 'white',
+      border: 'none',
+      padding: '10px 20px',
+      borderRadius: '4px',
+      cursor: 'pointer',
+      marginBottom: '20px',
+    },
   };
 
   return (
@@ -1626,8 +1772,8 @@ const AddUsers = () => {
               >
                 <option value="">Select Branch</option>
                 {branches.map((branch) => (
-                  <option key={branch.branchCode} value={branch.branchName}>
-                    {branch.branchName}
+                  <option key={branch.id} value={branch.branch_name}>
+                    {branch.branch_name}
                   </option>
                 ))}
               </select>
@@ -1657,6 +1803,125 @@ const AddUsers = () => {
             </button>
           </form>
         </div>
+
+        {/* Branch Management Section */}
+        <div style={styles.card}>
+          <button 
+            onClick={() => setShowBranchManagement(!showBranchManagement)}
+            style={styles.branchManagementButton}
+          >
+            {showBranchManagement ? 'Hide Branch Management' : 'Manage Branches'}
+          </button>
+
+          {showBranchManagement && (
+            <div>
+              <h3>Branch Management</h3>
+              
+              {/* Add New Branch Form */}
+              <form onSubmit={handleCreateBranch}>
+                <input
+                  type="text"
+                  placeholder="Branch Name"
+                  value={newBranchName}
+                  onChange={(e) => setNewBranchName(e.target.value)}
+                  required
+                  style={styles.input}
+                />
+                <input
+                  type="text"
+                  placeholder="Branch Code"
+                  value={newBranchCode}
+                  onChange={(e) => setNewBranchCode(e.target.value)}
+                  required
+                  style={styles.input}
+                />
+                
+                {branchError && <p style={styles.errorMessage}>{branchError}</p>}
+                {branchSuccess && <p style={styles.successMessage}>{branchSuccess}</p>}
+
+                <button 
+                  type="submit" 
+                  disabled={branchLoading}
+                  style={{...styles.button, backgroundColor: '#28a745'}}
+                >
+                  {branchLoading ? 'Adding Branch...' : 'Add Branch'}
+                </button>
+              </form>
+
+              {/* Existing Branches List */}
+              <div style={{marginTop: '20px'}}>
+                <h4>Existing Branches</h4>
+                {branches.map((branch) => (
+                  <div key={branch.id} style={styles.branchCard}>
+                    {editingBranch && editingBranch.id === branch.id ? (
+                      <form onSubmit={handleUpdateBranch}>
+                        <input
+                          type="text"
+                          value={editingBranch.branch_name}
+                          onChange={(e) => setEditingBranch({...editingBranch, branch_name: e.target.value})}
+                          style={styles.input}
+                          required
+                        />
+                        <input
+                          type="text"
+                          value={editingBranch.branch_code}
+                          onChange={(e) => setEditingBranch({...editingBranch, branch_code: e.target.value})}
+                          style={styles.input}
+                          required
+                        />
+                        <div style={{display: 'flex', justifyContent: 'space-between'}}>
+                          <button 
+                            type="submit" 
+                            style={{...styles.actionButton, ...styles.editButton}}
+                            disabled={branchLoading}
+                          >
+                            {branchLoading ? 'Updating...' : 'Save'}
+                          </button>
+                          <button 
+                            type="button"
+                            onClick={() => setEditingBranch(null)}
+                            style={{...styles.actionButton, backgroundColor: '#6c757d', color: 'white'}}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </form>
+                    ) : (
+                      <div>
+                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                          <div>
+                            <strong>{branch.branch_name}</strong>
+                            <span style={{marginLeft: '10px', color: '#666'}}>
+                              Code: {branch.branch_code}
+                            </span>
+                          </div>
+                          <div>
+                            <button 
+                              onClick={() => setEditingBranch({
+                                id: branch.id,
+                                branch_name: branch.branch_name,
+                                branch_code: branch.branch_code
+                              })}
+                              style={{...styles.actionButton, ...styles.editButton}}
+                            >
+                              Edit
+                            </button>
+                            <button 
+                              onClick={() => setDeleteBranchId(branch.id)}
+                              style={{...styles.actionButton, ...styles.deleteButton}}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Right Panel - User Management */}
@@ -1673,7 +1938,7 @@ const AddUsers = () => {
                     // ...(user.isActive ? styles.statusActive : styles.statusInactive)
                   }}
                 >
-                  {user.isActive }
+                  {user.isActive}
                 </span>
               </div>
               <div>
@@ -1709,8 +1974,8 @@ const AddUsers = () => {
                         disabled={fetchingBranches}
                       >
                         {branches.map((branch) => (
-                          <option key={branch.branchCode} value={branch.branchName}>
-                            {branch.branchName}
+                          <option key={branch.id} value={branch.branch_name}>
+                            {branch.branch_name}
                           </option>
                         ))}
                       </select>
@@ -1783,7 +2048,7 @@ const AddUsers = () => {
         ))}
       </div>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Delete User Confirmation Dialog */}
       {deleteUserId && (
         <div style={styles.confirmationDialog}>
           <p>Are you sure you want to delete this user?</p>
@@ -1796,6 +2061,27 @@ const AddUsers = () => {
             </button>
             <button 
               onClick={() => setDeleteUserId(null)}
+              style={{...styles.actionButton, backgroundColor: '#6c757d', color: 'white'}}
+            >
+              No
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Branch Confirmation Dialog */}
+      {deleteBranchId && (
+        <div style={styles.confirmationDialog}>
+          <p>Are you sure you want to delete this branch?</p>
+          <div style={{display: 'flex', justifyContent: 'space-between'}}>
+            <button 
+              onClick={() => handleDeleteBranch(deleteBranchId)}
+              style={{...styles.actionButton, ...styles.deleteButton}}
+            >
+              Yes
+            </button>
+            <button 
+              onClick={() => setDeleteBranchId(null)}
               style={{...styles.actionButton, backgroundColor: '#6c757d', color: 'white'}}
             >
               No
@@ -1818,6 +2104,7 @@ const AddUsers = () => {
 };
 
 export default AddUsers;
+
 
 
 

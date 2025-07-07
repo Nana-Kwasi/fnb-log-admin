@@ -522,7 +522,7 @@ const parseAPIDate = (dateStr) => {
       return true;
     } catch (err) {
       console.error("Error fetching branch data:", err);
-      setError("Failed to fetch branch data. Please try again.");
+      setError("No Data for this branch,Thank You!");
       setLoading(false);
       return false;
     }

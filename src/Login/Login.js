@@ -1367,6 +1367,7 @@
 // };
 
 // export default Login;
+
 import React, { useState, useEffect, useRef } from "react";
 import { useVisitor } from "../context/VisitorContext";
 import "../login.css";
@@ -1416,8 +1417,16 @@ const Login = ({ onLogin }) => {
   // API URLs
   const API_URL = "http://localhost:5001";
   const BRANCHES_URL = "http://localhost:5001/visitors/index";
+  const FNB_BRANCHES_URL = "http://localhost:5001/fnb_branches"; // New endpoint for admin branches
   const AUTH_URL = "http://localhost:5001/auth";
 
+
+
+
+
+
+
+  
   // Cleanup polling and timers on unmount
   useEffect(() => {
     return () => {
@@ -1448,38 +1457,13 @@ const Login = ({ onLogin }) => {
 
   // Fetch branches initially
   useEffect(() => {
-    const fetchBranches = async () => {
-      try {
-        setFetchingBranches(true);
-        console.log("Fetching branches from:", BRANCHES_URL);
-        const response = await fetch(BRANCHES_URL);
-        
-        if (!response.ok) {
-          throw new Error(`API response error: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        console.log(`Received ${data.length} branches from API`);
-        
-        const branchOptions = data
-          .filter(branch => branch.branchName && branch.branchName.trim() !== "")
-          .sort((a, b) => a.branchName.localeCompare(b.branchName));
-        
-        console.log(`Found ${branchOptions.length} unique branches`);
-        setBranches(branchOptions);
-      } catch (err) {
-        console.error("Error fetching branches:", err);
-        setLocalError("Failed to load branches. Please try again later.");
-      } finally {
-        setFetchingBranches(false);
-      }
-    };
-
     // Only fetch branches if we need them for the admin flow or branch selection screen
     if (!showVerification || showBranchSelection) {
-      fetchBranches();
+      // Determine if we need admin branches
+      const needsAdminBranches = isAdminUser && showBranchSelection;
+      fetchBranches(needsAdminBranches);
     }
-  }, [BRANCHES_URL, showVerification, showBranchSelection]);
+  }, [ FNB_BRANCHES_URL, showVerification, showBranchSelection, isAdminUser]);
 
   // New effect to show the check verification status button after 10 seconds
   useEffect(() => {
@@ -1751,7 +1735,50 @@ const Login = ({ onLogin }) => {
       
     }, 5000); 
   };
-
+  const fetchBranches = async (isForAdmin = false) => {
+    try {
+      setFetchingBranches(true);
+      
+      // Use different endpoints based on user type
+      const endpoint = isForAdmin ? FNB_BRANCHES_URL : BRANCHES_URL;
+      console.log(`Fetching branches from: ${endpoint}`);
+      
+      const response = await fetch(endpoint);
+      
+      if (!response.ok) {
+        throw new Error(`API response error: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log(`Received ${data.length} branches from API`);
+      
+      let branchOptions;
+      
+      if (isForAdmin) {
+        // For admin users, use the new API structure with branch_name and branch_code
+        branchOptions = data
+          .filter(branch => branch.branch_name && branch.branch_name.trim() !== "")
+          .map(branch => ({
+            branchName: branch.branch_name,
+            branchCode: branch.branch_code
+          }))
+          .sort((a, b) => a.branchName.localeCompare(b.branchName));
+      } else {
+        // For regular users, use the existing structure
+        branchOptions = data
+          .filter(branch => branch.branchName && branch.branchName.trim() !== "")
+          .sort((a, b) => a.branchName.localeCompare(b.branchName));
+      }
+      
+      console.log(`Found ${branchOptions.length} unique branches`);
+      setBranches(branchOptions);
+    } catch (err) {
+      console.error("Error fetching branches:", err);
+      setLocalError("Failed to load branches. Please try again later.");
+    } finally {
+      setFetchingBranches(false);
+    }
+  };
   // Handle initial form submission for both admin and non-admin users
   const handleInitialSubmit = async (e) => {
     e.preventDefault();
@@ -1813,11 +1840,8 @@ const Login = ({ onLogin }) => {
       setSessionToken(data.token || "");
       setSavedIdentifier(email);
       
-      // Set branches from response if available
-      if (data.branches && Array.isArray(data.branches)) {
-        setBranches(data.branches);
-        setFetchingBranches(false);
-      }
+      // Don't use branches from auth response, fetch them from the dedicated endpoint
+      // This will be handled by the useEffect that watches for showBranchSelection
       
       // Now show branch selection after successful authentication
       setShowBranchSelection(true);
@@ -2075,7 +2099,10 @@ const Login = ({ onLogin }) => {
     setLoadingSpinner(false);
     setShowTimer(false);
   };
-  
+  useEffect(() => {
+    fetchBranches(true)
+
+  }, [])
   const displayError = error || localError;
 
   // New CSS styles added inline - will be moved to login.css
