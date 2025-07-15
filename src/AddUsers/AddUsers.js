@@ -1238,8 +1238,8 @@ const AddUsers = () => {
       
       // Store branches with their names and codes
       const branchOptions = branchData
-        .filter(branch => branch.branch_name && branch.branch_name.trim() !== "")
-        .sort((a, b) => a.branch_name.localeCompare(b.branch_name));
+      .filter(branch => branch && typeof branch.branch_name === 'string' && branch.branch_name.trim() !== "")
+      .sort((a, b) => a.branch_name.localeCompare(b.branch_name));
       
       console.log(`Found ${branchOptions.length} unique branches`);
       setBranches(branchOptions);
@@ -1481,50 +1481,55 @@ const AddUsers = () => {
   };
 
   // Branch Management Functions
-  const handleCreateBranch = async (e) => {
-    e.preventDefault();
-    setBranchError("");
-    setBranchSuccess("");
+ 
+const handleCreateBranch = async (e) => {
+  e.preventDefault();
+  setBranchError("");
+  setBranchSuccess("");
 
-    if (!newBranchName || !newBranchCode) {
-      setBranchError("Please fill in all branch fields");
-      return;
+  if (!newBranchName || !newBranchCode) {
+    setBranchError("Please fill in all branch fields");
+    return;
+  }
+
+  setBranchLoading(true);
+
+  try {
+    const response = await fetch(BRANCHES_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-auth-token': token
+      },
+      body: JSON.stringify({
+        branch_name: newBranchName,
+        branch_code: newBranchCode
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Branch creation failed');
     }
 
-    setBranchLoading(true);
-
-    try {
-      const response = await fetch(BRANCHES_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-auth-token': token
-        },
-        body: JSON.stringify({
-          branch_name: newBranchName,
-          branch_code: newBranchCode
-        })
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Branch creation failed');
-      }
-
-      // Add new branch to branches list
-      setBranches([...branches, data.branch]);
-      setBranchSuccess("Branch created successfully!");
-      
-      // Reset form
-      setNewBranchName("");
-      setNewBranchCode("");
-    } catch (err) {
-      setBranchError(err.message);
-    } finally {
-      setBranchLoading(false);
-    }
-  };
+    // FIX: The backend returns the branch directly, not wrapped in a 'branch' property
+    // Change this line:
+    // setBranches([...branches, data.branch]);
+    // To this:
+    setBranches([...branches, data]);
+    
+    setBranchSuccess("Branch created successfully!");
+    
+    // Reset form
+    setNewBranchName("");
+    setNewBranchCode("");
+  } catch (err) {
+    setBranchError(err.message);
+  } finally {
+    setBranchLoading(false);
+  }
+};
 
   const handleUpdateBranch = async (e) => {
     e.preventDefault();
@@ -1714,6 +1719,37 @@ const AddUsers = () => {
       fontWeight: 'bold',
       marginLeft: '10px',
     },
+    modalOverlay: {
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      width: '100%',
+      height: '100%',
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 999,
+    },
+    modalContent: {
+      backgroundColor: '#fff',
+      padding: '20px',
+      borderRadius: '8px',
+      width: '500px',
+      maxHeight: '90vh',
+      overflowY: 'auto',
+      position: 'relative',
+    },
+    closeButton: {
+      position: 'absolute',
+      top: '10px',
+      right: '15px',
+      background: 'transparent',
+      border: 'none',
+      fontSize: '1.2rem',
+      cursor: 'pointer',
+    },
+    
     statusActive: {
       backgroundColor: '#4CAF50',
       color: 'white',
@@ -1744,8 +1780,41 @@ const AddUsers = () => {
       cursor: 'pointer',
       marginBottom: '20px',
     },
+    modalOverlay: {
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      width: '100vw',
+      height: '100vh',
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 1000,
+    },
+    modalContent: {
+      backgroundColor: '#fff',
+      padding: '2rem',
+      borderRadius: '8px',
+      maxWidth: '600px',
+      width: '100%',
+      position: 'relative',
+      maxHeight: '90vh',
+      overflowY: 'auto',
+    },
+    closeButton: {
+      position: 'absolute',
+      top: '10px',
+      right: '15px',
+      fontSize: '1.5rem',
+      background: 'transparent',
+      border: 'none',
+      cursor: 'pointer',
+      color: 'red',
+    },
+    
   };
-
+  
   return (
     <div style={styles.container}>
       {/* Left Panel - User Creation Form */}
@@ -1761,7 +1830,7 @@ const AddUsers = () => {
               required
               style={styles.input}
             />
-            
+  
             <div style={styles.selectContainer}>
               <select
                 value={selectedBranch}
@@ -1777,11 +1846,9 @@ const AddUsers = () => {
                   </option>
                 ))}
               </select>
-              {fetchingBranches && (
-                <div style={styles.selectSpinner}></div>
-              )}
+              {fetchingBranches && <div style={styles.selectSpinner}></div>}
             </div>
-
+  
             <select
               value={role}
               onChange={(e) => setRole(e.target.value)}
@@ -1790,12 +1857,12 @@ const AddUsers = () => {
               <option value="user">User</option>
               <option value="admin">Admin</option>
             </select>
-
+  
             {error && <p style={styles.errorMessage}>{error}</p>}
             {success && <p style={styles.successMessage}>{success}</p>}
-
-            <button 
-              type="submit" 
+  
+            <button
+              type="submit"
               disabled={loading || fetchingBranches}
               style={styles.button}
             >
@@ -1803,157 +1870,42 @@ const AddUsers = () => {
             </button>
           </form>
         </div>
-
-        {/* Branch Management Section */}
+  
         <div style={styles.card}>
-          <button 
-            onClick={() => setShowBranchManagement(!showBranchManagement)}
+          <button
+            onClick={() => setShowBranchManagement(true)}
             style={styles.branchManagementButton}
           >
-            {showBranchManagement ? 'Hide Branch Management' : 'Manage Branches'}
+            Manage Branches
           </button>
-
-          {showBranchManagement && (
-            <div>
-              <h3>Branch Management</h3>
-              
-              {/* Add New Branch Form */}
-              <form onSubmit={handleCreateBranch}>
-                <input
-                  type="text"
-                  placeholder="Branch Name"
-                  value={newBranchName}
-                  onChange={(e) => setNewBranchName(e.target.value)}
-                  required
-                  style={styles.input}
-                />
-                <input
-                  type="text"
-                  placeholder="Branch Code"
-                  value={newBranchCode}
-                  onChange={(e) => setNewBranchCode(e.target.value)}
-                  required
-                  style={styles.input}
-                />
-                
-                {branchError && <p style={styles.errorMessage}>{branchError}</p>}
-                {branchSuccess && <p style={styles.successMessage}>{branchSuccess}</p>}
-
-                <button 
-                  type="submit" 
-                  disabled={branchLoading}
-                  style={{...styles.button, backgroundColor: '#28a745'}}
-                >
-                  {branchLoading ? 'Adding Branch...' : 'Add Branch'}
-                </button>
-              </form>
-
-              {/* Existing Branches List */}
-              <div style={{marginTop: '20px'}}>
-                <h4>Existing Branches</h4>
-                {branches.map((branch) => (
-                  <div key={branch.id} style={styles.branchCard}>
-                    {editingBranch && editingBranch.id === branch.id ? (
-                      <form onSubmit={handleUpdateBranch}>
-                        <input
-                          type="text"
-                          value={editingBranch.branch_name}
-                          onChange={(e) => setEditingBranch({...editingBranch, branch_name: e.target.value})}
-                          style={styles.input}
-                          required
-                        />
-                        <input
-                          type="text"
-                          value={editingBranch.branch_code}
-                          onChange={(e) => setEditingBranch({...editingBranch, branch_code: e.target.value})}
-                          style={styles.input}
-                          required
-                        />
-                        <div style={{display: 'flex', justifyContent: 'space-between'}}>
-                          <button 
-                            type="submit" 
-                            style={{...styles.actionButton, ...styles.editButton}}
-                            disabled={branchLoading}
-                          >
-                            {branchLoading ? 'Updating...' : 'Save'}
-                          </button>
-                          <button 
-                            type="button"
-                            onClick={() => setEditingBranch(null)}
-                            style={{...styles.actionButton, backgroundColor: '#6c757d', color: 'white'}}
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </form>
-                    ) : (
-                      <div>
-                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                          <div>
-                            <strong>{branch.branch_name}</strong>
-                            <span style={{marginLeft: '10px', color: '#666'}}>
-                              Code: {branch.branch_code}
-                            </span>
-                          </div>
-                          <div>
-                            <button 
-                              onClick={() => setEditingBranch({
-                                id: branch.id,
-                                branch_name: branch.branch_name,
-                                branch_code: branch.branch_code
-                              })}
-                              style={{...styles.actionButton, ...styles.editButton}}
-                            >
-                              Edit
-                            </button>
-                            <button 
-                              onClick={() => setDeleteBranchId(branch.id)}
-                              style={{...styles.actionButton, ...styles.deleteButton}}
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       </div>
-
+  
       {/* Right Panel - User Management */}
       <div style={styles.rightPanel}>
         <h2>All Users</h2>
         {users.map((user) => (
           <div key={user.id} style={styles.userCard}>
-            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <strong>{user.email}</strong>
-                <span 
-                  style={{
-                    ...styles.statusBadge, 
-                    // ...(user.isActive ? styles.statusActive : styles.statusInactive)
-                  }}
-                >
+                <span style={styles.statusBadge}>
                   {user.isActive}
                 </span>
               </div>
               <div>
-                <button 
+                <button
                   onClick={() => {
                     setExpandedUserId(expandedUserId === user.id ? null : user.id);
                     setEditingUser(null);
                   }}
-                  style={{...styles.actionButton, backgroundColor: '#17a2b8', color: 'white'}}
+                  style={{ ...styles.actionButton, backgroundColor: '#17a2b8', color: 'white' }}
                 >
                   {expandedUserId === user.id ? 'Collapse' : 'Expand'}
                 </button>
               </div>
             </div>
-            
+  
             {expandedUserId === user.id && (
               <div>
                 {editingUser && editingUser.id === user.id ? (
@@ -1961,14 +1913,14 @@ const AddUsers = () => {
                     <input
                       type="text"
                       value={editingUser.email}
-                      onChange={(e) => setEditingUser({...editingUser, email: e.target.value})}
+                      onChange={(e) => setEditingUser({ ...editingUser, email: e.target.value })}
                       style={styles.input}
                       required
                     />
                     <div style={styles.selectContainer}>
                       <select
                         value={editingUser.branch}
-                        onChange={(e) => setEditingUser({...editingUser, branch: e.target.value})}
+                        onChange={(e) => setEditingUser({ ...editingUser, branch: e.target.value })}
                         style={styles.select}
                         required
                         disabled={fetchingBranches}
@@ -1979,33 +1931,31 @@ const AddUsers = () => {
                           </option>
                         ))}
                       </select>
-                      {fetchingBranches && (
-                        <div style={styles.selectSpinner}></div>
-                      )}
+                      {fetchingBranches && <div style={styles.selectSpinner}></div>}
                     </div>
                     <select
                       value={editingUser.role}
-                      onChange={(e) => setEditingUser({...editingUser, role: e.target.value})}
+                      onChange={(e) => setEditingUser({ ...editingUser, role: e.target.value })}
                       style={styles.select}
                     >
                       <option value="user">User</option>
                       <option value="admin">Admin</option>
                     </select>
-                    <div style={{display: 'flex', justifyContent: 'space-between'}}>
-                      <button 
-                        type="submit" 
-                        style={{...styles.actionButton, ...styles.editButton}}
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <button
+                        type="submit"
+                        style={{ ...styles.actionButton, ...styles.editButton }}
                         disabled={loading}
                       >
                         {loading ? 'Updating...' : 'Save Changes'}
                       </button>
-                      <button 
+                      <button
                         type="button"
                         onClick={() => {
                           setEditingUser(null);
                           setExpandedUserId(null);
                         }}
-                        style={{...styles.actionButton, backgroundColor: '#6c757d', color: 'white'}}
+                        style={{ ...styles.actionButton, backgroundColor: '#6c757d', color: 'white' }}
                       >
                         Cancel
                       </button>
@@ -2017,15 +1967,14 @@ const AddUsers = () => {
                     <p>Role: {user.role}</p>
                     <p>Created At: {new Date(user.created_at).toLocaleString()}</p>
                     <p>Status: {user.isActive ? 'Active' : 'Inactive'}</p>
-                    
-                    <div style={{display: 'flex', justifyContent: 'space-between', marginTop: '10px'}}>
-                      <button 
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px' }}>
+                      <button
                         onClick={() => setDeleteUserId(user.id)}
-                        style={{...styles.actionButton, ...styles.deleteButton}}
+                        style={{ ...styles.actionButton, ...styles.deleteButton }}
                       >
                         Delete
                       </button>
-                      <button 
+                      <button
                         onClick={() => {
                           setEditingUser({
                             id: user.id,
@@ -2035,7 +1984,7 @@ const AddUsers = () => {
                             isActive: user.isActive
                           });
                         }}
-                        style={{...styles.actionButton, ...styles.editButton}}
+                        style={{ ...styles.actionButton, ...styles.editButton }}
                       >
                         Edit
                       </button>
@@ -2047,50 +1996,154 @@ const AddUsers = () => {
           </div>
         ))}
       </div>
-
+  
       {/* Delete User Confirmation Dialog */}
       {deleteUserId && (
         <div style={styles.confirmationDialog}>
           <p>Are you sure you want to delete this user?</p>
-          <div style={{display: 'flex', justifyContent: 'space-between'}}>
-            <button 
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <button
               onClick={() => handleDeleteUser(deleteUserId)}
-              style={{...styles.actionButton, ...styles.deleteButton}}
+              style={{ ...styles.actionButton, ...styles.deleteButton }}
             >
               Yes
             </button>
-            <button 
+            <button
               onClick={() => setDeleteUserId(null)}
-              style={{...styles.actionButton, backgroundColor: '#6c757d', color: 'white'}}
+              style={{ ...styles.actionButton, backgroundColor: '#6c757d', color: 'white' }}
             >
               No
             </button>
           </div>
         </div>
       )}
-
-      {/* Delete Branch Confirmation Dialog */}
-      {deleteBranchId && (
-        <div style={styles.confirmationDialog}>
-          <p>Are you sure you want to delete this branch?</p>
-          <div style={{display: 'flex', justifyContent: 'space-between'}}>
-            <button 
-              onClick={() => handleDeleteBranch(deleteBranchId)}
-              style={{...styles.actionButton, ...styles.deleteButton}}
-            >
-              Yes
+  
+      {/* Branch Management Modal */}
+      {showBranchManagement && (
+        <div style={styles.modalOverlay}>
+          <div style={styles.modalContent}>
+            <button onClick={() => setShowBranchManagement(false)} style={styles.closeButton}>
+              &times;
             </button>
-            <button 
-              onClick={() => setDeleteBranchId(null)}
-              style={{...styles.actionButton, backgroundColor: '#6c757d', color: 'white'}}
-            >
-              No
-            </button>
+            <h3>Branch Management</h3>
+            <form onSubmit={handleCreateBranch}>
+              <input
+                type="text"
+                placeholder="Branch Name"
+                value={newBranchName}
+                onChange={(e) => setNewBranchName(e.target.value)}
+                required
+                style={styles.input}
+              />
+              <input
+                type="text"
+                placeholder="Branch Code"
+                value={newBranchCode}
+                onChange={(e) => setNewBranchCode(e.target.value)}
+                required
+                style={styles.input}
+              />
+              {branchError && <p style={styles.errorMessage}>{branchError}</p>}
+              {branchSuccess && <p style={styles.successMessage}>{branchSuccess}</p>}
+              <button
+                type="submit"
+                disabled={branchLoading}
+                style={{ ...styles.button, backgroundColor: '#28a745' }}
+              >
+                {branchLoading ? 'Adding Branch...' : 'Add Branch'}
+              </button>
+            </form>
+  
+            <div style={{ marginTop: '20px' }}>
+              <h4>Existing Branches</h4>
+              {branches.map((branch) => (
+                <div key={branch.id} style={styles.branchCard}>
+                  {editingBranch && editingBranch.id === branch.id ? (
+                    <form onSubmit={handleUpdateBranch}>
+                      <input
+                        type="text"
+                        value={editingBranch.branch_name}
+                        onChange={(e) => setEditingBranch({ ...editingBranch, branch_name: e.target.value })}
+                        style={styles.input}
+                        required
+                      />
+                      <input
+                        type="text"
+                        value={editingBranch.branch_code}
+                        onChange={(e) => setEditingBranch({ ...editingBranch, branch_code: e.target.value })}
+                        style={styles.input}
+                        required
+                      />
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <button
+                          type="submit"
+                          style={{ ...styles.actionButton, ...styles.editButton }}
+                          disabled={branchLoading}
+                        >
+                          {branchLoading ? 'Updating...' : 'Save'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingBranch(null)}
+                          style={{ ...styles.actionButton, backgroundColor: '#6c757d', color: 'white' }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
+                  ) : (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <strong>{branch.branch_name}</strong>
+                        <span style={{ marginLeft: '10px', color: '#666' }}>
+                          Code: {branch.branch_code}
+                        </span>
+                      </div>
+                      <div>
+                        <button
+                          onClick={() => setEditingBranch(branch)}
+                          style={{ ...styles.actionButton, ...styles.editButton }}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => setDeleteBranchId(branch.id)}
+                          style={{ ...styles.actionButton, ...styles.deleteButton }}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+  
+            {/* Delete Branch Confirmation Dialog inside modal */}
+            {deleteBranchId && (
+              <div style={styles.confirmationDialog}>
+                <p>Are you sure you want to delete this branch?</p>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <button
+                    onClick={() => handleDeleteBranch(deleteBranchId)}
+                    style={{ ...styles.actionButton, ...styles.deleteButton }}
+                  >
+                    Yes
+                  </button>
+                  <button
+                    onClick={() => setDeleteBranchId(null)}
+                    style={{ ...styles.actionButton, backgroundColor: '#6c757d', color: 'white' }}
+                  >
+                    No
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
-
-      {/* Define the spinner animation */}
+  
+      {/* Spinner animation keyframes */}
       <style>
         {`
           @keyframes spin {
@@ -2101,6 +2154,7 @@ const AddUsers = () => {
       </style>
     </div>
   );
+  
 };
 
 export default AddUsers;
