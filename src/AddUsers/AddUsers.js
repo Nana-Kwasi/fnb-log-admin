@@ -1215,8 +1215,8 @@ const AddUsers = () => {
    
   const { token } = useVisitor();
 
-  const API_URL = "http://localhost:5001/users";
-  const BRANCHES_URL = "http://localhost:5001/fnb_branches";
+  const API_URL = "http://localhost:5001/visitorslog/users";
+  const BRANCHES_URL = "http://localhost:5001/visitorslog/fnb_branches";
 
   // Fetch branches from the new API
   const fetchBranches = async () => {

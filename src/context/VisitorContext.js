@@ -339,8 +339,8 @@ export const VisitorProvider = ({ children }) => {
   
   // Updated API URLs
   // const API_URL = "http://localhost:5001/visitors";
-  const BRANCH_DATA_URL = "http://localhost:5001/visitors/index/branch";
-  const AUTH_URL = "http://localhost:5001/auth";
+  const BRANCH_DATA_URL = "http://localhost:5001/visitorslog/visitors/index/branch";
+  const AUTH_URL = "http://localhost:5001/visitorslog/auth";
 
   // Date formatting utilities
   const formatDateForAPI = (date) => {

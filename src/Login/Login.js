@@ -1416,9 +1416,9 @@ const Login = ({ onLogin }) => {
 
   // API URLs
   const API_URL = "http://localhost:5001";
-  const BRANCHES_URL = "http://localhost:5001/visitors/index";
-  const FNB_BRANCHES_URL = "http://localhost:5001/fnb_branches"; // New endpoint for admin branches
-  const AUTH_URL = "http://localhost:5001/auth";
+  const BRANCHES_URL = "http://localhost:5001/visitorslog/visitors/index";
+  const FNB_BRANCHES_URL = "http://localhost:5001/visitorslog/fnb_branches"; 
+  const AUTH_URL = "http://localhost:5001/visitorslog/auth";
 
 
 
@@ -1511,8 +1511,7 @@ const Login = ({ onLogin }) => {
     };
   }, [showVerification, showTimer, remainingTime]);
 
-  // Transition effect for successful verification
- // Transition effect for successful verification
+
  useEffect(() => {
   if (showTransition) {
     // Update progress over 15 seconds (increased from 10)
