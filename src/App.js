@@ -186,11 +186,9 @@ import { AiOutlineDashboard, AiOutlineBarChart, AiOutlineUser } from "react-icon
 import { BsPeople } from "react-icons/bs";
 import { MdReport } from "react-icons/md";
 import { VisitorProvider, useVisitor } from "../src/context/VisitorContext";
-// import DispatchDash from "./DispatchDash/DispatchDash";
-// import DispatchReport from "../src/DispactReport/DispatchReport";
-// import Dispatch from "../src/Dispatch/Dispatch";
 import Graphs from "./Graphs/Graphs";
 import AddUsers from "../src/AddUsers/AddUsers";
+import LogBook from "./LogBook/LogBook";
 
 const AppContent = ({ handleLogin, userEmail }) => {
   const { user, authenticated } = useVisitor();
@@ -227,8 +225,7 @@ const AppContent = ({ handleLogin, userEmail }) => {
   return (
     <>
       <nav className="sidebar">
-        
-
+        
 
 
         <ul className="menu">
@@ -242,6 +239,12 @@ const AppContent = ({ handleLogin, userEmail }) => {
             <NavLink to="/visitor-logs" className={({ isActive }) => (isActive ? "active" : "")}>
               <BsPeople className="icon" />
               Visitor Logs
+            </NavLink>
+          </li>
+          <li>
+            <NavLink to="/logbook" className={({ isActive }) => (isActive ? "active" : "")}>
+              <BsPeople className="icon" />
+              Log Book
             </NavLink>
           </li>
           {/* <li>
@@ -272,13 +275,13 @@ const AppContent = ({ handleLogin, userEmail }) => {
           </li>
         </ul>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1px', padding: '1px', backgroundColor: '#f0f0f0',}}>
-    <img 
-        src="/FNB logo.png" 
-        alt="Profile Logo" 
-//         className="profile-icon" 
-        style={{ width: '140px', height: '140px', marginLeft:'40px'}} 
-    />
-    <p className="profile-name" style={{ fontSize: '1.2em', fontWeight: 'bold', color: '#333' }}>{maskedEmail}</p>
+    <img 
+        src={process.env.PUBLIC_URL + "/FNB logo.png"} 
+        alt="Profile Logo" 
+//        className="profile-icon" 
+        style={{ width: '140px', height: '140px', marginLeft:'40px'}} 
+    />
+    <p className="profile-name" style={{ fontSize: '1.2em', fontWeight: 'bold', color: '#333' }}>{maskedEmail}</p>
 </div>
 
       </nav>
@@ -291,6 +294,7 @@ const AppContent = ({ handleLogin, userEmail }) => {
           <Route path="/visitor-details/:id" element={<VisitorDetail />} />
           <Route path="/reports" element={<Reports />} />
           <Route path="/analytics" element={<Analytics />} />
+          <Route path="/logbook/*" element={<LogBook />} />
           {/* <Route path="/DispatchDash" element={<DispatchDash />} />
           <Route path="/Dispatch" element={<Dispatch />} />
           <Route path="/DispatchReport" element={<DispatchReport />} /> */}

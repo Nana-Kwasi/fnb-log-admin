@@ -327,7 +327,7 @@ const Dashboard = () => {
             className="dropdown-button"
           >
             <img 
-              src="/user.png" 
+              src={process.env.PUBLIC_URL + "/user.png"} 
               alt="User Profile" 
               className="profile-icon" 
             />
@@ -392,21 +392,21 @@ const Dashboard = () => {
           <div className="stats-and-pie-container">
             <div className="stats">
               <div className="stat-card visitors-today" onClick={fetchTodayVisitors}>
-                <img src="/user (1).png" alt="Visitors Today" className="stat-icon" />
+                <img src={process.env.PUBLIC_URL + "/user (1).png"} alt="Visitors Today" className="stat-icon" />
                 <h3>Visitors Today</h3>
                 <p>{visitorsToday}</p>
                 {selectedBranchName && <span className="branch-indicator">{selectedBranchName}</span>}
               </div>
                
               <div className="stat-card total-visitors">
-                <img src="/group.png" alt="Total Visitors" className="stat-icon" />
+                <img src={process.env.PUBLIC_URL + "/group.png"} alt="Total Visitors" className="stat-icon" />
                 <h3>Total Visitors</h3>
                 <p>{totalVisitors}</p>
                 {selectedBranch && <span className="branch-indicator">{selectedBranchName}</span>}
               </div>
               
               <div className="stat-card special">
-                <img src="/diversity.png" alt="Peak Month" className="stat-icon" />
+                <img src={process.env.PUBLIC_URL + "/diversity.png"} alt="Peak Month" className="stat-icon" />
                 <h3>Peak Month</h3>
                 {analyticsData && analyticsData.length > 0 ? (
                   <>

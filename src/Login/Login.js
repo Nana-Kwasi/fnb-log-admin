@@ -1415,7 +1415,7 @@ const Login = ({ onLogin }) => {
   const { login, loading, error, setError, authenticated } = useVisitor();
 
   // API URLs
-  const API_URL = "http://localhost:5001";
+  const API_URL = "http://localhost:5001/visitorslog";
   const BRANCHES_URL = "http://localhost:5001/visitorslog/visitors/index";
   const FNB_BRANCHES_URL = "http://localhost:5001/visitorslog/fnb_branches"; 
   const AUTH_URL = "http://localhost:5001/visitorslog/auth";
@@ -1957,8 +1957,7 @@ const Login = ({ onLogin }) => {
     }
   };
 
-  // Handle regular user authentication (with 2FA)
-  const handleRegularUserAuth = async (fnumber, password) => {
+   const handleRegularUserAuth = async (fnumber, password) => {
     try {
       console.log("Using regular user authentication flow with 2FA");
       
@@ -1977,7 +1976,7 @@ const Login = ({ onLogin }) => {
       
       if (!response.ok || !data.success) {
         // Check for specific error messages from the server
-        if (data.status_code === "001" && data.status_message?.includes("User not found in LDAP")) {
+        if (data.status_code === "001" && data.status_message.includes("User not found in LDAP")) {
           throw new Error("User not found in LDAP. Please check your credentials.");
         }
         throw new Error(data.error || 'Authentication failed');
@@ -1989,10 +1988,12 @@ const Login = ({ onLogin }) => {
       setSavedIdentifier(fnumber);
       
       // Reset state for the verification screen
-      setVerifyButtonVisible(false); // Will be shown after 10 seconds timer
+      setVerifyButtonVisible(false);
       setShowManualCodeEntry(false);
       setVerificationCode("");
       setPollingStatus("pending");
+      setShowTimer(true);
+      setRemainingTime(60);
       
       // Now show verification screen and start polling
       setShowVerification(true);
@@ -2206,8 +2207,8 @@ const Login = ({ onLogin }) => {
     return (
       <div className="login-container">
         <div className="login-card">
-          <img src="/FNB logo.png" alt="FNB Logo" className="login-logo" />
-          <h2>Welcome to FNB Admin</h2>
+          <img src={process.env.PUBLIC_URL + "/FNB logo.png"} alt="FNB Logo" className="login-logo" />
+          <h2>Welcome to Visitors Logs System</h2>
           <form onSubmit={handleInitialSubmit}>
             <input
               type="text"
@@ -2253,7 +2254,7 @@ const Login = ({ onLogin }) => {
         )}
         
         <div className="login-card verification-card">
-          <img src="/FNB logo.png" alt="FNB Logo" className="login-logo" />
+          <img src={process.env.PUBLIC_URL + "/FNB logo.png"} alt="FNB Logo" className="login-logo" />
           <h2>Two-Factor Authentication</h2>
           
           <div className="verification-status">
@@ -2348,7 +2349,7 @@ const Login = ({ onLogin }) => {
 return (
 <div className="login-container">
 <div className="login-card">
-  <img src="/FNB logo.png" alt="FNB Logo" className="login-logo" />
+  <img src={process.env.PUBLIC_URL + "/FNB logo.png"} alt="FNB Logo" className="login-logo" />
   <h2>Select Branch</h2>
   <form onSubmit={handleBranchSubmit}>
     <div className="select-container">
