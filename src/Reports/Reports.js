@@ -116,70 +116,161 @@ const Reports = () => {
     }
   };
 
-  const generatePDF = () => {
-    const doc = new jsPDF('landscape');
+  // const generatePDF = () => {
+  //   const doc = new jsPDF('landscape');
     
-    const primaryColor =  [255, 153, 0];
-    const accentColor = [0, 51, 153];
+  //   const primaryColor =  [255, 153, 0];
+  //   const accentColor = [0, 51, 153];
   
+  //   const logoWidth = 50;
+  //   const logoHeight = 50;
+  //   doc.addImage("/FNB logo.png", "PNG", 250, 15, logoWidth, logoHeight);
+  
+  //   doc.setTextColor(...primaryColor);
+  //   doc.setFont("Helvetica", "bold");
+  //   doc.setFontSize(14);
+  //   doc.text("FNB (First National Bank)", 14, 25);
+  
+  //   doc.setTextColor(...accentColor);
+  //   doc.setFontSize(12);
+  //   doc.text("FNB Visitors Logs Report", 14, 35);
+  
+  //   doc.setTextColor(0, 0, 0);
+  //   doc.setFontSize(10);
+  //   const dateRange = selectedYear 
+  //     ? `Year: ${selectedYear}` 
+  //     : `Date Range: ${startDate} - ${endDate}`;
+  //   doc.text(dateRange, 14, 45);
+  //   doc.text(`Generated On: ${new Date().toLocaleDateString()}`, 14, 52);
+  
+  //   const tableData = filteredLogs.map((log, index) => [
+  //     index + 1,
+  //     log.name || "N/A",
+  //     log.company || "N/A",
+  //     log.department || "N/A",
+  //     log.telephone || "N/A",
+  //     log.timein || log.timeIn || "---",
+  //   log.timeout || log.timeOut || "---",
+  //     log.purpose || "N/A",
+  //     log.reason || "N/A",
+  //     log.date || "N/A",
+  //   ]);
+  
+  //   doc.autoTable({
+  //     head: [["#", "Name", "Company", "Department", "Telephone", "Time In", "Time Out", "Purpose", "Reason", "Date"]],
+  //     body: tableData,
+  //     startY: 65,
+  //     theme: "striped",
+  //     headStyles: { 
+  //       fillColor: primaryColor,
+  //       textColor: 255 
+  //     },
+  //     alternateRowStyles: { 
+  //       fillColor: [240, 240, 240] 
+  //     },
+  //     styles: { 
+  //       font: 'Helvetica',
+  //       fontSize: 9 
+  //     }
+  //   });
+  
+  //   const filename = selectedYear 
+  //     ? `FNB_Visitor_Logs_${selectedYear}.pdf` 
+  //     : "FNB_Visitor_Logs_Report.pdf";
+  //   doc.save(filename);
+  // };
+  const generatePDF = () => {
+    const doc = new jsPDF("landscape");
+  
+    const primaryColor = [255, 153, 0];
+    const accentColor = [0, 51, 153];
     const logoWidth = 50;
     const logoHeight = 50;
-    doc.addImage("/FNB logo.png", "PNG", 250, 15, logoWidth, logoHeight);
   
-    doc.setTextColor(...primaryColor);
-    doc.setFont("Helvetica", "bold");
-    doc.setFontSize(14);
-    doc.text("FNB (First National Bank)", 14, 25);
-  
-    doc.setTextColor(...accentColor);
-    doc.setFontSize(12);
-    doc.text("FNB Visitors Logs Report", 14, 35);
-  
-    doc.setTextColor(0, 0, 0);
-    doc.setFontSize(10);
-    const dateRange = selectedYear 
-      ? `Year: ${selectedYear}` 
+    const dateRange = selectedYear
+      ? `Year: ${selectedYear}`
       : `Date Range: ${startDate} - ${endDate}`;
-    doc.text(dateRange, 14, 45);
-    doc.text(`Generated On: ${new Date().toLocaleDateString()}`, 14, 52);
-  
-    const tableData = filteredLogs.map((log, index) => [
-      index + 1,
-      log.name || "N/A",
-      log.company || "N/A",
-      log.department || "N/A",
-      log.telephone || "N/A",
-      log.timein || log.timeIn || "---",
-    log.timeout || log.timeOut || "---",
-      log.purpose || "N/A",
-      log.reason || "N/A",
-      log.date || "N/A",
-    ]);
-  
-    doc.autoTable({
-      head: [["#", "Name", "Company", "Department", "Telephone", "Time In", "Time Out", "Purpose", "Reason", "Date"]],
-      body: tableData,
-      startY: 65,
-      theme: "striped",
-      headStyles: { 
-        fillColor: primaryColor,
-        textColor: 255 
-      },
-      alternateRowStyles: { 
-        fillColor: [240, 240, 240] 
-      },
-      styles: { 
-        font: 'Helvetica',
-        fontSize: 9 
-      }
-    });
-  
-    const filename = selectedYear 
-      ? `FNB_Visitor_Logs_${selectedYear}.pdf` 
+    const filename = selectedYear
+      ? `FNB_Visitor_Logs_${selectedYear}.pdf`
       : "FNB_Visitor_Logs_Report.pdf";
-    doc.save(filename);
+  
+    const drawHeader = () => {
+      doc.setTextColor(...primaryColor);
+      doc.setFont("Helvetica", "bold");
+      doc.setFontSize(14);
+      doc.text("FNB (First National Bank)", 14, 25);
+  
+      doc.setTextColor(...accentColor);
+      doc.setFontSize(12);
+      doc.text("FNB Visitors Logs Report", 14, 35);
+  
+      doc.setTextColor(0, 0, 0);
+      doc.setFontSize(10);
+      doc.text(dateRange, 14, 45);
+      doc.text(`Generated On: ${new Date().toLocaleDateString()}`, 14, 52);
+    };
+  
+    const drawTable = () => {
+      const tableData = filteredLogs.map((log, index) => [
+        index + 1,
+        log.name || "N/A",
+        log.company || "N/A",
+        log.department || "N/A",
+        log.telephone || "N/A",
+        log.timein || log.timeIn || "---",
+        log.timeout || log.timeOut || "---",
+        log.purpose || "N/A",
+        log.reason || "N/A",
+        log.date || "N/A",
+      ]);
+  
+      doc.autoTable({
+        head: [
+          [
+            "#",
+            "Name",
+            "Company",
+            "Department",
+            "Telephone",
+            "Time In",
+            "Time Out",
+            "Purpose",
+            "Reason",
+            "Date",
+          ],
+        ],
+        body: tableData,
+        startY: 65,
+        theme: "striped",
+        headStyles: { fillColor: primaryColor, textColor: 255 },
+        alternateRowStyles: { fillColor: [240, 240, 240] },
+        styles: { font: "Helvetica", fontSize: 9 },
+      });
+    };
+  
+    // ✅ Load image exactly like React does
+    const logoImg = new Image();
+    logoImg.src = process.env.PUBLIC_URL + "/FNB logo.png"; // same as in your component
+  
+    logoImg.onload = () => {
+      try {
+        doc.addImage(logoImg, "PNG", 250, 15, logoWidth, logoHeight);
+      } catch (err) {
+        console.warn("Logo failed to add:", err);
+      }
+      drawHeader();
+      drawTable();
+      doc.save(filename);
+    };
+  
+    logoImg.onerror = () => {
+      console.warn("Logo not found, generating without it.");
+      drawHeader();
+      drawTable();
+      doc.save(filename);
+    };
   };
-
+  
   return (
     <div className="reports">
       <h1>Generate Reports</h1>
@@ -289,6 +380,8 @@ const Reports = () => {
 };
 
 export default Reports;
+
+
 
 // import React, { useState } from "react";
 // import { collection, getDocs } from "firebase/firestore";

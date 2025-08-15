@@ -1420,13 +1420,6 @@ const Login = ({ onLogin }) => {
   const FNB_BRANCHES_URL = "http://localhost:5001/visitorslog/fnb_branches"; 
   const AUTH_URL = "http://localhost:5001/visitorslog/auth";
 
-
-
-
-
-
-
-  
   // Cleanup polling and timers on unmount
   useEffect(() => {
     return () => {
@@ -2106,101 +2099,7 @@ const Login = ({ onLogin }) => {
   const displayError = error || localError;
 
   // New CSS styles added inline - will be moved to login.css
-  const styles = {
-    timerContainer: {
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginTop: '20px',
-      marginBottom: '20px'
-    },
-    timerCircle: {
-      position: 'relative',
-      width: '80px',
-      height: '80px',
-      borderRadius: '50%',
-      backgroundColor: '#f0f0f0',
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      boxShadow: '0 4px 10px rgba(0,0,0,0.1)'
-    },
-    timerProgress: {
-      position: 'absolute',
-      top: '0',
-      left: '0',
-      width: '80px',
-      height: '80px',
-      borderRadius: '50%',
-      clipPath: `polygon(40px 40px, 40px 0, ${40 + 40 * Math.sin(remainingTime / 60 * 2 * Math.PI)}px ${40 - 40 * Math.cos(remainingTime / 60 * 2 * Math.PI)}px)`,
-      backgroundColor: '#007bff',
-      transition: 'clip-path 1s linear'
-    },
-    timerText: {
-      position: 'relative',
-      fontSize: '18px',
-      fontWeight: 'bold',
-      color: '#333',
-      zIndex: '1'
-    },
-    transitionOverlay: {
-      position: 'fixed',
-      top: '0',
-      left: '0',
-      width: '100%',
-      height: '100%',
-      backdropFilter: 'blur(10px)',
-      backgroundColor: 'rgba(0,0,0,0.5)',
-      display: 'flex',
-      flexDirection: 'column',
-      justifyContent: 'center',
-      alignItems: 'center',
-      zIndex: '100'
-    },
-    transitionCard: {
-      backgroundColor: 'white',
-      borderRadius: '10px',
-      padding: '30px',
-      width: '80%',
-      maxWidth: '400px',
-      textAlign: 'center',
-      boxShadow: '0 10px 25px rgba(0,0,0,0.2)'
-    },
-    progressContainer: {
-      width: '100%',
-      height: '10px',
-      backgroundColor: '#f0f0f0',
-      borderRadius: '5px',
-      marginTop: '20px',
-      overflow: 'hidden'
-    },
-    progressBar: {
-      height: '100%',
-      backgroundColor: '#4caf50',
-      width: `${transitionProgress}%`,
-      transition: 'width 0.3s ease-in-out'
-    },
-    transitionMessage: {
-      fontSize: '18px',
-      fontWeight: 'bold',
-      margin: '20px 0',
-      color: '#333'
-    },
-    transitionSpinner: {
-      width: '50px',
-      height: '50px',
-      borderRadius: '50%',
-      border: '5px solid #f3f3f3',
-      borderTop: '5px solid #3498db',
-      animation: 'spin 1s linear infinite',
-      margin: '0 auto 20px auto'
-    },
-    verifyButtonAppear: {
-      animation: 'fadeIn 1s ease-in-out',
-      opacity: verifyButtonVisible ? 1 : 0,
-      transition: 'opacity 0.5s ease-in-out'
-    }
-  };
+ 
 
   // Render initial login form
   if (!showVerification && !showBranchSelection) {
@@ -2344,7 +2243,101 @@ const Login = ({ onLogin }) => {
 </div>
 );
 }
-
+ const styles = {
+    timerContainer: {
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginTop: '20px',
+      marginBottom: '20px'
+    },
+    timerCircle: {
+      position: 'relative',
+      width: '80px',
+      height: '80px',
+      borderRadius: '50%',
+      backgroundColor: '#f0f0f0',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      boxShadow: '0 4px 10px rgba(0,0,0,0.1)'
+    },
+    timerProgress: {
+      position: 'absolute',
+      top: '0',
+      left: '0',
+      width: '80px',
+      height: '80px',
+      borderRadius: '50%',
+      clipPath: `polygon(40px 40px, 40px 0, ${40 + 40 * Math.sin(remainingTime / 60 * 2 * Math.PI)}px ${40 - 40 * Math.cos(remainingTime / 60 * 2 * Math.PI)}px)`,
+      backgroundColor: '#007bff',
+      transition: 'clip-path 1s linear'
+    },
+    timerText: {
+      position: 'relative',
+      fontSize: '18px',
+      fontWeight: 'bold',
+      color: '#333',
+      zIndex: '1'
+    },
+    transitionOverlay: {
+      position: 'fixed',
+      top: '0',
+      left: '0',
+      width: '100%',
+      height: '100%',
+      backdropFilter: 'blur(10px)',
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: '100'
+    },
+    transitionCard: {
+      backgroundColor: 'white',
+      borderRadius: '10px',
+      padding: '30px',
+      width: '80%',
+      maxWidth: '400px',
+      textAlign: 'center',
+      boxShadow: '0 10px 25px rgba(0,0,0,0.2)'
+    },
+    progressContainer: {
+      width: '100%',
+      height: '10px',
+      backgroundColor: '#f0f0f0',
+      borderRadius: '5px',
+      marginTop: '20px',
+      overflow: 'hidden'
+    },
+    progressBar: {
+      height: '100%',
+      backgroundColor: '#4caf50',
+      width: `${transitionProgress}%`,
+      transition: 'width 0.3s ease-in-out'
+    },
+    transitionMessage: {
+      fontSize: '18px',
+      fontWeight: 'bold',
+      margin: '20px 0',
+      color: '#333'
+    },
+    transitionSpinner: {
+      width: '50px',
+      height: '50px',
+      borderRadius: '50%',
+      border: '5px solid #f3f3f3',
+      borderTop: '5px solid #3498db',
+      animation: 'spin 1s linear infinite',
+      margin: '0 auto 20px auto'
+    },
+    verifyButtonAppear: {
+      animation: 'fadeIn 1s ease-in-out',
+      opacity: verifyButtonVisible ? 1 : 0,
+      transition: 'opacity 0.5s ease-in-out'
+    }
+  };
 // Branch selection form (for both admin and non-admin users)
 return (
 <div className="login-container">

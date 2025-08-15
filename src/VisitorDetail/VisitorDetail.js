@@ -923,14 +923,14 @@ const VisitorDetail = () => {
                 <table className="details-table">
                   <thead>
                     <tr>
-                      <th style={{color:'black'}}>Company</th>
-                      <th style={{color:'black'}}>Branch</th>
-                      <th style={{color:'black'}}>Telephone</th>
-                      <th style={{color:'black'}}>Time In</th>
-                      <th style={{color:'black'}}>Time Out</th>
-                      <th style={{color:'black'}}>Purpose</th>
-                      <th style={{color:'black'}}>Department</th>
-                      <th style={{color:'black'}}>Reason</th>
+                      <th style={{color:'white'}}>Company</th>
+                      <th style={{color:'white'}}>Branch</th>
+                      <th style={{color:'white'}}>Telephone</th>
+                      <th style={{color:'white'}}>Time In</th>
+                      <th style={{color:'white'}}>Time Out</th>
+                      <th style={{color:'white'}}>Purpose</th>
+                      <th style={{color:'white'}}>Department</th>
+                      <th style={{color:'white'}}>Reason</th>
                     </tr>
                   </thead>
                   <tbody>

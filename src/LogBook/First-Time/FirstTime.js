@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useVisitor } from '../../context/VisitorContext';
 
 function FirstTime() {
   const navigate = useNavigate();
+  const { selectedBranch, selectedBranchName } = useVisitor();
   const [formData, setFormData] = useState({
     name: '',
     reason: '',
@@ -84,6 +86,26 @@ function FirstTime() {
 
     fetchBranches();
   }, []);
+
+  // Pre-select the user's branch from context when branches are loaded
+  useEffect(() => {
+    if (!loadingBranches && branches.length > 0) {
+      // Prefer branch code if available
+      if (selectedBranch) {
+        if (formData.branch !== selectedBranch) {
+          setFormData((prev) => ({ ...prev, branch: selectedBranch }));
+        }
+        return;
+      }
+      // Fallback: map selectedBranchName to its code
+      if (selectedBranchName && !formData.branch) {
+        const match = branches.find(b => b.branch_name === selectedBranchName && !!b.branch_code);
+        if (match) {
+          setFormData((prev) => ({ ...prev, branch: match.branch_code }));
+        }
+      }
+    }
+  }, [loadingBranches, branches, selectedBranch, selectedBranchName]);
 
   // Save to localStorage when departments change
   useEffect(() => {
@@ -278,7 +300,7 @@ function FirstTime() {
   // Render optimized branch field
   const renderBranchField = () => (
     <div style={styles.formGroup}>
-      <label style={styles.label}>Branch: *</label>
+      <label style={styles.label}>Branch: * {selectedBranchName ? `(Assigned: ${selectedBranchName})` : ''}</label>
       
       {loadingBranches ? (
         <div style={styles.loadingContainer}>
@@ -296,14 +318,24 @@ function FirstTime() {
             }}
             required
           >
-            {branches.map((branch, index) => (
-              <option key={index} value={branch.branch_code}>
-                {branch.branch_code ? 
-                  `${branch.branch_name} (${branch.branch_code})` : 
-                  branch.branch_name
-                }
-              </option>
-            ))}
+            {branches.map((branch, index) => {
+              const isDefaultOption = !branch.branch_code;
+              const isUserBranch = (!!branch.branch_code && branch.branch_code === selectedBranch) || (selectedBranchName && branch.branch_name === selectedBranchName);
+              const shouldDisable = selectedBranch || selectedBranchName ? (isDefaultOption || (!isDefaultOption && !isUserBranch)) : false;
+              return (
+                <option
+                  key={index}
+                  value={branch.branch_code}
+                  disabled={shouldDisable}
+                  style={{ color: shouldDisable ? '#9aa0a6' : undefined, opacity: shouldDisable ? 0.6 : 1 }}
+                >
+                  {branch.branch_code ? 
+                    `${branch.branch_name} (${branch.branch_code})` : 
+                    branch.branch_name
+                  }
+                </option>
+              );
+            })}
           </select>
           
           {branchError && (
